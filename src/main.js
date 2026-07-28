@@ -720,6 +720,18 @@ function updateHUD() {
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const cardinal = directions[Math.round(degrees / 45) % 8];
   $("bearing").textContent = `${cardinal}  ${String(Math.round(degrees)).padStart(3, "0")}`;
+
+  const waypointTarget =
+    game.stage === "infiltrate" ? missionObjects.terminal.position : missionObjects.exfil.position;
+  const waypointDelta = waypointTarget.clone().sub(player.position);
+  const waypointDistance = Math.hypot(waypointDelta.x, waypointDelta.z);
+  const targetBearing = Math.atan2(waypointDelta.x, -waypointDelta.z);
+  const relativeBearing = THREE.MathUtils.radToDeg(targetBearing + player.yaw);
+  $("waypoint-arrow").style.transform = `rotate(${relativeBearing}deg)`;
+  $("waypoint-task").textContent =
+    game.stage === "infiltrate" ? "REACH RELAY TERMINAL" : "RETURN TO EXTRACTION";
+  $("waypoint-distance").textContent = `${Math.max(0, Math.round(waypointDistance))} M`;
+  $("waypoint").classList.toggle("close", waypointDistance < 4);
 }
 
 function addFeed(text) {
@@ -731,7 +743,7 @@ function addFeed(text) {
 }
 
 function showHUD(show) {
-  ["top-hud", "bottom-hud", "compass", "crosshair", "combat-feed"].forEach((id) => {
+  ["top-hud", "bottom-hud", "compass", "waypoint", "crosshair", "combat-feed"].forEach((id) => {
     $(id).classList.toggle("hidden", !show);
   });
 }

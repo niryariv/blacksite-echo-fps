@@ -70,6 +70,35 @@ button { font: inherit; }
 }
 #compass b { color: white; margin: 0 24px; font-size: 12px; }
 
+#waypoint {
+  top: 104px; left: 32px; width: 270px; padding: 11px 13px;
+  background: linear-gradient(90deg, #07100fe8, #07100f88);
+  border-left: 2px solid var(--cyan);
+  box-shadow: 0 12px 30px #0005;
+}
+.waypoint-label {
+  display: block; margin-bottom: 7px; color: var(--dim);
+  font-size: 9px; font-weight: 700; letter-spacing: .23em;
+}
+.waypoint-content { display: flex; align-items: center; gap: 12px; }
+#waypoint-arrow {
+  display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px;
+  color: var(--cyan); border: 1px solid #68f7e166; background: #173633aa;
+  font: normal 700 25px/1 system-ui, sans-serif;
+  text-shadow: 0 0 10px var(--cyan);
+  transition: transform .12s linear, color .2s, border-color .2s;
+}
+.waypoint-content > div { min-width: 0; display: flex; flex: 1; flex-direction: column; }
+#waypoint-task {
+  overflow: hidden; color: var(--ink); font-size: 12px; letter-spacing: .08em;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+#waypoint-distance { color: var(--accent); font-size: 11px; letter-spacing: .16em; }
+#waypoint.close { border-left-color: var(--accent); }
+#waypoint.close #waypoint-arrow {
+  color: var(--accent); border-color: #ffb00088; text-shadow: 0 0 10px var(--accent);
+}
+
 #bottom-hud {
   bottom: 0; left: 0; right: 0; padding: 24px 34px 30px;
   display: flex; align-items: flex-end; justify-content: space-between;
@@ -181,4 +210,5 @@ button:hover { transform:translateY(-2px); filter:brightness(1.15); }
   .briefing-card { left:7vw; right:7vw; bottom:5vh; width:auto; }
   .tagline { margin-top:20px; } .controls { gap:6px; }
   .results { gap:20px; } .modal > div { padding:30px 18px; }
+  #waypoint { top: 105px; left: 16px; width: 235px; }
 }
