@@ -47,3 +47,8 @@ npm run build
 
 Historical design notes and sources are in
 [HISTORICAL_NOTES.md](./HISTORICAL_NOTES.md).
+
+The scanned kurkar masonry, cobblestone, and plaster PBR surfaces are compact
+1K derivatives of CC0 assets from
+[Poly Haven](https://polyhaven.com/): Medieval Blocks 05, Cobblestone Floor 001,
+and Plastered Wall.

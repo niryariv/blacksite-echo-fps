@@ -204,8 +204,8 @@ button { font: inherit; }
 .screen {
   position: fixed; inset: 0; z-index: 30; display: none;
   overflow: hidden; background:
-    radial-gradient(circle at 76% 43%, #b8792433 0 6%, transparent 25%, #07131722 42%, #020506ee 76%),
-    linear-gradient(115deg, #061013 35%, #17323a 100%);
+    radial-gradient(circle at 72% 42%, transparent 0 24%, #07131722 48%, #020506bd 88%),
+    linear-gradient(90deg, #020708f4 0 28%, #020708c9 46%, #0613184f 72%, #102b3326 100%);
 }
 .screen::after {
   content:""; position:absolute; inset:0; pointer-events:none;
@@ -213,7 +213,7 @@ button { font: inherit; }
     linear-gradient(0deg, transparent 49.8%, #7ff2dc0b 50%, transparent 50.2%);
   background-size: 80px 80px;
 }
-.screen-grid { position:absolute; right:-5%; top:10%; width:62%; height:100%; transform:perspective(700px) rotateY(-20deg) rotateX(4deg); border:1px solid #8c724844; background: repeating-linear-gradient(90deg, transparent 0 58px, #b6905018 59px 60px), repeating-linear-gradient(0deg, transparent 0 58px, #b6905018 59px 60px); mask-image:linear-gradient(90deg,transparent,#000); }
+.screen-grid { position:absolute; right:-5%; top:10%; width:62%; height:100%; opacity:.6; transform:perspective(700px) rotateY(-20deg) rotateX(4deg); border:1px solid #8c724844; background: repeating-linear-gradient(90deg, transparent 0 58px, #b6905018 59px 60px), repeating-linear-gradient(0deg, transparent 0 58px, #b6905018 59px 60px); mask-image:linear-gradient(90deg,transparent,#000); }
 .brand { position:absolute; left:8vw; top:15vh; z-index:2; }
 .kicker { color: var(--cyan); font-size: 11px; letter-spacing: .28em; font-weight: 700; }
 .brand h1 { margin: 16px 0 3px; font: 800 clamp(65px,9vw,138px)/.7 "Arial Narrow", sans-serif; letter-spacing: -.04em; }

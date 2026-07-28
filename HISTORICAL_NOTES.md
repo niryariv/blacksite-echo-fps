@@ -41,6 +41,8 @@ compressing their real distances to keep a stealth run readable.
 - Old Akko Development Company, [The Walls Route](https://www.akko.org.il/en/route/the-walls-route/)
 - Old Akko Development Company, [The Knights Halls](https://www.akko.org.il/en/attraction/the-knights-halls/)
 - Old Akko Development Company, [The Templars Tunnel](https://www.akko.org.il/en/attraction/the-templars-tunnel/)
+- Old Akko Development Company, [The Akko Citadel Conservation Project](https://www.akko.org.il/en/the-akko-citadel-conservation-project/)
+- Old Akko Development Company, [Akko Authentic Markets](https://www.akko.org.il/en/attraction/akko-authentic-markets/)
 
 ## Scholarly cross-check
 

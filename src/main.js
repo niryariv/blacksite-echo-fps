@@ -3,7 +3,12 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { Sky } from "three/addons/objects/Sky.js";
 import { buildArena } from "./arena.js";
 import { CombatAudio } from "./audio.js";
 
@@ -22,40 +27,131 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = 1.02;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x173342);
-scene.fog = new THREE.FogExp2(0x17323b, 0.0062);
+scene.background = new THREE.Color(0x526f79);
+scene.fog = new THREE.Fog(0x667c7f, 105, 320);
 
-const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.04, 340);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.04, 900);
 camera.rotation.order = "YXZ";
 scene.add(camera);
-const viewLight = new THREE.PointLight(0xb7d7da, 1.25, 4, 2);
+const viewLight = new THREE.PointLight(0xffd2a0, 0.5, 3.5, 2);
 viewLight.position.set(0.25, 0.3, -0.4);
 camera.add(viewLight);
 
+const sky = new Sky();
+sky.scale.setScalar(450000);
+sky.name = "Mediterranean dusk sky";
+scene.add(sky);
+const skyUniforms = sky.material.uniforms;
+skyUniforms.turbidity.value = 7.5;
+skyUniforms.rayleigh.value = 1.65;
+skyUniforms.mieCoefficient.value = 0.006;
+skyUniforms.mieDirectionalG.value = 0.84;
+const sunDirection = new THREE.Vector3();
+sunDirection.setFromSphericalCoords(
+  1,
+  THREE.MathUtils.degToRad(84),
+  THREE.MathUtils.degToRad(140),
+);
+skyUniforms.sunPosition.value.copy(sunDirection);
+
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+pmremGenerator.dispose();
+
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
+const gtaoPass = new GTAOPass(scene, camera, innerWidth, innerHeight);
+const resizeGtao = gtaoPass.setSize.bind(gtaoPass);
+gtaoPass.setSize = (width, height) =>
+  resizeGtao(Math.max(1, Math.floor(width * 0.5)), Math.max(1, Math.floor(height * 0.5)));
+gtaoPass.setSize(innerWidth, innerHeight);
+gtaoPass.output = GTAOPass.OUTPUT.Default;
+gtaoPass.blendIntensity = 0.3;
+gtaoPass.updateGtaoMaterial({
+  radius: 0.085,
+  distanceExponent: 1.8,
+  thickness: 0.82,
+  distanceFallOff: 0.82,
+  scale: 0.68,
+  samples: 4,
+});
+gtaoPass.updatePdMaterial({
+  lumaPhi: 10,
+  depthPhi: 2,
+  normalPhi: 3,
+  radius: 4,
+  radiusExponent: 2,
+  rings: 1,
+  samples: 4,
+});
+composer.addPass(gtaoPass);
 composer.addPass(
-  new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.28, 0.48, 0.9),
+  new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.2, 0.5, 0.92),
+);
+const gradePass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    time: { value: 0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float time;
+    varying vec2 vUv;
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7)) + time * 17.0) * 43758.5453);
+    }
+    void main() {
+      vec3 color = texture2D(tDiffuse, vUv).rgb;
+      float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+      color = mix(vec3(luma), color, 1.08);
+      color = (color - 0.5) * 1.025 + 0.5;
+      color += vec3(0.018, 0.006, -0.012) * smoothstep(0.55, 1.0, luma);
+      color += vec3(-0.006, 0.008, 0.012) * smoothstep(0.5, 0.0, luma);
+      float vignette = smoothstep(0.84, 0.28, length(vUv - 0.5));
+      color *= mix(0.84, 1.0, vignette);
+      color += (hash(vUv * vec2(1733.0, 947.0)) - 0.5) * 0.007;
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+});
+composer.addPass(gradePass);
+composer.addPass(
+  new SMAAPass(
+    innerWidth * renderer.getPixelRatio(),
+    innerHeight * renderer.getPixelRatio(),
+  ),
 );
 composer.addPass(new OutputPass());
 
-const ambient = new THREE.HemisphereLight(0x90b5c2, 0x493721, 1.55);
+const ambient = new THREE.HemisphereLight(0xb8d8df, 0x66503c, 1.28);
 scene.add(ambient);
-const moon = new THREE.DirectionalLight(0xffd7a1, 2.25);
-moon.position.set(-70, 90, 45);
-moon.castShadow = true;
-moon.shadow.mapSize.set(2048, 2048);
-moon.shadow.camera.left = -115;
-moon.shadow.camera.right = 115;
-moon.shadow.camera.top = 115;
-moon.shadow.camera.bottom = -115;
-moon.shadow.camera.near = 1;
-moon.shadow.camera.far = 220;
-moon.shadow.bias = -0.0005;
-scene.add(moon);
+const sunLight = new THREE.DirectionalLight(0xffc27e, 2.5);
+const sunTarget = new THREE.Object3D();
+scene.add(sunTarget);
+sunLight.target = sunTarget;
+sunLight.position.set(-70, 62, 38);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -58;
+sunLight.shadow.camera.right = 58;
+sunLight.shadow.camera.top = 58;
+sunLight.shadow.camera.bottom = -58;
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far = 190;
+sunLight.shadow.bias = -0.00035;
+sunLight.shadow.normalBias = 0.025;
+scene.add(sunLight);
 
 const arena = buildArena(THREE, scene);
 arena.pickups.forEach((pickup) => {
@@ -87,7 +183,7 @@ const game = {
 const player = {
   position: arena.mission.playerStart.clone(),
   velocity: new THREE.Vector3(),
-  yaw: 0,
+  yaw: Math.PI / 2,
   pitch: -0.03,
   height: 1.72,
   radius: 0.46,
@@ -96,8 +192,36 @@ const player = {
   bob: 0,
   roll: 0,
 };
+if (import.meta.env.DEV) {
+  const requestedView = new URLSearchParams(location.search).get("view");
+  if (requestedView) {
+    const [x, z, yaw] = requestedView.split(",").map(Number);
+    if ([x, z, yaw].every(Number.isFinite)) {
+      player.position.set(x, player.height, z);
+      player.yaw = yaw;
+    }
+  }
+}
 camera.position.copy(player.position);
 camera.rotation.set(player.pitch, player.yaw, 0);
+
+if (import.meta.env.DEV) {
+  globalThis.__acreDebug = {
+    teleport(x, z, yaw = player.yaw) {
+      player.position.set(x, player.height, z);
+      player.velocity.set(0, 0, 0);
+      player.yaw = yaw;
+    },
+    stats() {
+      return {
+        calls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        textures: renderer.info.memory.textures,
+        geometries: renderer.info.memory.geometries,
+      };
+    },
+  };
+}
 
 function createKnife() {
   const root = new THREE.Group();
@@ -162,12 +286,29 @@ function createKnife() {
     new THREE.LineBasicMaterial({ color: 0xe7d7ae, transparent: true, opacity: 0.55 }),
   );
 
-  root.add(grip, guard, blade, edge);
+  const handMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8f6247,
+    roughness: 0.9,
+  });
+  const sleeveMaterial = new THREE.MeshStandardMaterial({
+    color: 0x292c25,
+    roughness: 0.96,
+  });
+  const hand = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.22, 5, 10), handMaterial);
+  hand.rotation.x = Math.PI / 2;
+  hand.position.set(0.015, -0.015, 0.18);
+  const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.38, 5, 10), sleeveMaterial);
+  forearm.rotation.x = Math.PI / 2;
+  forearm.position.set(0.055, -0.04, 0.5);
+  forearm.rotation.z = -0.1;
+
+  root.add(grip, guard, blade, edge, hand, forearm);
   root.traverse((object) => {
     if (object.isMesh) object.castShadow = true;
   });
-  root.position.set(0.38, -0.35, -0.55);
+  root.position.set(0.42, -0.42, -0.66);
   root.rotation.set(0.16, -0.15, -0.22);
+  root.scale.setScalar(0.58);
   camera.add(root);
   return { root, swing: 0, cooldown: 0 };
 }
@@ -180,14 +321,18 @@ function createGuard(index, position) {
   root.position.y = 0;
 
   const chainmail = new THREE.MeshStandardMaterial({
-    color: 0x717875,
-    metalness: 0.72,
-    roughness: 0.58,
+    color: 0x535957,
+    metalness: 0.48,
+    roughness: 0.68,
   });
   const cloth = new THREE.MeshStandardMaterial({
-    color: index % 3 === 0 ? 0x7c2420 : index % 3 === 1 ? 0xd1c19b : 0x273f58,
+    color: index % 3 === 0 ? 0x71352b : index % 3 === 1 ? 0x2c302b : 0x3c4b51,
     metalness: 0.05,
     roughness: 0.95,
+  });
+  const leggings = new THREE.MeshStandardMaterial({
+    color: index % 2 ? 0x382f2b : 0x303636,
+    roughness: 0.98,
   });
   const leather = new THREE.MeshStandardMaterial({
     color: 0x3b2517,
@@ -197,32 +342,50 @@ function createGuard(index, position) {
     color: 0x9b6f50,
     roughness: 0.92,
   });
+  const heraldry = new THREE.MeshStandardMaterial({
+    color: 0xd9d0b9,
+    roughness: 0.96,
+  });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.8, 0.38), chainmail);
-  body.position.y = 1.22;
-  const surcoat = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.92, 0.4), cloth);
-  surcoat.position.set(0, 1.1, 0.015);
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.1, 0.43), leather);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.29, 0.42, 6, 12), chainmail);
+  body.position.y = 1.26;
+  const mailSkirt = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.39, 0.58, 12), chainmail);
+  mailSkirt.position.y = 0.91;
+  const surcoat = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.02, 12), cloth);
+  surcoat.position.set(0, 1.12, 0.015);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.71, 0.085, 0.48), leather);
   belt.position.set(0, 1.03, 0);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), skin);
-  head.position.y = 1.82;
-  const helmet = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.24, 0.27, 0.31, 12),
-    chainmail,
-  );
-  helmet.position.y = 1.96;
-  const noseGuard = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.28, 0.05), chainmail);
-  noseGuard.position.set(0, 1.84, 0.23);
+  const heraldryVertical = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.48, 0.035), heraldry);
+  heraldryVertical.position.set(0, 1.28, 0.335);
+  const heraldryHorizontal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.085, 0.04), heraldry);
+  heraldryHorizontal.position.set(0, 1.36, 0.337);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 12), skin);
+  head.scale.set(0.9, 1.08, 0.9);
+  head.position.set(0, 1.82, 0.105);
+  const coif = new THREE.Mesh(new THREE.SphereGeometry(0.235, 18, 12), chainmail);
+  coif.scale.set(1, 1.16, 0.94);
+  coif.position.set(0, 1.84, -0.025);
+  const helmet = new THREE.Mesh(new THREE.ConeGeometry(0.255, 0.32, 18), chainmail);
+  helmet.position.y = 2.045;
+  const helmetBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.05, 18), chainmail);
+  helmetBrim.position.y = 1.93;
+  const noseGuard = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.25, 0.045), chainmail);
+  noseGuard.position.set(0, 1.81, 0.245);
 
   const legs = [-0.19, 0.19].map((x) => {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.52, 4, 8), chainmail);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.5, 5, 10), leggings);
     leg.position.set(x, 0.53, 0);
     return leg;
   });
+  const boots = [-0.19, 0.19].map((x) => {
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), leather);
+    boot.position.set(x, 0.13, 0.08);
+    return boot;
+  });
   const arms = [-1, 1].map((side) => {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.48, 4, 8), cloth);
-    arm.position.set(side * 0.43, 1.2, 0.03);
-    arm.rotation.z = side * -0.13;
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.46, 5, 10), cloth);
+    arm.position.set(side * 0.39, 1.23, 0.03);
+    arm.rotation.z = side * -0.1;
     return arm;
   });
   const spear = new THREE.Group();
@@ -232,12 +395,28 @@ function createGuard(index, position) {
   spear.add(shaft, point);
   spear.position.set(0.48, 1.15, 0.2);
   spear.rotation.z = -0.16;
+  const shieldShape = new THREE.Shape();
+  shieldShape.moveTo(-0.36, 0.48);
+  shieldShape.lineTo(0.36, 0.48);
+  shieldShape.lineTo(0.39, -0.06);
+  shieldShape.lineTo(0, -0.68);
+  shieldShape.lineTo(-0.39, -0.06);
+  shieldShape.closePath();
   const shield = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.48, 0.08, 3),
+    new THREE.ExtrudeGeometry(shieldShape, {
+      depth: 0.055,
+      bevelEnabled: true,
+      bevelSize: 0.025,
+      bevelThickness: 0.018,
+      bevelSegments: 2,
+    }),
     cloth,
   );
-  shield.rotation.set(Math.PI / 2, 0, Math.PI);
-  shield.position.set(-0.43, 1.15, 0.22);
+  shield.position.set(-0.42, 1.22, 0.27);
+  const shieldCrossVertical = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.64, 0.025), heraldry);
+  shieldCrossVertical.position.set(-0.42, 1.31, 0.355);
+  const shieldCrossHorizontal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.025), heraldry);
+  shieldCrossHorizontal.position.set(-0.42, 1.39, 0.357);
 
   const range = 15;
   const width = Math.tan(THREE.MathUtils.degToRad(33)) * range;
@@ -258,7 +437,27 @@ function createGuard(index, position) {
   });
   const visionCone = new THREE.Mesh(coneGeometry, coneMaterial);
 
-  root.add(visionCone, body, surcoat, belt, head, helmet, noseGuard, ...legs, ...arms, spear, shield);
+  root.add(
+    visionCone,
+    body,
+    mailSkirt,
+    surcoat,
+    belt,
+    heraldryVertical,
+    heraldryHorizontal,
+    coif,
+    head,
+    helmet,
+    helmetBrim,
+    noseGuard,
+    ...legs,
+    ...boots,
+    ...arms,
+    spear,
+    shield,
+    shieldCrossVertical,
+    shieldCrossHorizontal,
+  );
   root.traverse((object) => {
     if (object.isMesh && object !== visionCone) {
       object.castShadow = true;
@@ -272,6 +471,8 @@ function createGuard(index, position) {
     root,
     body,
     head,
+    legs,
+    arms,
     visionCone,
     coneMaterial,
     home: root.position.clone(),
@@ -447,7 +648,7 @@ function updatePlayer(dt) {
   camera.position.x += bobX;
   camera.position.y -= bobY;
   camera.rotation.set(player.pitch, player.yaw, player.roll);
-  camera.fov = THREE.MathUtils.damp(camera.fov, sprinting ? 78 : 74, 9, dt);
+  camera.fov = THREE.MathUtils.damp(camera.fov, sprinting ? 76 : 72, 9, dt);
   camera.updateProjectionMatrix();
 
   knife.cooldown = Math.max(0, knife.cooldown - dt);
@@ -559,6 +760,10 @@ function updateGuards(dt) {
 
     const gait = Math.sin(guard.phase * 7.5) * Math.min(desired.length(), 1);
     guard.body.rotation.z = gait * 0.018;
+    guard.legs[0].rotation.x = gait * 0.32;
+    guard.legs[1].rotation.x = -gait * 0.32;
+    guard.arms[0].rotation.x = -gait * 0.18;
+    guard.arms[1].rotation.x = gait * 0.18;
     guard.head.rotation.y = Math.sin(guard.phase * 1.1) * 0.06;
     guard.coneMaterial.opacity = 0.035 + (guard.awareness / 100) * 0.13;
     guard.coneMaterial.color.setHex(guard.awareness > 55 ? 0xff281b : 0xff8a25);
@@ -1041,15 +1246,20 @@ canvas.addEventListener("click", () => {
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 });
 
+let performanceFrames = 0;
+let performanceWindowStarted = performance.now();
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.04);
   game.elapsed += dt;
+  gradePass.uniforms.time.value = game.elapsed;
+  sunTarget.position.set(player.position.x, 0, player.position.z);
+  sunLight.position.set(player.position.x - 70, 62, player.position.z + 38);
   updateArena(dt);
 
   if (game.phase === "running") {
@@ -1069,6 +1279,21 @@ function animate() {
     knife.root.visible = true;
   }
   composer.render();
+  if (import.meta.env.DEV) {
+    performanceFrames += 1;
+    const now = performance.now();
+    if (now - performanceWindowStarted > 1500) {
+      document.documentElement.dataset.renderStats = JSON.stringify({
+        fps: Math.round((performanceFrames * 1000) / (now - performanceWindowStarted)),
+        calls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        textures: renderer.info.memory.textures,
+        geometries: renderer.info.memory.geometries,
+      });
+      performanceFrames = 0;
+      performanceWindowStarted = now;
+    }
+  }
 }
 
 animate();
