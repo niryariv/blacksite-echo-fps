@@ -229,7 +229,15 @@ if (import.meta.env.DEV) {
         geometries: renderer.info.memory.geometries,
       };
     },
+    blockedAt(x, z, floorY = 0) {
+      return boxCollides(new THREE.Vector3(x, floorY + player.height, z));
+    },
   };
+  document.documentElement.dataset.gateCorridorClear = String(
+    Array.from({ length: 51 }, (_, index) => 116 - index * 0.5).every(
+      (x) => !boxCollides(new THREE.Vector3(x, player.height, -22)),
+    ),
+  );
 }
 
 function createKnife() {

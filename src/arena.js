@@ -1809,7 +1809,11 @@ export function buildArena(THREE, scene) {
   animated.push(birds);
 
   // Invisible outer limits and harbour safety volumes.
-  addCollider([3, 8, 180], [110, 4, -2]);
+  // Keep the eastern approach bounded while leaving the insertion road open.
+  // The player starts east of this line and must be able to continue through
+  // St Anthony's Gate at z = -22.
+  addCollider([3, 8, 63], [110, 4, -60.5]);
+  addCollider([3, 8, 103], [110, 4, 36.5]);
   addCollider([220, 8, 3], [0, 4, -94]);
 
   const zones = [
