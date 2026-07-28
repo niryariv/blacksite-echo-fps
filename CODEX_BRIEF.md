@@ -1,24 +1,25 @@
-# Codex execution brief: AAA-inspired Three.js FPS vertical slice
+# Codex execution brief: premium Three.js stealth-infiltration vertical slice
 
-Build and finish a self-contained first-person shooter vertical slice in this
-workspace. The goal is not to claim parity with a commercial Call of Duty
-release; the goal is to produce the highest-quality, original browser FPS
-experience that is realistic for this repository and execution window.
+Build and finish a self-contained first-person stealth-infiltration vertical
+slice in this workspace. The goal is to produce the highest-quality, original
+browser stealth experience realistic for this repository and execution window.
 
 ## Product target
 
-- A polished, immediately playable 3–5 minute combat arena.
+- A polished, immediately playable 3–5 minute infiltration mission.
 - Original industrial/sci-fi art direction built from procedural geometry,
   textures, particles, lighting, and audio. Do not copy proprietary assets,
   maps, names, UI, or branding.
 - Desktop-first controls: WASD movement, mouse look, sprint, jump, fire, aim,
   reload, and pause. The page must explain controls before pointer lock.
-- Responsive gun feel: recoil, muzzle flash, tracers, impact particles,
-  hitmarkers, damage feedback, camera motion, ammo/reload state, and sound.
-- Enemies that patrol, acquire the player, strafe, shoot, take damage, die,
-  respawn, and communicate state visually.
-- A complete loop with health, score, streak, timer, ammo/health pickups,
-  game-over state, and restart.
+- A knife-only player loadout. Takedowns work only at close range and from
+  behind, leave discoverable bodies, and have sharply limited edge integrity.
+- Guards that patrol, see, hear, grow suspicious, investigate disturbances,
+  discover bodies, and communicate awareness through readable sight cones.
+- A complete loop: infiltrate, quietly override the relay, return to extraction,
+  receive a stealth rating, fail on confirmed detection, and restart.
+- Movement tradeoffs: crouching is quiet and less visible, walking is audible,
+  and sprinting is fast but dramatically increases the hearing radius.
 - A cohesive arena with cover, collision, atmosphere, recognizable landmarks,
   high visual contrast, and no inaccessible dead ends.
 - Strong presentation: loading/start overlay, HUD, pause state, crosshair,
@@ -39,8 +40,8 @@ experience that is realistic for this repository and execution window.
 
 1. Run the production build and fix all errors.
 2. Launch the game and inspect it at desktop and narrow viewport sizes.
-3. Exercise start, movement, shooting, aiming, reload, pause/resume, enemy
-   damage/death, pickups, game over, and restart.
+3. Exercise start, movement, crouch, sprint/noise, guard suspicion, a rear
+   takedown, relay override, extraction, alarm failure, pause, and restart.
 4. Critique visuals harshly for hierarchy, readability, clipping, flat
    lighting, inconsistent materials, weak feedback, and UI overlap.
 5. Iterate on every material defect found, then rerun build and smoke checks.

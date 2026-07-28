@@ -37,6 +37,10 @@ button { font: inherit; }
   box-shadow: 0 0 12px #ff2a16;
 }
 #damage-direction.show { opacity: .95; transition-duration: .02s; }
+#damage-direction.suspicion i {
+  background: linear-gradient(var(--accent), transparent);
+  box-shadow: 0 0 12px var(--accent);
+}
 
 .hud { position: fixed; z-index: 10; pointer-events: none; text-shadow: 0 2px 8px #000; }
 .hidden { display: none !important; }
@@ -55,6 +59,9 @@ button { font: inherit; }
 .score-block div { display: flex; flex-direction: column; }
 .score-block span { color: var(--dim); letter-spacing: .16em; font-size: 10px; }
 .score-block b { font-family: "Arial Narrow", sans-serif; font-size: 23px; letter-spacing: .08em; }
+#detection.caution { color: var(--accent); }
+#detection.danger { color: var(--danger); text-shadow: 0 0 15px var(--danger); }
+#profile.compromised { color: var(--danger); }
 
 #compass {
   top: 24px; left: 50%; transform: translateX(-50%); width: 230px; text-align: center;
@@ -77,6 +84,8 @@ button { font: inherit; }
 .meter-copy { display: flex; flex: 1; flex-direction: column; gap: 4px; color: var(--dim); font-size: 10px; letter-spacing: .2em; }
 .meter { height: 4px; background: #38514f88; overflow: hidden; transform: skewX(-18deg); }
 .meter i { display: block; height: 100%; width: 100%; background: var(--cyan); box-shadow: 0 0 12px var(--cyan); transition: width .25s, background .25s; }
+#noise-bar { width: 4%; }
+#noise-state { min-width: 72px; font-size: 20px; letter-spacing: .06em; }
 .ammo-panel { text-align: right; border-right: 3px solid var(--accent); padding-right: 13px; min-width: 180px; }
 .ammo-panel > span { color: var(--dim); letter-spacing: .18em; font-size: 11px; }
 .ammo-panel div { line-height: .85; }
@@ -109,6 +118,15 @@ button { font: inherit; }
   position: fixed; z-index: 12; left: 50%; bottom: 20%; transform: translateX(-50%);
   padding: 7px 14px; background: #07100fde; border: 1px solid #79908b66;
   font-size: 12px; letter-spacing: .13em;
+}
+#interact-prompt strong { color: var(--accent); }
+#interact-prompt .progress {
+  display: block; width: 260px; height: 3px; margin-top: 7px;
+  background: #53645f66; overflow: hidden;
+}
+#interact-prompt .progress i {
+  display: block; height: 100%; width: 0; background: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
 }
 
 .screen {

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#070b0e" />
     <meta
       name="description"
-      content="BLACKSITE // ECHO — an original procedural Three.js FPS vertical slice."
+      content="BLACKSITE // ECHO — a knife-only Three.js stealth-infiltration mission."
     />
     <title>BLACKSITE // ECHO</title>
   </head>
@@ -23,11 +23,11 @@
         <section class="mission-block">
           <span class="eyebrow">LIVE OPERATION</span>
           <strong>BLACKSITE // ECHO</strong>
-          <span id="objective">ELIMINATIONS 00 / 12</span>
+          <span id="objective">INFILTRATE // REACH THE RELAY</span>
         </section>
         <section class="score-block">
-          <div><span>SCORE</span><b id="score">00000</b></div>
-          <div><span>STREAK</span><b id="streak">×0</b></div>
+          <div><span>DETECTION</span><b id="detection">00%</b></div>
+          <div><span>PROFILE</span><b id="profile">GHOST</b></div>
           <div><span>TIME</span><b id="timer">03:00</b></div>
         </section>
       </header>
@@ -48,16 +48,16 @@
 
       <footer id="bottom-hud" class="hud hidden">
         <section class="health-panel">
-          <span class="icon">+</span>
+          <span class="icon">◌</span>
           <div class="meter-copy">
-            <span>VITALS</span>
-            <div class="meter"><i id="health-bar"></i></div>
+            <span>NOISE SIGNATURE</span>
+            <div class="meter"><i id="noise-bar"></i></div>
           </div>
-          <b id="health">100</b>
+          <b id="noise-state">SILENT</b>
         </section>
         <section class="ammo-panel">
-          <span id="weapon-state">VX-9 // AUTO</span>
-          <div><b id="ammo">30</b><i>/</i><strong id="reserve">180</strong></div>
+          <span id="weapon-state">CERAMIC KNIFE // EMERGENCY ONLY</span>
+          <div><b id="knife-integrity">II</b><i>/</i><strong>EDGE</strong></div>
         </section>
       </footer>
 
@@ -68,23 +68,23 @@
         <div class="brand">
           <span class="kicker">ORBITAL RESPONSE GROUP // 07</span>
           <h1>BLACKSITE<br /><em>ECHO</em></h1>
-          <p class="tagline">THE SIGNAL WASN'T A DISTRESS CALL.</p>
+          <p class="tagline">ENTER QUIETLY. LEAVE NO TRACE.</p>
         </div>
         <div class="briefing-card">
           <div class="status-line"><i></i> MISSION PACKAGE READY</div>
           <p>
-            Infiltrate the abandoned relay station. Contain every hostile
-            synthetic before the uplink completes.
+            Infiltrate the relay, override its uplink, and return to extraction.
+            Avoid guard sightlines. The knife is a last resort—not the plan.
           </p>
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>
-            <span><kbd>SHIFT</kbd> SPRINT</span>
-            <span><kbd>SPACE</kbd> VAULT</span>
-            <span><kbd>MOUSE</kbd> AIM / FIRE</span>
-            <span><kbd>R</kbd> RELOAD</span>
+            <span><kbd>CTRL</kbd> CROUCH</span>
+            <span><kbd>SHIFT</kbd> SPRINT / NOISY</span>
+            <span><kbd>E</kbd> HOLD TO INTERACT</span>
+            <span><kbd>MOUSE 1</kbd> KNIFE</span>
             <span><kbd>ESC</kbd> PAUSE</span>
           </div>
-          <button id="deploy-button">DEPLOY <i>→</i></button>
+          <button id="deploy-button">INFILTRATE <i>→</i></button>
           <small>Headphones recommended • Click to engage pointer lock</small>
         </div>
         <div class="build-id">SIMULATION BUILD // 26.07</div>
@@ -102,12 +102,12 @@
       <section id="end-screen" class="screen modal hidden">
         <div>
           <span class="kicker">AFTER ACTION REPORT</span>
-          <h2 id="end-title">UPLINK SECURED</h2>
-          <p id="end-copy">Combat effectiveness recorded.</p>
+          <h2 id="end-title">GHOST PROTOCOL</h2>
+          <p id="end-copy">Relay silenced. No trace left behind.</p>
           <div class="results">
-            <span><small>SCORE</small><b id="final-score">0</b></span>
-            <span><small>ELIMINATIONS</small><b id="final-kills">0</b></span>
-            <span><small>ACCURACY</small><b id="final-accuracy">0%</b></span>
+            <span><small>MAX DETECTION</small><b id="final-detection">0%</b></span>
+            <span><small>TAKEDOWNS</small><b id="final-takedowns">0</b></span>
+            <span><small>TIME</small><b id="final-time">0:00</b></span>
           </div>
           <button id="restart-button">RUN AGAIN</button>
         </div>

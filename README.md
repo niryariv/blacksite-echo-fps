@@ -1,8 +1,9 @@
 # BLACKSITE // ECHO
 
-An original first-person shooter vertical slice built with Three.js. The arena,
-materials, visual effects, enemy models, and audio are generated entirely in
-code; the game has no external runtime assets.
+An original first-person stealth-infiltration game built with Three.js. Enter
+the guarded relay, override its uplink, and return to extraction without being
+identified or harmed. The arena, materials, effects, guard models, and audio
+are generated entirely in code; the game has no external runtime assets.
 
 ## Run it
 
@@ -16,15 +17,17 @@ Open the local URL printed by Vite, click **Deploy**, and allow mouse capture.
 ## Controls
 
 - `WASD` — move
-- `Shift` — sprint
-- `Space` — jump
+- `Ctrl` or `C` — crouch and move quietly
+- `Shift` — sprint (fast, but loud)
 - Mouse — look
-- Left mouse — fire
-- Right mouse — aim
-- `R` — reload
-- `E` — collect a nearby pickup
+- Left mouse — emergency knife takedown from behind
+- Hold `E` — override the relay or extract
 - `M` — mute/unmute procedural audio
 - `Esc` — release the mouse and pause
+
+The cleanest result is earned by completing the mission with zero takedowns and
+almost no guard suspicion. Guards can see, hear, investigate disturbances, and
+discover incapacitated colleagues, so the knife should remain a last resort.
 
 Create a production bundle with:
 
