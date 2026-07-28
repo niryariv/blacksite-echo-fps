@@ -1,9 +1,18 @@
-# BLACKSITE // ECHO
+# ACRE // SHADOWS
 
-An original first-person stealth-infiltration game built with Three.js. Enter
-the guarded relay, override its uplink, and return to extraction without being
-identified or harmed. The arena, materials, effects, guard models, and audio
-are generated entirely in code; the game has no external runtime assets.
+An original first-person stealth-infiltration game built with Three.js and set
+in a playable interpretation of Frankish Acre around 1250 CE. Enter through the
+eastern land gate, cross the merchant quarters, recover a sealed dispatch from
+the Hospitaller court, and escape by harbour skiff without being identified or
+harmed.
+
+The enlarged map follows Acre's medieval peninsula and includes Montmusard's
+double land defenses, the north-western Hospitaller headquarters, the
+south-western Templar fortress and passage, Italian merchant quarters, the
+Cathedral close, the inner harbour, quays, ships, and the Burj al-Sultan area.
+Crusader buildings incorporate Byzantine and earlier layers through reused
+foundations and architectural fragments rather than presenting the 13th-century
+city as wholly Byzantine.
 
 ## Run it
 
@@ -12,7 +21,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite, click **Deploy**, and allow mouse capture.
+Open the local URL printed by Vite, click **Enter Acre**, and allow mouse capture.
 
 ## Controls
 
@@ -21,13 +30,13 @@ Open the local URL printed by Vite, click **Deploy**, and allow mouse capture.
 - `Shift` — sprint (fast, but loud)
 - Mouse — look
 - Left mouse — emergency knife takedown from behind
-- Hold `E` — override the relay or extract
+- Hold `E` — take the dispatch or board the skiff
 - `M` — mute/unmute procedural audio
 - `Esc` — release the mouse and pause
 
 The cleanest result is earned by completing the mission with zero takedowns and
-almost no guard suspicion. Guards can see, hear, investigate disturbances, and
-discover incapacitated colleagues, so the knife should remain a last resort.
+almost no watch suspicion. Guards can see, hear, investigate disturbances, and
+discover incapacitated colleagues, so the dagger should remain a last resort.
 
 Create a production bundle with:
 
@@ -35,5 +44,5 @@ Create a production bundle with:
 npm run build
 ```
 
-The adapted implementation brief derived from the requested source prompt is in
-[CODEX_BRIEF.md](./CODEX_BRIEF.md).
+Historical design notes and sources are in
+[HISTORICAL_NOTES.md](./HISTORICAL_NOTES.md).

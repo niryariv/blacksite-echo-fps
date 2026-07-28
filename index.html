@@ -3,12 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#070b0e" />
+    <meta name="theme-color" content="#172f39" />
     <meta
       name="description"
-      content="BLACKSITE // ECHO — a knife-only Three.js stealth-infiltration mission."
+      content="ACRE // SHADOWS — infiltrate a historically grounded Crusader Acre in 1250 CE."
     />
-    <title>BLACKSITE // ECHO</title>
+    <meta property="og:title" content="ACRE // SHADOWS" />
+    <meta property="og:description" content="Cross the walls of Acre in 1250 CE, steal a sealed dispatch, and leave by sea unseen." />
+    <meta property="og:image" content="https://niryariv.github.io/blacksite-echo-fps/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>ACRE // SHADOWS</title>
   </head>
   <body>
     <div id="app">
@@ -21,14 +25,14 @@
 
       <header id="top-hud" class="hud hidden">
         <section class="mission-block">
-          <span class="eyebrow">LIVE OPERATION</span>
-          <strong>BLACKSITE // ECHO</strong>
-          <span id="objective">INFILTRATE // REACH THE RELAY</span>
+          <span id="location" class="eyebrow">ST ANTHONY'S GATE</span>
+          <strong>ACRE // 1250 CE</strong>
+          <span id="objective">INFILTRATE // ENTER THE HOSPITALLER COURT</span>
         </section>
         <section class="score-block">
           <div><span>DETECTION</span><b id="detection">00%</b></div>
           <div><span>PROFILE</span><b id="profile">GHOST</b></div>
-          <div><span>TIME</span><b id="timer">03:00</b></div>
+          <div><span>TIME</span><b id="timer">00:00</b></div>
         </section>
       </header>
 
@@ -43,7 +47,7 @@
         <div class="waypoint-content">
           <i id="waypoint-arrow" aria-hidden="true">↑</i>
           <div>
-            <b id="waypoint-task">REACH RELAY TERMINAL</b>
+            <b id="waypoint-task">ENTER HOSPITALLER COURT</b>
             <strong id="waypoint-distance">00 M</strong>
           </div>
         </div>
@@ -67,7 +71,7 @@
           <b id="noise-state">SILENT</b>
         </section>
         <section class="ammo-panel">
-          <span id="weapon-state">CERAMIC KNIFE // EMERGENCY ONLY</span>
+          <span id="weapon-state">LEVANTINE DAGGER // LAST RESORT</span>
           <div><b id="knife-integrity">II</b><i>/</i><strong>EDGE</strong></div>
         </section>
       </footer>
@@ -77,15 +81,16 @@
       <main id="start-screen" class="screen visible">
         <div class="screen-grid"></div>
         <div class="brand">
-          <span class="kicker">ORBITAL RESPONSE GROUP // 07</span>
-          <h1>BLACKSITE<br /><em>ECHO</em></h1>
-          <p class="tagline">ENTER QUIETLY. LEAVE NO TRACE.</p>
+          <span class="kicker">THE KINGDOM OF JERUSALEM // 1250 CE</span>
+          <h1>ACRE<br /><em>SHADOWS</em></h1>
+          <p class="tagline">THE SEA KEEPS EVERY SECRET.</p>
         </div>
         <div class="briefing-card">
-          <div class="status-line"><i></i> MISSION PACKAGE READY</div>
+          <div class="status-line"><i></i> THE EASTERN GATE IS OPEN</div>
           <p>
-            Infiltrate the relay, override its uplink, and return to extraction.
-            Avoid guard sightlines. The knife is a last resort—not the plan.
+            Enter Frankish Acre, cross its merchant quarters, and take the
+            sealed harbour dispatch from the Hospitaller court. Reach the
+            waiting skiff unseen and unharmed. Your dagger is a last resort.
           </p>
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>
@@ -95,26 +100,26 @@
             <span><kbd>MOUSE 1</kbd> KNIFE</span>
             <span><kbd>ESC</kbd> PAUSE</span>
           </div>
-          <button id="deploy-button">INFILTRATE <i>→</i></button>
+          <button id="deploy-button">ENTER ACRE <i>→</i></button>
           <small>Headphones recommended • Click to engage pointer lock</small>
         </div>
-        <div class="build-id">SIMULATION BUILD // 26.07</div>
+        <div class="build-id">HISTORICAL STEALTH MAP // ACRE 1250 CE</div>
       </main>
 
       <section id="pause-screen" class="screen modal hidden">
         <div>
-          <span class="kicker">TACTICAL LINK SUSPENDED</span>
+          <span class="kicker">THE CITY WAITS</span>
           <h2>PAUSED</h2>
-          <p>Click resume to re-engage mouse control.</p>
-          <button id="resume-button">RESUME OPERATION</button>
+          <p>Resume when you are ready to move.</p>
+          <button id="resume-button">RETURN TO ACRE</button>
         </div>
       </section>
 
       <section id="end-screen" class="screen modal hidden">
         <div>
-          <span class="kicker">AFTER ACTION REPORT</span>
-          <h2 id="end-title">GHOST PROTOCOL</h2>
-          <p id="end-copy">Relay silenced. No trace left behind.</p>
+          <span class="kicker">THE HARBOUR RECORD</span>
+          <h2 id="end-title">UNSEEN PASSAGE</h2>
+          <p id="end-copy">The dispatch is aboard. No trace left behind.</p>
           <div class="results">
             <span><small>MAX DETECTION</small><b id="final-detection">0%</b></span>
             <span><small>TAKEDOWNS</small><b id="final-takedowns">0</b></span>

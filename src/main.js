@@ -20,13 +20,13 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.16;
+renderer.toneMappingExposure = 1.08;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x071013);
-scene.fog = new THREE.FogExp2(0x071013, 0.017);
+scene.background = new THREE.Color(0x173342);
+scene.fog = new THREE.FogExp2(0x17323b, 0.0062);
 
-const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.04, 180);
+const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.04, 340);
 camera.rotation.order = "YXZ";
 scene.add(camera);
 const viewLight = new THREE.PointLight(0xb7d7da, 1.25, 4, 2);
@@ -40,18 +40,18 @@ composer.addPass(
 );
 composer.addPass(new OutputPass());
 
-const ambient = new THREE.HemisphereLight(0x83aeb5, 0x111a16, 1.15);
+const ambient = new THREE.HemisphereLight(0x90b5c2, 0x493721, 1.55);
 scene.add(ambient);
-const moon = new THREE.DirectionalLight(0xb2d4d8, 1.75);
-moon.position.set(-20, 34, 18);
+const moon = new THREE.DirectionalLight(0xffd7a1, 2.25);
+moon.position.set(-70, 90, 45);
 moon.castShadow = true;
 moon.shadow.mapSize.set(2048, 2048);
-moon.shadow.camera.left = -48;
-moon.shadow.camera.right = 48;
-moon.shadow.camera.top = 48;
-moon.shadow.camera.bottom = -48;
+moon.shadow.camera.left = -115;
+moon.shadow.camera.right = 115;
+moon.shadow.camera.top = 115;
+moon.shadow.camera.bottom = -115;
 moon.shadow.camera.near = 1;
-moon.shadow.camera.far = 90;
+moon.shadow.camera.far = 220;
 moon.shadow.bias = -0.0005;
 scene.add(moon);
 
@@ -82,7 +82,7 @@ const game = {
 };
 
 const player = {
-  position: new THREE.Vector3(0, 1.72, 33.5),
+  position: arena.mission.playerStart.clone(),
   velocity: new THREE.Vector3(),
   yaw: 0,
   pitch: -0.03,
@@ -98,12 +98,12 @@ camera.rotation.set(player.pitch, player.yaw, 0);
 
 function createKnife() {
   const root = new THREE.Group();
-  root.name = "Ceramic knife";
+  root.name = "Levantine dagger";
 
   const grip = new THREE.Mesh(
     new THREE.BoxGeometry(0.13, 0.12, 0.38),
     new THREE.MeshStandardMaterial({
-      color: 0x101614,
+      color: 0x382313,
       roughness: 0.78,
       metalness: 0.15,
     }),
@@ -149,14 +149,14 @@ function createKnife() {
   const blade = new THREE.Mesh(
     bladeGeometry,
     new THREE.MeshStandardMaterial({
-      color: 0xd6e1df,
-      metalness: 0.15,
-      roughness: 0.22,
+      color: 0xbcc5c4,
+      metalness: 0.82,
+      roughness: 0.28,
     }),
   );
   const edge = new THREE.LineSegments(
     new THREE.EdgesGeometry(bladeGeometry),
-    new THREE.LineBasicMaterial({ color: 0x9bf4e5, transparent: true, opacity: 0.5 }),
+    new THREE.LineBasicMaterial({ color: 0xe7d7ae, transparent: true, opacity: 0.55 }),
   );
 
   root.add(grip, guard, blade, edge);
@@ -176,36 +176,43 @@ function createGuard(index, position) {
   root.position.copy(position);
   root.position.y = 0;
 
-  const armor = new THREE.MeshStandardMaterial({
-    color: index % 2 ? 0x263231 : 0x303936,
-    metalness: 0.55,
-    roughness: 0.48,
+  const chainmail = new THREE.MeshStandardMaterial({
+    color: 0x717875,
+    metalness: 0.72,
+    roughness: 0.58,
   });
   const cloth = new THREE.MeshStandardMaterial({
-    color: 0x050908,
+    color: index % 3 === 0 ? 0x7c2420 : index % 3 === 1 ? 0xd1c19b : 0x273f58,
     metalness: 0.05,
+    roughness: 0.95,
+  });
+  const leather = new THREE.MeshStandardMaterial({
+    color: 0x3b2517,
     roughness: 0.9,
   });
-  const alert = new THREE.MeshStandardMaterial({
-    color: 0x55100d,
-    emissive: 0xff291b,
-    emissiveIntensity: 1.8,
-    metalness: 0.3,
-    roughness: 0.32,
+  const skin = new THREE.MeshStandardMaterial({
+    color: 0x9b6f50,
+    roughness: 0.92,
   });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.78, 0.36), armor);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.8, 0.38), chainmail);
   body.position.y = 1.22;
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.13, 0.39), alert);
-  chest.position.set(0, 1.28, 0.02);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), armor);
-  head.scale.y = 1.1;
-  head.position.y = 1.83;
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.07, 0.1), alert);
-  visor.position.set(0, 1.85, 0.2);
+  const surcoat = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.92, 0.4), cloth);
+  surcoat.position.set(0, 1.1, 0.015);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.1, 0.43), leather);
+  belt.position.set(0, 1.03, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 10), skin);
+  head.position.y = 1.82;
+  const helmet = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.27, 0.31, 12),
+    chainmail,
+  );
+  helmet.position.y = 1.96;
+  const noseGuard = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.28, 0.05), chainmail);
+  noseGuard.position.set(0, 1.84, 0.23);
 
   const legs = [-0.19, 0.19].map((x) => {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.52, 4, 8), cloth);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.52, 4, 8), chainmail);
     leg.position.set(x, 0.53, 0);
     return leg;
   });
@@ -215,8 +222,19 @@ function createGuard(index, position) {
     arm.rotation.z = side * -0.13;
     return arm;
   });
-  const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.13, 0.68), cloth);
-  rifle.position.set(0.25, 1.25, 0.39);
+  const spear = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 2.6, 8), leather);
+  const point = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 8), chainmail);
+  point.position.y = 1.45;
+  spear.add(shaft, point);
+  spear.position.set(0.48, 1.15, 0.2);
+  spear.rotation.z = -0.16;
+  const shield = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.48, 0.08, 3),
+    cloth,
+  );
+  shield.rotation.set(Math.PI / 2, 0, Math.PI);
+  shield.position.set(-0.43, 1.15, 0.22);
 
   const range = 15;
   const width = Math.tan(THREE.MathUtils.degToRad(33)) * range;
@@ -237,7 +255,7 @@ function createGuard(index, position) {
   });
   const visionCone = new THREE.Mesh(coneGeometry, coneMaterial);
 
-  root.add(visionCone, body, chest, head, visor, ...legs, ...arms, rifle);
+  root.add(visionCone, body, surcoat, belt, head, helmet, noseGuard, ...legs, ...arms, spear, shield);
   root.traverse((object) => {
     if (object.isMesh && object !== visionCone) {
       object.castShadow = true;
@@ -266,59 +284,61 @@ function createGuard(index, position) {
   };
 }
 
-const guardSpawns = [
-  new THREE.Vector3(-26, 0, -15),
-  new THREE.Vector3(24, 0, 17),
-  new THREE.Vector3(24, 0, -20),
-  new THREE.Vector3(-27, 0, 5),
-  new THREE.Vector3(7, 0, -28),
-  new THREE.Vector3(-22, 0, 25),
-];
+const guardSpawns = arena.mission.guardSpawns;
 guardSpawns.forEach((position, index) => guards.push(createGuard(index, position)));
 
 function createMissionObjects() {
   const terminal = new THREE.Group();
-  terminal.position.set(7.2, 0, 7.2);
+  terminal.position.copy(arena.mission.target);
+  terminal.name = "Sealed harbour dispatch";
   const dark = new THREE.MeshStandardMaterial({
-    color: 0x101918,
-    metalness: 0.72,
-    roughness: 0.42,
+    color: 0x422816,
+    metalness: 0.08,
+    roughness: 0.88,
   });
   const glow = new THREE.MeshStandardMaterial({
-    color: 0x1b6a64,
-    emissive: 0x49ffe4,
-    emissiveIntensity: 3.2,
-    metalness: 0.35,
-    roughness: 0.2,
+    color: 0x9a2f20,
+    emissive: 0xe56d27,
+    emissiveIntensity: 1.8,
+    metalness: 0.05,
+    roughness: 0.72,
   });
-  const pedestal = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.5, 0.72), dark);
-  pedestal.position.y = 0.75;
+  const pedestal = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.82, 0.9), dark);
+  pedestal.position.y = 0.41;
   pedestal.castShadow = true;
-  const screen = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.46, 0.05), glow);
-  screen.position.set(0, 1.05, 0.39);
-  const light = new THREE.PointLight(0x44ffe1, 5, 5, 2);
-  light.position.set(0, 1.1, 0.6);
-  terminal.add(pedestal, screen, light);
+  const scroll = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.75, 0.52),
+    new THREE.MeshStandardMaterial({ color: 0xd5c18f, roughness: 0.92, side: THREE.DoubleSide }),
+  );
+  scroll.rotation.x = -Math.PI / 2;
+  scroll.position.set(0, 0.84, 0);
+  const screen = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.055, 18), glow);
+  screen.rotation.x = Math.PI / 2;
+  screen.position.set(0, 0.88, 0.18);
+  const light = new THREE.PointLight(0xff9b48, 3.5, 4.5, 2);
+  light.position.set(0, 1.3, 0.3);
+  terminal.add(pedestal, scroll, screen, light);
   scene.add(terminal);
 
   const exfil = new THREE.Group();
-  exfil.position.set(0, 0.05, 34);
+  exfil.position.copy(arena.mission.exfil);
+  exfil.name = "Harbour skiff extraction";
   exfil.visible = false;
   const ringMaterial = new THREE.MeshBasicMaterial({
-    color: 0x64ffe7,
+    color: 0xe8b85c,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.68,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
-  const rings = [1.7, 2.2, 2.7].map((radius, index) => {
+  const rings = [1.2, 1.65, 2.1].map((radius, index) => {
     const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.035, radius, 48), ringMaterial.clone());
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = index * 0.035;
     exfil.add(ring);
     return ring;
   });
-  const beacon = new THREE.PointLight(0x44ffe1, 8, 10, 2);
+  const beacon = new THREE.PointLight(0xffaa45, 8, 10, 2);
   beacon.position.y = 1.5;
   exfil.add(beacon);
   scene.add(exfil);
@@ -651,7 +671,7 @@ function updateMission(dt) {
       if (keys.has("KeyE")) game.interaction += dt;
       else game.interaction = Math.max(0, game.interaction - dt * 1.7);
       const progress = THREE.MathUtils.clamp(game.interaction / 3.5, 0, 1);
-      prompt.innerHTML = `HOLD <strong>[ E ]</strong> OVERRIDE RELAY
+      prompt.innerHTML = `HOLD <strong>[ E ]</strong> TAKE SEALED DISPATCH
         <span class="progress"><i style="width:${progress * 100}%"></i></span>`;
       prompt.classList.remove("hidden");
       player.noise = Math.max(player.noise, keys.has("KeyE") ? 20 : player.noise);
@@ -659,10 +679,10 @@ function updateMission(dt) {
         game.stage = "extract";
         game.interaction = 0;
         missionObjects.exfil.visible = true;
-        missionObjects.terminalScreen.material.color.setHex(0x784817);
-        missionObjects.terminalScreen.material.emissive.setHex(0xff9a21);
-        $("objective").textContent = "EXFILTRATE // RETURN UNSEEN";
-        addFeed("UPLINK OVERRIDDEN // EXTRACTION OPEN");
+        missionObjects.terminalScreen.material.color.setHex(0x6b281c);
+        missionObjects.terminalScreen.material.emissive.setHex(0x693017);
+        $("objective").textContent = "EXFILTRATE // REACH THE HARBOUR SKIFF";
+        addFeed("DISPATCH SECURED // SKIFF SIGNALLED");
         audio.pickup();
       }
     }
@@ -673,7 +693,7 @@ function updateMission(dt) {
       if (keys.has("KeyE")) game.interaction += dt;
       else game.interaction = Math.max(0, game.interaction - dt * 2);
       const progress = THREE.MathUtils.clamp(game.interaction / 1.6, 0, 1);
-      prompt.innerHTML = `HOLD <strong>[ E ]</strong> EXTRACT
+      prompt.innerHTML = `HOLD <strong>[ E ]</strong> BOARD SKIFF
         <span class="progress"><i style="width:${progress * 100}%"></i></span>`;
       prompt.classList.remove("hidden");
       if (progress >= 1) endGame(true);
@@ -729,9 +749,12 @@ function updateHUD() {
   const relativeBearing = THREE.MathUtils.radToDeg(targetBearing + player.yaw);
   $("waypoint-arrow").style.transform = `rotate(${relativeBearing}deg)`;
   $("waypoint-task").textContent =
-    game.stage === "infiltrate" ? "REACH RELAY TERMINAL" : "RETURN TO EXTRACTION";
+    game.stage === "infiltrate" ? "ENTER HOSPITALLER COURT" : "REACH HARBOUR SKIFF";
   $("waypoint-distance").textContent = `${Math.max(0, Math.round(waypointDistance))} M`;
   $("waypoint").classList.toggle("close", waypointDistance < 4);
+
+  const currentZone = arena.zones.find((zone) => zone.box.containsPoint(player.position));
+  $("location").textContent = currentZone?.name || "OLD ACRE";
 }
 
 function addFeed(text) {
@@ -768,8 +791,8 @@ function deploy() {
   $("pause-screen").classList.add("hidden");
   showHUD(true);
   requestGamePointerLock();
-  addFeed("GHOST PROTOCOL ACTIVE");
-  addFeed("ZERO ALERTS // ZERO INJURIES");
+  addFeed("NIGHT PASSAGE BEGUN");
+  addFeed("NO ALARM // NO BLOODSHED");
 }
 
 function endGame(success) {
@@ -789,16 +812,16 @@ function endGame(success) {
   const immaculate = success && game.maxDetection < 12 && game.takedowns === 0;
   $("end-title").textContent = success
     ? immaculate
-      ? "GHOST PROTOCOL"
-      : "SHADOW EXIT"
+      ? "UNSEEN PASSAGE"
+      : "THE SEA ROAD"
     : "COMPROMISED";
   $("end-copy").textContent = success
     ? immaculate
-      ? "Relay silenced. No witnesses, no injuries, no trace."
+      ? "The dispatch is aboard. No witnesses, no injuries, no trace."
       : game.takedowns > 0
-        ? "Mission complete, but the site bears evidence of your passage."
-        : "Mission complete. Guard suspicion was recorded, but no alarm was raised."
-    : "The guards confirmed an intruder. The operation has been aborted.";
+        ? "The dispatch is aboard, but Acre bears evidence of your passage."
+        : "The dispatch is aboard. The watch grew suspicious, but no alarm was raised."
+    : "The city watch confirmed an intruder. The mission has failed.";
 
   $("final-detection").textContent = `${Math.round(game.maxDetection)}%`;
   $("final-takedowns").textContent = String(game.takedowns);
@@ -868,10 +891,10 @@ function animate() {
     if (game.phase === "running") updateMission(dt);
     updateHUD();
   } else if (game.phase === "briefing") {
-    camera.position.x = Math.sin(game.elapsed * 0.12) * 1.5;
-    camera.position.y = 4.2 + Math.sin(game.elapsed * 0.2) * 0.2;
-    camera.position.z = 29;
-    camera.lookAt(0, 3.2, 0);
+    camera.position.x = 100 + Math.sin(game.elapsed * 0.12) * 4;
+    camera.position.y = 25 + Math.sin(game.elapsed * 0.2) * 0.5;
+    camera.position.z = 105;
+    camera.lookAt(-18, 5, -18);
     knife.root.visible = false;
   } else {
     knife.root.visible = true;
