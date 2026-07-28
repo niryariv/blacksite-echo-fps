@@ -53,6 +53,27 @@
         </div>
       </section>
 
+      <div id="map-key" class="hud hidden"><kbd>M</kbd> HOLD // CITY MAP</div>
+
+      <section id="city-map" class="hidden" aria-label="Map of Acre">
+        <div class="map-frame">
+          <header>
+            <div>
+              <span>PORTOLAN OF ST JEAN D'ACRE</span>
+              <h2>ACRE // 1250 CE</h2>
+            </div>
+            <b>N ↑</b>
+          </header>
+          <canvas id="map-canvas"></canvas>
+          <footer>
+            <span><i class="map-player-dot"></i> YOUR POSITION</span>
+            <span><i class="map-objective-dot"></i> CURRENT OBJECTIVE</span>
+            <span><i class="map-landmark-dot"></i> LANDMARK</span>
+            <strong>RELEASE <kbd>M</kbd> TO CLOSE</strong>
+          </footer>
+        </div>
+      </section>
+
       <div id="crosshair" class="hidden" aria-hidden="true">
         <i></i><i></i><i></i><i></i>
         <b></b>
@@ -98,6 +119,8 @@
             <span><kbd>SHIFT</kbd> SPRINT / NOISY</span>
             <span><kbd>E</kbd> HOLD TO INTERACT</span>
             <span><kbd>MOUSE 1</kbd> KNIFE</span>
+            <span><kbd>M</kbd> HOLD CITY MAP</span>
+            <span><kbd>V</kbd> MUTE AUDIO</span>
             <span><kbd>ESC</kbd> PAUSE</span>
           </div>
           <button id="deploy-button">ENTER ACRE <i>→</i></button>

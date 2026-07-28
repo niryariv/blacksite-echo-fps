@@ -9,6 +9,8 @@ import { CombatAudio } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("game");
+const mapCanvas = $("map-canvas");
+const mapContext = mapCanvas.getContext("2d");
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
@@ -66,6 +68,7 @@ const clock = new THREE.Clock();
 const keys = new Set();
 const guards = [];
 let feedIndex = 0;
+let mapVisible = false;
 
 const game = {
   phase: "briefing",
@@ -757,6 +760,153 @@ function updateHUD() {
   $("location").textContent = currentZone?.name || "OLD ACRE";
 }
 
+function drawCityMap() {
+  const rect = mapCanvas.getBoundingClientRect();
+  if (rect.width < 10 || rect.height < 10) return;
+  const ratio = Math.min(devicePixelRatio, 2);
+  const pixelWidth = Math.round(rect.width * ratio);
+  const pixelHeight = Math.round(rect.height * ratio);
+  if (mapCanvas.width !== pixelWidth || mapCanvas.height !== pixelHeight) {
+    mapCanvas.width = pixelWidth;
+    mapCanvas.height = pixelHeight;
+  }
+
+  const ctx = mapContext;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+
+  const margin = 22;
+  const mapWidth = rect.width - margin * 2;
+  const mapHeight = rect.height - margin * 2;
+  const project = (x, z) => ({
+    x: margin + ((x + 108) / 216) * mapWidth,
+    y: margin + ((z + 94) / 182) * mapHeight,
+  });
+  const drawWorldRect = (x1, z1, x2, z2, fill, stroke = null, width = 1) => {
+    const a = project(x1, z1);
+    const b = project(x2, z2);
+    ctx.fillStyle = fill;
+    ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width;
+      ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    }
+  };
+  const line = (points, color, width = 1, dash = []) => {
+    ctx.beginPath();
+    points.forEach(([x, z], index) => {
+      const p = project(x, z);
+      if (index === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  };
+
+  // Sea and peninsula outline.
+  ctx.fillStyle = "rgba(45,101,108,.34)";
+  ctx.fillRect(margin, margin, mapWidth, mapHeight);
+  drawWorldRect(-100, -86, 94, 81, "rgba(209,188,137,.96)", "#4f3c26", 2);
+  drawWorldRect(94, -42, 108, 16, "rgba(209,188,137,.96)", "#4f3c26", 1.5);
+  drawWorldRect(42, 42, 94, 81, "rgba(42,102,111,.62)", "#4f3c26", 1.5);
+
+  // Defensive lines and the main gates.
+  line([[-100, -86], [94, -86], [94, 78]], "#523b25", 4);
+  line([[-98, -64], [-24, -64]], "#705238", 2.5);
+  line([[15, -64], [79, -64]], "#705238", 2.5);
+  line([[94, -28], [94, -17]], "#d9bd7a", 6);
+  line([[-100, 81], [94, 81]], "#523b25", 3);
+
+  // Principal streets and quays.
+  line([[98, -22], [62, -22], [20, -22], [0, -40], [-30, -41]], "#8b704a", 1.3, [5, 5]);
+  line([[4, -58], [4, 34], [38, 48], [38, 64], [54, 64]], "#8b704a", 1.3, [5, 5]);
+  line([[-52, 18], [18, 18], [70, 18]], "#8b704a", 1, [4, 5]);
+  line([[-54, 50], [34, 50]], "#8b704a", 1, [3, 4]);
+  line([[18, 42], [91, 42]], "#523b25", 2);
+  line([[18, 81], [91, 81]], "#523b25", 2);
+
+  const districts = [
+    { name: "MONTMUSART", rect: [-98, -84, 91, -65], tone: "rgba(112,82,52,.12)" },
+    { name: "HOSPITALLERS", rect: [-56, -62, -5, -23], tone: "rgba(120,43,32,.16)" },
+    { name: "HOLY CROSS", rect: [-33, -24, -7, 14], tone: "rgba(117,86,48,.15)" },
+    { name: "TEMPLARS", rect: [-98, 39, -48, 79], tone: "rgba(120,43,32,.16)" },
+    { name: "PISAN", rect: [-47, 20, 18, 79], tone: "rgba(80,91,75,.11)" },
+    { name: "GENOESE", rect: [-4, -21, 23, 24], tone: "rgba(80,91,75,.15)" },
+    { name: "VENETIAN", rect: [24, -19, 87, 41], tone: "rgba(80,91,75,.11)" },
+    { name: "INNER HARBOUR", rect: [43, 43, 92, 79], tone: "rgba(41,91,101,.2)" },
+  ];
+  districts.forEach((district) => {
+    const [x1, z1, x2, z2] = district.rect;
+    drawWorldRect(x1, z1, x2, z2, district.tone, "rgba(78,58,36,.58)", 1);
+    const center = project((x1 + x2) / 2, (z1 + z2) / 2);
+    ctx.fillStyle = district.name === "INNER HARBOUR" ? "#e8d9b0" : "#5c4329";
+    ctx.font = `700 ${Math.max(8, Math.min(11, rect.width / 85))}px Arial Narrow, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(district.name, center.x, center.y);
+  });
+
+  // Towers and landmark silhouettes.
+  [[-95, -84], [92, -84], [92, 18], [89, 76]].forEach(([x, z]) => {
+    const p = project(x, z);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#735337";
+    ctx.fill();
+    ctx.strokeStyle = "#342617";
+    ctx.stroke();
+  });
+
+  const objective =
+    game.stage === "infiltrate" ? missionObjects.terminal.position : missionObjects.exfil.position;
+  const objectivePoint = project(objective.x, objective.z);
+  const pulse = 7 + Math.sin(game.elapsed * 4) * 2;
+  ctx.beginPath();
+  ctx.arc(objectivePoint.x, objectivePoint.y, pulse, 0, Math.PI * 2);
+  ctx.strokeStyle = "#a72e22";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(objectivePoint.x, objectivePoint.y, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#a72e22";
+  ctx.fill();
+  ctx.fillStyle = "#78251d";
+  ctx.font = "700 10px Arial Narrow, sans-serif";
+  ctx.textAlign = objectivePoint.x > rect.width * 0.72 ? "right" : "left";
+  ctx.fillText(
+    game.stage === "infiltrate" ? "SEALED DISPATCH" : "HARBOUR SKIFF",
+    objectivePoint.x + (ctx.textAlign === "left" ? 11 : -11),
+    objectivePoint.y - 9,
+  );
+
+  const playerPoint = project(player.position.x, player.position.z);
+  ctx.save();
+  ctx.translate(playerPoint.x, playerPoint.y);
+  ctx.rotate(-player.yaw);
+  ctx.beginPath();
+  ctx.moveTo(0, -10);
+  ctx.lineTo(7, 8);
+  ctx.lineTo(0, 4);
+  ctx.lineTo(-7, 8);
+  ctx.closePath();
+  ctx.fillStyle = "#173f4a";
+  ctx.fill();
+  ctx.strokeStyle = "#f0dfb3";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = "rgba(74,53,31,.72)";
+  ctx.font = "italic 11px Georgia, serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Mediterraneum", project(-91, 5).x, project(-91, 5).y);
+  ctx.fillText("Road to Tyre", project(96, -47).x - 4, project(96, -47).y);
+}
+
 function addFeed(text) {
   const item = document.createElement("span");
   item.textContent = text;
@@ -766,9 +916,14 @@ function addFeed(text) {
 }
 
 function showHUD(show) {
-  ["top-hud", "bottom-hud", "compass", "waypoint", "crosshair", "combat-feed"].forEach((id) => {
+  ["top-hud", "bottom-hud", "compass", "waypoint", "map-key", "crosshair", "combat-feed"].forEach((id) => {
     $(id).classList.toggle("hidden", !show);
   });
+}
+
+function hideCityMap() {
+  mapVisible = false;
+  $("city-map").classList.add("hidden");
 }
 
 function requestGamePointerLock() {
@@ -804,6 +959,7 @@ function endGame(success) {
     // No active lock in embedded previews.
   }
   showHUD(false);
+  hideCityMap();
   $("interact-prompt").classList.add("hidden");
   $("damage-direction").classList.remove("show", "suspicion");
   $("end-screen").classList.remove("hidden");
@@ -832,12 +988,23 @@ function endGame(success) {
 
 document.addEventListener("keydown", (event) => {
   keys.add(event.code);
-  if (event.code === "KeyM") {
+  if (event.code === "KeyM" && game.phase === "running" && !event.repeat) {
+    mapVisible = true;
+    $("city-map").classList.remove("hidden");
+    drawCityMap();
+  }
+  if (event.code === "KeyV" && !event.repeat) {
     audio.setMuted(!audio.muted);
     addFeed(audio.muted ? "AUDIO MUTED" : "AUDIO RESTORED");
   }
 });
-document.addEventListener("keyup", (event) => keys.delete(event.code));
+document.addEventListener("keyup", (event) => {
+  keys.delete(event.code);
+  if (event.code === "KeyM") {
+    mapVisible = false;
+    $("city-map").classList.add("hidden");
+  }
+});
 document.addEventListener("mousemove", (event) => {
   if (document.pointerLockElement !== canvas || game.phase !== "running") return;
   player.yaw -= event.movementX * 0.00175;
@@ -852,6 +1019,7 @@ document.addEventListener("pointerlockchange", () => {
   if (game.phase === "ended" || game.phase === "briefing") return;
   if (document.pointerLockElement !== canvas) {
     game.phase = "paused";
+    hideCityMap();
     $("pause-screen").classList.remove("hidden");
     $("pause-screen").classList.add("visible");
     showHUD(false);
@@ -890,6 +1058,7 @@ function animate() {
     updateGuards(dt);
     if (game.phase === "running") updateMission(dt);
     updateHUD();
+    if (mapVisible) drawCityMap();
   } else if (game.phase === "briefing") {
     camera.position.x = 100 + Math.sin(game.elapsed * 0.12) * 4;
     camera.position.y = 25 + Math.sin(game.elapsed * 0.2) * 0.5;

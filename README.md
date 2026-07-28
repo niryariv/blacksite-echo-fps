@@ -31,7 +31,8 @@ Open the local URL printed by Vite, click **Enter Acre**, and allow mouse captur
 - Mouse — look
 - Left mouse — emergency knife takedown from behind
 - Hold `E` — take the dispatch or board the skiff
-- `M` — mute/unmute procedural audio
+- Hold `M` — open the live city map
+- `V` — mute/unmute procedural audio
 - `Esc` — release the mouse and pause
 
 The cleanest result is earned by completing the mission with zero takedowns and
