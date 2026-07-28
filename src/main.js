@@ -379,7 +379,7 @@ function guardBlocked(position) {
 function updatePlayer(dt) {
   player.crouched = keys.has("ControlLeft") || keys.has("ControlRight") || keys.has("KeyC");
   const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
-  const right = new THREE.Vector3(forward.z, 0, -forward.x);
+  const right = new THREE.Vector3(-forward.z, 0, forward.x);
   const move = new THREE.Vector3();
   if (keys.has("KeyW")) move.add(forward);
   if (keys.has("KeyS")) move.sub(forward);
