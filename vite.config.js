@@ -22,6 +22,7 @@ function sitesStaticWorker() {
 }
 
 export default defineConfig({
+  base: process.env.BASE_PATH || "/",
   plugins: [sitesStaticWorker()],
   build: {
     target: "es2022",
