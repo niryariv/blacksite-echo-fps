@@ -2,11 +2,9 @@ import "./style.css";
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
-import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
+import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { Sky } from "three/addons/objects/Sky.js";
 import { buildArena } from "./arena.js";
@@ -17,21 +15,33 @@ const canvas = $("game");
 const mapCanvas = $("map-canvas");
 const mapContext = mapCanvas.getContext("2d");
 const mapParchment = new Image();
-mapParchment.src = `${import.meta.env.BASE_URL}assets/maps/acre-portolan-parchment.webp`;
+const mapParchmentUrl = `${import.meta.env.BASE_URL}assets/maps/acre-portolan-parchment.webp`;
 const mapStaticCanvas = document.createElement("canvas");
 let mapStaticKey = "";
 mapParchment.addEventListener("load", () => {
   mapStaticKey = "";
 });
+const compactDevice = innerWidth <= 820 || matchMedia("(pointer: coarse)").matches;
+const renderQuality = {
+  minPixelRatio: compactDevice ? 0.72 : 0.82,
+  maxPixelRatio: Math.min(devicePixelRatio, compactDevice ? 1 : 1.2),
+  pixelRatio: Math.min(devicePixelRatio, compactDevice ? 0.9 : 1.2),
+  upgradeWindows: 0,
+  lastFps: 60,
+  shadows: true,
+};
 const renderer = new THREE.WebGLRenderer({
   canvas,
-  antialias: true,
+  antialias: false,
   powerPreference: "high-performance",
 });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setPixelRatio(renderQuality.pixelRatio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
+renderer.info.autoReset = false;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.02;
@@ -44,7 +54,7 @@ scene.fog = new THREE.Fog(0x667c7f, 105, 320);
 const surfaceFogColor = new THREE.Color(0x667c7f);
 const tunnelFogColor = new THREE.Color(0x17140f);
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.04, 900);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.04, 280);
 camera.rotation.order = "YXZ";
 scene.add(camera);
 const viewLight = new THREE.PointLight(0xffd2a0, 0.5, 3.5, 2);
@@ -75,34 +85,6 @@ pmremGenerator.dispose();
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const gtaoPass = new GTAOPass(scene, camera, innerWidth, innerHeight);
-const resizeGtao = gtaoPass.setSize.bind(gtaoPass);
-gtaoPass.setSize = (width, height) =>
-  resizeGtao(Math.max(1, Math.floor(width * 0.5)), Math.max(1, Math.floor(height * 0.5)));
-gtaoPass.setSize(innerWidth, innerHeight);
-gtaoPass.output = GTAOPass.OUTPUT.Default;
-gtaoPass.blendIntensity = 0.3;
-gtaoPass.updateGtaoMaterial({
-  radius: 0.085,
-  distanceExponent: 1.8,
-  thickness: 0.82,
-  distanceFallOff: 0.82,
-  scale: 0.68,
-  samples: 4,
-});
-gtaoPass.updatePdMaterial({
-  lumaPhi: 10,
-  depthPhi: 2,
-  normalPhi: 3,
-  radius: 4,
-  radiusExponent: 2,
-  rings: 1,
-  samples: 4,
-});
-composer.addPass(gtaoPass);
-composer.addPass(
-  new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.2, 0.5, 0.92),
-);
 const gradePass = new ShaderPass({
   uniforms: {
     tDiffuse: { value: null },
@@ -137,13 +119,22 @@ const gradePass = new ShaderPass({
   `,
 });
 composer.addPass(gradePass);
-composer.addPass(
-  new SMAAPass(
-    innerWidth * renderer.getPixelRatio(),
-    innerHeight * renderer.getPixelRatio(),
-  ),
-);
+const fxaaPass = new ShaderPass(FXAAShader);
+composer.addPass(fxaaPass);
 composer.addPass(new OutputPass());
+
+function applyRenderSize() {
+  renderer.setPixelRatio(renderQuality.pixelRatio);
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setPixelRatio(renderQuality.pixelRatio);
+  composer.setSize(innerWidth, innerHeight);
+  fxaaPass.material.uniforms.resolution.value.set(
+    1 / Math.max(1, innerWidth * renderQuality.pixelRatio),
+    1 / Math.max(1, innerHeight * renderQuality.pixelRatio),
+  );
+}
+
+applyRenderSize();
 
 const ambient = new THREE.HemisphereLight(0xb8d8df, 0x66503c, 1.28);
 scene.add(ambient);
@@ -153,16 +144,17 @@ scene.add(sunTarget);
 sunLight.target = sunTarget;
 sunLight.position.set(-70, 62, 38);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(2048, 2048);
-sunLight.shadow.camera.left = -58;
-sunLight.shadow.camera.right = 58;
-sunLight.shadow.camera.top = 58;
-sunLight.shadow.camera.bottom = -58;
+sunLight.shadow.mapSize.set(1024, 1024);
+sunLight.shadow.camera.left = -47;
+sunLight.shadow.camera.right = 47;
+sunLight.shadow.camera.top = 47;
+sunLight.shadow.camera.bottom = -47;
 sunLight.shadow.camera.near = 1;
 sunLight.shadow.camera.far = 190;
 sunLight.shadow.bias = -0.00035;
 sunLight.shadow.normalBias = 0.025;
 scene.add(sunLight);
+let shadowUpdateElapsed = Infinity;
 
 const arena = buildArena(THREE, scene);
 arena.pickups.forEach((pickup) => {
@@ -210,9 +202,10 @@ const player = {
 if (import.meta.env.DEV) {
   const requestedView = new URLSearchParams(location.search).get("view");
   if (requestedView) {
-    const [x, z, yaw] = requestedView.split(",").map(Number);
-    if ([x, z, yaw].every(Number.isFinite)) {
-      player.position.set(x, player.height, z);
+    const [x, z, yaw, floorY = 0] = requestedView.split(",").map(Number);
+    if ([x, z, yaw, floorY].every(Number.isFinite)) {
+      player.floorY = floorY;
+      player.position.set(x, floorY + player.height, z);
       player.yaw = yaw;
     }
   }
@@ -339,118 +332,147 @@ function createKnife() {
 
 const knife = createKnife();
 
+const guardShieldShape = new THREE.Shape();
+guardShieldShape.moveTo(-0.36, 0.48);
+guardShieldShape.lineTo(0.36, 0.48);
+guardShieldShape.lineTo(0.39, -0.06);
+guardShieldShape.lineTo(0, -0.68);
+guardShieldShape.lineTo(-0.39, -0.06);
+guardShieldShape.closePath();
+const guardVisionRange = 15;
+const guardVisionWidth = Math.tan(THREE.MathUtils.degToRad(33)) * guardVisionRange;
+const guardVisionGeometry = new THREE.BufferGeometry();
+guardVisionGeometry.setAttribute(
+  "position",
+  new THREE.Float32BufferAttribute(
+    [
+      0, 0.035, 0.35,
+      -guardVisionWidth, 0.035, guardVisionRange,
+      guardVisionWidth, 0.035, guardVisionRange,
+    ],
+    3,
+  ),
+);
+guardVisionGeometry.setIndex([0, 1, 2]);
+guardVisionGeometry.computeVertexNormals();
+const guardGeometries = {
+  body: new THREE.CapsuleGeometry(0.29, 0.42, 6, 12),
+  mailSkirt: new THREE.CylinderGeometry(0.31, 0.39, 0.58, 12),
+  surcoat: new THREE.CylinderGeometry(0.3, 0.4, 1.02, 12),
+  belt: new THREE.BoxGeometry(0.71, 0.085, 0.48),
+  heraldryVertical: new THREE.BoxGeometry(0.09, 0.48, 0.035),
+  heraldryHorizontal: new THREE.BoxGeometry(0.34, 0.085, 0.04),
+  head: new THREE.SphereGeometry(0.19, 18, 12),
+  coif: new THREE.SphereGeometry(0.235, 18, 12),
+  helmet: new THREE.ConeGeometry(0.255, 0.32, 18),
+  helmetBrim: new THREE.CylinderGeometry(0.29, 0.29, 0.05, 18),
+  noseGuard: new THREE.BoxGeometry(0.038, 0.25, 0.045),
+  leg: new THREE.CapsuleGeometry(0.105, 0.5, 5, 10),
+  boot: new THREE.BoxGeometry(0.22, 0.2, 0.34),
+  arm: new THREE.CapsuleGeometry(0.085, 0.46, 5, 10),
+  spearShaft: new THREE.CylinderGeometry(0.025, 0.035, 2.6, 8),
+  spearPoint: new THREE.ConeGeometry(0.09, 0.32, 8),
+  shield: new THREE.ExtrudeGeometry(guardShieldShape, {
+    depth: 0.055,
+    bevelEnabled: true,
+    bevelSize: 0.025,
+    bevelThickness: 0.018,
+    bevelSegments: 2,
+  }),
+  shieldCrossVertical: new THREE.BoxGeometry(0.075, 0.64, 0.025),
+  shieldCrossHorizontal: new THREE.BoxGeometry(0.34, 0.07, 0.025),
+  farBody: new THREE.CapsuleGeometry(0.34, 1.12, 4, 8),
+  vision: guardVisionGeometry,
+};
+const guardMaterials = {
+  chainmail: new THREE.MeshStandardMaterial({
+    color: 0x535957,
+    metalness: 0.48,
+    roughness: 0.68,
+  }),
+  cloth: [0x71352b, 0x2c302b, 0x3c4b51].map(
+    (color) => new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.05,
+      roughness: 0.95,
+    }),
+  ),
+  leggings: [0x303636, 0x382f2b].map(
+    (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.98 }),
+  ),
+  leather: new THREE.MeshStandardMaterial({ color: 0x3b2517, roughness: 0.9 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0x9b6f50, roughness: 0.92 }),
+  heraldry: new THREE.MeshStandardMaterial({ color: 0xd9d0b9, roughness: 0.96 }),
+};
+
 function createGuard(index, position) {
   const root = new THREE.Group();
   root.position.copy(position);
   root.position.y = 0;
 
-  const chainmail = new THREE.MeshStandardMaterial({
-    color: 0x535957,
-    metalness: 0.48,
-    roughness: 0.68,
-  });
-  const cloth = new THREE.MeshStandardMaterial({
-    color: index % 3 === 0 ? 0x71352b : index % 3 === 1 ? 0x2c302b : 0x3c4b51,
-    metalness: 0.05,
-    roughness: 0.95,
-  });
-  const leggings = new THREE.MeshStandardMaterial({
-    color: index % 2 ? 0x382f2b : 0x303636,
-    roughness: 0.98,
-  });
-  const leather = new THREE.MeshStandardMaterial({
-    color: 0x3b2517,
-    roughness: 0.9,
-  });
-  const skin = new THREE.MeshStandardMaterial({
-    color: 0x9b6f50,
-    roughness: 0.92,
-  });
-  const heraldry = new THREE.MeshStandardMaterial({
-    color: 0xd9d0b9,
-    roughness: 0.96,
-  });
+  const chainmail = guardMaterials.chainmail;
+  const cloth = guardMaterials.cloth[index % guardMaterials.cloth.length];
+  const leggings = guardMaterials.leggings[index % guardMaterials.leggings.length];
+  const { leather, skin, heraldry } = guardMaterials;
 
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.29, 0.42, 6, 12), chainmail);
+  const body = new THREE.Mesh(guardGeometries.body, chainmail);
   body.position.y = 1.26;
-  const mailSkirt = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.39, 0.58, 12), chainmail);
+  const mailSkirt = new THREE.Mesh(guardGeometries.mailSkirt, chainmail);
   mailSkirt.position.y = 0.91;
-  const surcoat = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.02, 12), cloth);
+  const surcoat = new THREE.Mesh(guardGeometries.surcoat, cloth);
   surcoat.position.set(0, 1.12, 0.015);
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.71, 0.085, 0.48), leather);
+  const belt = new THREE.Mesh(guardGeometries.belt, leather);
   belt.position.set(0, 1.03, 0);
-  const heraldryVertical = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.48, 0.035), heraldry);
+  const heraldryVertical = new THREE.Mesh(guardGeometries.heraldryVertical, heraldry);
   heraldryVertical.position.set(0, 1.28, 0.335);
-  const heraldryHorizontal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.085, 0.04), heraldry);
+  const heraldryHorizontal = new THREE.Mesh(guardGeometries.heraldryHorizontal, heraldry);
   heraldryHorizontal.position.set(0, 1.36, 0.337);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 12), skin);
+  const head = new THREE.Mesh(guardGeometries.head, skin);
   head.scale.set(0.9, 1.08, 0.9);
   head.position.set(0, 1.82, 0.105);
-  const coif = new THREE.Mesh(new THREE.SphereGeometry(0.235, 18, 12), chainmail);
+  const coif = new THREE.Mesh(guardGeometries.coif, chainmail);
   coif.scale.set(1, 1.16, 0.94);
   coif.position.set(0, 1.84, -0.025);
-  const helmet = new THREE.Mesh(new THREE.ConeGeometry(0.255, 0.32, 18), chainmail);
+  const helmet = new THREE.Mesh(guardGeometries.helmet, chainmail);
   helmet.position.y = 2.045;
-  const helmetBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.05, 18), chainmail);
+  const helmetBrim = new THREE.Mesh(guardGeometries.helmetBrim, chainmail);
   helmetBrim.position.y = 1.93;
-  const noseGuard = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.25, 0.045), chainmail);
+  const noseGuard = new THREE.Mesh(guardGeometries.noseGuard, chainmail);
   noseGuard.position.set(0, 1.81, 0.245);
 
   const legs = [-0.19, 0.19].map((x) => {
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.5, 5, 10), leggings);
+    const leg = new THREE.Mesh(guardGeometries.leg, leggings);
     leg.position.set(x, 0.53, 0);
     return leg;
   });
   const boots = [-0.19, 0.19].map((x) => {
-    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), leather);
+    const boot = new THREE.Mesh(guardGeometries.boot, leather);
     boot.position.set(x, 0.13, 0.08);
     return boot;
   });
   const arms = [-1, 1].map((side) => {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.46, 5, 10), cloth);
+    const arm = new THREE.Mesh(guardGeometries.arm, cloth);
     arm.position.set(side * 0.39, 1.23, 0.03);
     arm.rotation.z = side * -0.1;
     return arm;
   });
   const spear = new THREE.Group();
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 2.6, 8), leather);
-  const point = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.32, 8), chainmail);
+  const shaft = new THREE.Mesh(guardGeometries.spearShaft, leather);
+  const point = new THREE.Mesh(guardGeometries.spearPoint, chainmail);
   point.position.y = 1.45;
   spear.add(shaft, point);
   spear.position.set(0.48, 1.15, 0.2);
   spear.rotation.z = -0.16;
-  const shieldShape = new THREE.Shape();
-  shieldShape.moveTo(-0.36, 0.48);
-  shieldShape.lineTo(0.36, 0.48);
-  shieldShape.lineTo(0.39, -0.06);
-  shieldShape.lineTo(0, -0.68);
-  shieldShape.lineTo(-0.39, -0.06);
-  shieldShape.closePath();
   const shield = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(shieldShape, {
-      depth: 0.055,
-      bevelEnabled: true,
-      bevelSize: 0.025,
-      bevelThickness: 0.018,
-      bevelSegments: 2,
-    }),
+    guardGeometries.shield,
     cloth,
   );
   shield.position.set(-0.42, 1.22, 0.27);
-  const shieldCrossVertical = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.64, 0.025), heraldry);
+  const shieldCrossVertical = new THREE.Mesh(guardGeometries.shieldCrossVertical, heraldry);
   shieldCrossVertical.position.set(-0.42, 1.31, 0.355);
-  const shieldCrossHorizontal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.025), heraldry);
+  const shieldCrossHorizontal = new THREE.Mesh(guardGeometries.shieldCrossHorizontal, heraldry);
   shieldCrossHorizontal.position.set(-0.42, 1.39, 0.357);
 
-  const range = 15;
-  const width = Math.tan(THREE.MathUtils.degToRad(33)) * range;
-  const coneGeometry = new THREE.BufferGeometry();
-  coneGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute([0, 0.035, 0.35, -width, 0.035, range, width, 0.035, range], 3),
-  );
-  coneGeometry.setIndex([0, 1, 2]);
-  coneGeometry.computeVertexNormals();
   const coneMaterial = new THREE.MeshBasicMaterial({
     color: 0xff3d25,
     transparent: true,
@@ -459,10 +481,11 @@ function createGuard(index, position) {
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
-  const visionCone = new THREE.Mesh(coneGeometry, coneMaterial);
+  const visionCone = new THREE.Mesh(guardGeometries.vision, coneMaterial);
 
-  root.add(
-    visionCone,
+  const detailRoot = new THREE.Group();
+  detailRoot.name = "Guard full-detail model";
+  detailRoot.add(
     body,
     mailSkirt,
     surcoat,
@@ -482,12 +505,31 @@ function createGuard(index, position) {
     shieldCrossVertical,
     shieldCrossHorizontal,
   );
-  root.traverse((object) => {
-    if (object.isMesh && object !== visionCone) {
-      object.castShadow = true;
+  const farBody = new THREE.Mesh(
+    guardGeometries.farBody,
+    cloth,
+  );
+  farBody.name = "Guard distance silhouette";
+  farBody.position.y = 1.05;
+  farBody.visible = false;
+  farBody.castShadow = true;
+  farBody.receiveShadow = true;
+  const principalShadowCasters = new Set([
+    body,
+    mailSkirt,
+    surcoat,
+    head,
+    coif,
+    helmet,
+    shield,
+  ]);
+  detailRoot.traverse((object) => {
+    if (object.isMesh) {
+      object.castShadow = principalShadowCasters.has(object);
       object.receiveShadow = true;
     }
   });
+  root.add(visionCone, detailRoot, farBody);
   scene.add(root);
 
   return {
@@ -497,6 +539,8 @@ function createGuard(index, position) {
     head,
     legs,
     arms,
+    detailRoot,
+    farBody,
     visionCone,
     coneMaterial,
     home: root.position.clone(),
@@ -712,12 +756,26 @@ function bodyDiscovered(observer) {
 }
 
 function updateGuards(dt) {
+  if (player.floorY < -1) {
+    guards.forEach((guard) => {
+      guard.root.visible = false;
+    });
+    game.detection = 0;
+    updateDetectionDirection(null);
+    return;
+  }
+
   let mostAware = null;
   for (const guard of guards) {
+    guard.root.visible = true;
     if (!guard.active || guard.down) continue;
     guard.phase += dt;
 
     const distance = guard.root.position.distanceTo(player.position);
+    const fullDetail = distance < 22;
+    guard.detailRoot.visible = fullDetail;
+    guard.farBody.visible = !fullDetail;
+    guard.visionCone.visible = distance < 34;
     const seesPlayer =
       game.elapsed >= game.insertionUntil &&
       guardCanSee(guard, player.position, player.crouched ? 12.5 : 15, 66);
@@ -1024,6 +1082,12 @@ function updateTunnelAtmosphere(dt) {
   );
   scene.fog.near = THREE.MathUtils.damp(scene.fog.near, underground ? 7 : 105, 4.5, dt);
   scene.fog.far = THREE.MathUtils.damp(scene.fog.far, underground ? 43 : 320, 4.5, dt);
+  const targetCameraFar = underground ? 68 : 280;
+  const nextCameraFar = THREE.MathUtils.damp(camera.far, targetCameraFar, 5, dt);
+  if (Math.abs(nextCameraFar - camera.far) > 0.05) {
+    camera.far = nextCameraFar;
+    camera.updateProjectionMatrix();
+  }
   sky.visible = !underground;
 }
 
@@ -1082,6 +1146,7 @@ function updateHUD() {
 }
 
 function drawCityMap() {
+  if (!mapParchment.src) mapParchment.src = mapParchmentUrl;
   const rect = mapCanvas.getBoundingClientRect();
   if (rect.width < 10 || rect.height < 10) return;
   const ratio = Math.min(devicePixelRatio, 2);
@@ -1731,20 +1796,125 @@ canvas.addEventListener("click", () => {
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-  renderer.setSize(innerWidth, innerHeight);
-  composer.setSize(innerWidth, innerHeight);
+  renderQuality.maxPixelRatio = Math.min(
+    devicePixelRatio,
+    innerWidth <= 820 ? 1 : 1.2,
+  );
+  renderQuality.pixelRatio = Math.min(renderQuality.pixelRatio, renderQuality.maxPixelRatio);
+  applyRenderSize();
+  renderer.shadowMap.needsUpdate = true;
+  mapStaticKey = "";
 });
 
 let performanceFrames = 0;
 let performanceWindowStarted = performance.now();
+let lastFrameRenderStats = { calls: 0, triangles: 0 };
+let renderTimeSamples = [];
+let frameWorkSamples = [];
+let hudElapsed = Infinity;
+let mapDrawElapsed = Infinity;
+function updateAdaptiveQuality(now) {
+  performanceFrames += 1;
+  const windowDuration = now - performanceWindowStarted;
+  if (windowDuration < 2000) return;
+
+  const measuredFps = (performanceFrames * 1000) / windowDuration;
+  const fps = Math.round(measuredFps);
+  const sortedRenderTimes = renderTimeSamples.slice().sort((a, b) => a - b);
+  const averageRenderMs = sortedRenderTimes.length
+    ? sortedRenderTimes.reduce((sum, value) => sum + value, 0) / sortedRenderTimes.length
+    : 0;
+  const p95RenderMs = sortedRenderTimes.length
+    ? sortedRenderTimes[Math.min(
+        sortedRenderTimes.length - 1,
+        Math.floor(sortedRenderTimes.length * 0.95),
+      )]
+    : 0;
+  const sortedFrameWork = frameWorkSamples.slice().sort((a, b) => a - b);
+  const averageFrameWorkMs = sortedFrameWork.length
+    ? sortedFrameWork.reduce((sum, value) => sum + value, 0) / sortedFrameWork.length
+    : 0;
+  const p95FrameWorkMs = sortedFrameWork.length
+    ? sortedFrameWork[Math.min(
+        sortedFrameWork.length - 1,
+        Math.floor(sortedFrameWork.length * 0.95),
+      )]
+    : 0;
+  renderQuality.lastFps = fps;
+  let qualityChanged = false;
+  if (game.phase === "running" && !mapVisible) {
+    const renderOverloaded =
+      p95RenderMs > 16 ||
+      averageRenderMs > 12 ||
+      (measuredFps < 55 && p95RenderMs > 3);
+    const renderHasHeadroom =
+      measuredFps >= 58 &&
+      p95RenderMs > 0 &&
+      p95RenderMs < 9 &&
+      averageRenderMs < 7;
+    if (renderOverloaded) {
+      renderQuality.upgradeWindows = 0;
+      if (renderQuality.pixelRatio > renderQuality.minPixelRatio + 0.01) {
+        renderQuality.pixelRatio = Math.max(
+          renderQuality.minPixelRatio,
+          renderQuality.pixelRatio - 0.12,
+        );
+        qualityChanged = true;
+      }
+    } else if (renderHasHeadroom) {
+      renderQuality.upgradeWindows += 1;
+      if (
+        renderQuality.upgradeWindows >= 3 &&
+        renderQuality.pixelRatio < renderQuality.maxPixelRatio - 0.01
+      ) {
+        renderQuality.pixelRatio = Math.min(
+          renderQuality.maxPixelRatio,
+          renderQuality.pixelRatio + 0.08,
+        );
+        renderQuality.upgradeWindows = 0;
+        qualityChanged = true;
+      }
+    } else {
+      renderQuality.upgradeWindows = 0;
+    }
+  }
+  if (qualityChanged) applyRenderSize();
+
+  if (import.meta.env.DEV) {
+    document.documentElement.dataset.renderStats = JSON.stringify({
+      fps,
+      calls: lastFrameRenderStats.calls,
+      triangles: lastFrameRenderStats.triangles,
+      textures: renderer.info.memory.textures,
+      geometries: renderer.info.memory.geometries,
+      pixelRatio: Number(renderQuality.pixelRatio.toFixed(2)),
+      ao: false,
+      shadows: renderQuality.shadows,
+      averageRenderMs: Number(averageRenderMs.toFixed(2)),
+      p95RenderMs: Number(p95RenderMs.toFixed(2)),
+      averageFrameWorkMs: Number(averageFrameWorkMs.toFixed(2)),
+      p95FrameWorkMs: Number(p95FrameWorkMs.toFixed(2)),
+    });
+  }
+  renderTimeSamples = [];
+  frameWorkSamples = [];
+  performanceFrames = 0;
+  performanceWindowStarted = now;
+}
+
 function animate() {
   requestAnimationFrame(animate);
+  const frameWorkStarted = performance.now();
   const dt = Math.min(clock.getDelta(), 0.04);
   game.elapsed += dt;
   gradePass.uniforms.time.value = game.elapsed;
-  sunTarget.position.set(player.position.x, 0, player.position.z);
-  sunLight.position.set(player.position.x - 70, 62, player.position.z + 38);
+  shadowUpdateElapsed += dt;
+  if (renderQuality.shadows && shadowUpdateElapsed >= 0.12) {
+    sunTarget.position.set(player.position.x, 0, player.position.z);
+    sunLight.position.set(player.position.x - 70, 62, player.position.z + 38);
+    renderer.shadowMap.needsUpdate = true;
+    shadowUpdateElapsed = 0;
+  }
   updateArena(dt);
   updateTunnelAtmosphere(dt);
 
@@ -1753,8 +1923,18 @@ function animate() {
     updatePlayer(dt);
     updateGuards(dt);
     if (game.phase === "running") updateMission(dt);
-    updateHUD();
-    if (mapVisible) drawCityMap();
+    hudElapsed += dt;
+    if (hudElapsed >= 0.05) {
+      updateHUD();
+      hudElapsed = 0;
+    }
+    if (mapVisible) {
+      mapDrawElapsed += dt;
+      if (mapDrawElapsed >= 1 / 30) {
+        drawCityMap();
+        mapDrawElapsed = 0;
+      }
+    }
   } else if (game.phase === "briefing") {
     camera.position.x = 100 + Math.sin(game.elapsed * 0.12) * 4;
     camera.position.y = 25 + Math.sin(game.elapsed * 0.2) * 0.5;
@@ -1764,22 +1944,18 @@ function animate() {
   } else {
     knife.root.visible = true;
   }
-  composer.render();
-  if (import.meta.env.DEV) {
-    performanceFrames += 1;
-    const now = performance.now();
-    if (now - performanceWindowStarted > 1500) {
-      document.documentElement.dataset.renderStats = JSON.stringify({
-        fps: Math.round((performanceFrames * 1000) / (now - performanceWindowStarted)),
-        calls: renderer.info.render.calls,
-        triangles: renderer.info.render.triangles,
-        textures: renderer.info.memory.textures,
-        geometries: renderer.info.memory.geometries,
-      });
-      performanceFrames = 0;
-      performanceWindowStarted = now;
-    }
+  if (!mapVisible && (game.phase === "running" || game.phase === "briefing")) {
+    const renderStarted = performance.now();
+    composer.render();
+    renderTimeSamples.push(performance.now() - renderStarted);
+    lastFrameRenderStats = {
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+    };
   }
+  renderer.info.reset();
+  frameWorkSamples.push(performance.now() - frameWorkStarted);
+  updateAdaptiveQuality(performance.now());
 }
 
 animate();

@@ -1,4 +1,3 @@
-import { Water } from "three/addons/objects/Water.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 /**
@@ -401,32 +400,29 @@ export function buildArena(THREE, scene) {
   };
 
   // The Mediterranean surrounds the peninsula on three sides.
-  const water = new Water(new THREE.PlaneGeometry(430, 360), {
-    textureWidth: 256,
-    textureHeight: 256,
-    waterNormals,
-    sunDirection: new THREE.Vector3(-0.7, 0.62, 0.38).normalize(),
-    sunColor: 0xffd19d,
-    waterColor: 0x0a6878,
-    distortionScale: 3.1,
-    alpha: 0.94,
-    fog: true,
+  // A single-pass sea keeps the coastal sheen without rendering the whole city
+  // again for planar reflections. The scrolling normal map supplies motion.
+  waterNormals.repeat.set(18, 14);
+  const waterMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x0a6878,
+    normalMap: waterNormals,
+    normalScale: new THREE.Vector2(0.46, 0.46),
+    roughness: 0.28,
+    metalness: 0.06,
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.26,
+    transparent: true,
+    opacity: 0.94,
+    depthWrite: true,
   });
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(430, 360, 1, 1), waterMaterial);
   water.rotation.x = -Math.PI / 2;
   water.position.set(-20, 0.02, 18);
-  water.receiveShadow = true;
+  water.receiveShadow = false;
   water.name = "Mediterranean Sea";
-  const renderWaterReflection = water.onBeforeRender;
-  let lastWaterReflection = -Infinity;
-  water.onBeforeRender = function throttledReflection(...args) {
-    const now = performance.now();
-    if (now - lastWaterReflection < 50) return;
-    lastWaterReflection = now;
-    renderWaterReflection.apply(this, args);
-  };
   root.add(water);
   water.userData.animate = (time) => {
-    water.material.uniforms.time.value = time * 0.42;
+    waterNormals.offset.set(time * 0.0022, time * 0.0031);
   };
   animated.push(water);
 

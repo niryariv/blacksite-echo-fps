@@ -40,6 +40,11 @@ The cleanest result is earned by completing the mission with zero takedowns and
 almost no watch suspicion. Guards can see, hear, investigate disturbances, and
 discover incapacitated colleagues, so the dagger should remain a last resort.
 
+Rendering quality adapts to the device’s measured frame workload. The game uses
+single-pass animated water, shared guard resources and distance models,
+throttled shadows and HUD updates, lazy map loading, and dynamic resolution to
+keep movement responsive in the densest city and harbour views.
+
 Create a production bundle with:
 
 ```bash
