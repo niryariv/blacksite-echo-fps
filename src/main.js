@@ -30,8 +30,12 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.02;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x526f79);
+const surfaceBackgroundColor = new THREE.Color(0x526f79);
+const tunnelBackgroundColor = new THREE.Color(0x0c0b09);
+scene.background = surfaceBackgroundColor.clone();
 scene.fog = new THREE.Fog(0x667c7f, 105, 320);
+const surfaceFogColor = new THREE.Color(0x667c7f);
+const tunnelFogColor = new THREE.Color(0x17140f);
 
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.04, 900);
 camera.rotation.order = "YXZ";
@@ -176,6 +180,9 @@ const game = {
   takedowns: 0,
   knifeIntegrity: 2,
   interaction: 0,
+  tunnelInteraction: 0,
+  tunnelCooldown: 0,
+  inTunnel: false,
   compromised: false,
   insertionUntil: Infinity,
 };
@@ -186,6 +193,7 @@ const player = {
   yaw: Math.PI / 2,
   pitch: -0.03,
   height: 1.72,
+  floorY: 0,
   radius: 0.46,
   crouched: false,
   noise: 0,
@@ -207,8 +215,9 @@ camera.rotation.set(player.pitch, player.yaw, 0);
 
 if (import.meta.env.DEV) {
   globalThis.__acreDebug = {
-    teleport(x, z, yaw = player.yaw) {
-      player.position.set(x, player.height, z);
+    teleport(x, z, yaw = player.yaw, floorY = 0) {
+      player.floorY = floorY;
+      player.position.set(x, floorY + player.height, z);
       player.velocity.set(0, 0, 0);
       player.yaw = yaw;
     },
@@ -629,7 +638,7 @@ function updatePlayer(dt) {
 
   const targetHeight = player.crouched ? 1.12 : 1.72;
   player.height = THREE.MathUtils.damp(player.height, targetHeight, 14, dt);
-  player.position.y = player.height;
+  player.position.y = player.floorY + player.height;
 
   const horizontalSpeed = Math.hypot(player.velocity.x, player.velocity.z);
   const targetNoise = !moving ? 2 : player.crouched ? 12 : sprinting ? 92 : 34;
@@ -666,6 +675,7 @@ function updatePlayer(dt) {
 
 function guardCanSee(guard, point, range = 15, fov = 66) {
   const eye = guard.root.position.clone().add(new THREE.Vector3(0, 1.65, 0));
+  if (Math.abs(point.y - eye.y) > 3.5) return false;
   const toPoint = point.clone().sub(eye);
   const distance = toPoint.length();
   if (distance > range) return false;
@@ -861,6 +871,50 @@ function useKnife() {
   });
 }
 
+function updateTunnelTraversal(dt, prompt) {
+  game.tunnelCooldown = Math.max(0, game.tunnelCooldown - dt);
+  const underground = player.floorY < -1;
+  const portal = arena.tunnel.portals.find((item) => {
+    const point = underground ? item.underground : item.surface;
+    return Math.hypot(player.position.x - point.x, player.position.z - point.z) < 2.35;
+  });
+
+  if (!portal || game.tunnelCooldown > 0) {
+    game.tunnelInteraction = Math.max(0, game.tunnelInteraction - dt * 2.2);
+    return false;
+  }
+
+  if (keys.has("KeyE")) game.tunnelInteraction += dt;
+  else game.tunnelInteraction = Math.max(0, game.tunnelInteraction - dt * 2);
+  const progress = THREE.MathUtils.clamp(game.tunnelInteraction / 0.9, 0, 1);
+  const destination =
+    portal.id === "fortress" ? "TEMPLAR FORTRESS" : "HARBOUR STAIR";
+  prompt.innerHTML = `HOLD <strong>[ E ]</strong> ${
+    underground ? `ASCEND TO ${destination}` : "ENTER TEMPLAR TUNNEL"
+  }
+    <span class="progress"><i style="width:${progress * 100}%"></i></span>`;
+  prompt.classList.remove("hidden");
+
+  if (progress >= 1) {
+    const target = underground ? portal.surface : portal.underground;
+    player.floorY = target.y;
+    player.position.set(target.x, target.y + player.height, target.z);
+    player.velocity.set(0, 0, 0);
+    player.yaw = underground ? portal.exitYaw : portal.enterYaw;
+    game.inTunnel = !underground;
+    game.tunnelCooldown = 1.1;
+    game.tunnelInteraction = 0;
+    game.interaction = 0;
+    addFeed(
+      underground
+        ? `${destination} // PASSAGE EXITED`
+        : "TEMPLAR TUNNEL // BENEATH THE PISAN QUARTER",
+    );
+    audio.pickup();
+  }
+  return true;
+}
+
 function updateMission(dt) {
   missionObjects.terminalScreen.material.emissiveIntensity =
     2.7 + Math.sin(game.elapsed * 3.1) * 0.55;
@@ -871,8 +925,9 @@ function updateMission(dt) {
   });
 
   const prompt = $("interact-prompt");
-  let inRange = false;
-  if (game.stage === "infiltrate") {
+  const tunnelPrompt = updateTunnelTraversal(dt, prompt);
+  let inRange = tunnelPrompt;
+  if (!tunnelPrompt && game.stage === "infiltrate") {
     const distance = player.position.distanceTo(missionObjects.terminal.position);
     if (distance < 2.15) {
       inRange = true;
@@ -894,7 +949,7 @@ function updateMission(dt) {
         audio.pickup();
       }
     }
-  } else if (game.stage === "extract") {
+  } else if (!tunnelPrompt && game.stage === "extract") {
     const distance = player.position.distanceTo(missionObjects.exfil.position);
     if (distance < 2.8) {
       inRange = true;
@@ -918,6 +973,43 @@ function updateArena(dt) {
   for (const item of arena.animated) {
     if (typeof item.userData.animate === "function") item.userData.animate(game.elapsed, dt);
   }
+}
+
+function updateTunnelAtmosphere(dt) {
+  const underground = player.floorY < -1;
+  const blend = 1 - Math.exp(-dt * 4.5);
+  ambient.intensity = THREE.MathUtils.damp(
+    ambient.intensity,
+    underground ? 0.16 : 1.28,
+    4.5,
+    dt,
+  );
+  sunLight.intensity = THREE.MathUtils.damp(
+    sunLight.intensity,
+    underground ? 0.08 : 2.5,
+    4.5,
+    dt,
+  );
+  viewLight.intensity = THREE.MathUtils.damp(
+    viewLight.intensity,
+    underground ? 0.22 : 0.5,
+    4.5,
+    dt,
+  );
+  scene.environmentIntensity = THREE.MathUtils.damp(
+    scene.environmentIntensity,
+    underground ? 0.16 : 0.55,
+    4.5,
+    dt,
+  );
+  scene.fog.color.lerp(underground ? tunnelFogColor : surfaceFogColor, blend);
+  scene.background.lerp(
+    underground ? tunnelBackgroundColor : surfaceBackgroundColor,
+    blend,
+  );
+  scene.fog.near = THREE.MathUtils.damp(scene.fog.near, underground ? 7 : 105, 4.5, dt);
+  scene.fog.far = THREE.MathUtils.damp(scene.fog.far, underground ? 43 : 320, 4.5, dt);
+  sky.visible = !underground;
 }
 
 function updateHUD() {
@@ -956,8 +1048,13 @@ function updateHUD() {
   const targetBearing = Math.atan2(waypointDelta.x, -waypointDelta.z);
   const relativeBearing = THREE.MathUtils.radToDeg(targetBearing + player.yaw);
   $("waypoint-arrow").style.transform = `rotate(${relativeBearing}deg)`;
-  $("waypoint-task").textContent =
-    game.stage === "infiltrate" ? "ENTER HOSPITALLER COURT" : "REACH HARBOUR SKIFF";
+  $("waypoint-task").textContent = game.inTunnel
+    ? game.stage === "infiltrate"
+      ? "EXIT TUNNEL // REACH HOSPITALLER COURT"
+      : "FOLLOW TUNNEL EAST // HARBOUR"
+    : game.stage === "infiltrate"
+      ? "ENTER HOSPITALLER COURT"
+      : "REACH HARBOUR SKIFF";
   $("waypoint-distance").textContent = `${Math.max(0, Math.round(waypointDistance))} M`;
   $("waypoint").classList.toggle("close", waypointDistance < 4);
 
@@ -1030,7 +1127,6 @@ function drawCityMap() {
   line([[98, -22], [62, -22], [20, -22], [0, -40], [-30, -41]], "#8b704a", 1.3, [5, 5]);
   line([[4, -58], [4, 34], [38, 48], [38, 64], [54, 64]], "#8b704a", 1.3, [5, 5]);
   line([[-52, 18], [18, 18], [70, 18]], "#8b704a", 1, [4, 5]);
-  line([[-54, 50], [34, 50]], "#8b704a", 1, [3, 4]);
   line([[18, 42], [91, 42]], "#523b25", 2);
   line([[18, 81], [91, 81]], "#523b25", 2);
 
@@ -1054,6 +1150,24 @@ function drawCityMap() {
     ctx.textBaseline = "middle";
     ctx.fillText(district.name, center.x, center.y);
   });
+
+  // Documented west-east secret passage from the Templar fortress to the port.
+  line([[-59, 58], [-54, 50], [35, 50], [37, 50]], "#5f2c24", 3, [7, 5]);
+  const tunnelLabel = project(-10, 50);
+  ctx.fillStyle = "#5f2c24";
+  ctx.font = "700 10px Arial Narrow, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("TEMPLAR TUNNEL", tunnelLabel.x, tunnelLabel.y - 8);
+  for (const portal of arena.tunnel.portals) {
+    const entry = project(portal.surface.x, portal.surface.z);
+    ctx.beginPath();
+    ctx.arc(entry.x, entry.y, 4.2, 0, Math.PI * 2);
+    ctx.fillStyle = "#d7b66b";
+    ctx.fill();
+    ctx.strokeStyle = "#5f2c24";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   // Towers and landmark silhouettes.
   [[-95, -84], [92, -84], [92, 18], [89, 76]].forEach(([x, z]) => {
@@ -1098,12 +1212,19 @@ function drawCityMap() {
   ctx.lineTo(0, 4);
   ctx.lineTo(-7, 8);
   ctx.closePath();
-  ctx.fillStyle = "#173f4a";
+  ctx.fillStyle = game.inTunnel ? "#b88739" : "#173f4a";
   ctx.fill();
   ctx.strokeStyle = "#f0dfb3";
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.restore();
+
+  if (game.inTunnel) {
+    ctx.fillStyle = "#6e2d23";
+    ctx.font = "700 11px Arial Narrow, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText("BELOW STREET LEVEL", rect.width - margin, margin + 13);
+  }
 
   ctx.fillStyle = "rgba(74,53,31,.72)";
   ctx.font = "italic 11px Georgia, serif";
@@ -1261,6 +1382,7 @@ function animate() {
   sunTarget.position.set(player.position.x, 0, player.position.z);
   sunLight.position.set(player.position.x - 70, 62, player.position.z + 38);
   updateArena(dt);
+  updateTunnelAtmosphere(dt);
 
   if (game.phase === "running") {
     game.missionTime += dt;

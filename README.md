@@ -12,7 +12,8 @@ south-western Templar fortress and passage, Italian merchant quarters, the
 Cathedral close, the inner harbour, quays, ships, and the Burj al-Sultan area.
 Crusader buildings incorporate Byzantine and earlier layers through reused
 foundations and architectural fragments rather than presenting the 13th-century
-city as wholly Byzantine.
+city as wholly Byzantine. The Templar tunnel is a fully traversable concealed
+route between the fortress precinct and harbour approach.
 
 ## Run it
 
@@ -30,7 +31,7 @@ Open the local URL printed by Vite, click **Enter Acre**, and allow mouse captur
 - `Shift` — sprint (fast, but loud)
 - Mouse — look
 - Left mouse — emergency knife takedown from behind
-- Hold `E` — take the dispatch or board the skiff
+- Hold `E` — interact, enter/leave the Templar tunnel, take the dispatch, or board the skiff
 - Hold `M` — open the live city map
 - `V` — mute/unmute procedural audio
 - `Esc` — release the mouse and pause

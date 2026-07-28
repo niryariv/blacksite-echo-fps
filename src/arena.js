@@ -1123,12 +1123,179 @@ export function buildArena(THREE, scene) {
     name: "Templar gate arch",
   });
 
-  // A playable surface trace of the 150 m Templar passage toward the port.
-  for (let x = -54; x <= 31; x += 9.5) {
-    addBox({ size: [0.7, 3.2, 0.7], position: [x, 1.6, 47], material: oldStone, shadows: false });
-    addBox({ size: [0.7, 3.2, 0.7], position: [x, 1.6, 53], material: oldStone, shadows: false });
-    addBox({ size: [9.5, 0.55, 6.7], position: [x + 4.4, 3.15, 50], material: oldStone, shadows: false });
+  // The strategic Templar passage ran west-to-east from the sea fortress,
+  // beneath the Pisan quarter, toward the port. It is compressed to 95 metres
+  // here while retaining its bedrock base and half-barrel cut-stone vault.
+  const tunnelFloorY = -5.25;
+  const tunnelStartX = -57;
+  const tunnelEndX = 38;
+  const tunnelLength = tunnelEndX - tunnelStartX;
+  const tunnelCenterX = (tunnelStartX + tunnelEndX) / 2;
+  const tunnelCenterZ = 50;
+  const tunnelStone = new THREE.MeshStandardMaterial({
+    color: 0x81755f,
+    map: stoneTexture,
+    normalMap: stoneNormal,
+    normalScale: new THREE.Vector2(0.68, 0.68),
+    roughnessMap: stoneRough,
+    roughness: 0.9,
+  });
+  tunnelStone.userData.worldTextureScale = 2;
+  const vaultStone = tunnelStone.clone();
+  vaultStone.map = stoneTexture.clone();
+  vaultStone.normalMap = stoneNormal.clone();
+  vaultStone.roughnessMap = stoneRough.clone();
+  [vaultStone.map, vaultStone.normalMap, vaultStone.roughnessMap].forEach((texture) => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 34);
+    texture.needsUpdate = true;
+  });
+  vaultStone.side = THREE.BackSide;
+  const tunnelWater = new THREE.MeshPhysicalMaterial({
+    color: 0x20474b,
+    roughness: 0.24,
+    metalness: 0.05,
+    transmission: 0.08,
+    transparent: true,
+    opacity: 0.72,
+  });
+
+  addBox({
+    size: [tunnelLength, 0.25, 4.25],
+    position: [tunnelCenterX, tunnelFloorY - 0.125, tunnelCenterZ],
+    material: cobbles,
+    name: "Templar tunnel bedrock floor",
+  });
+  addBox({
+    size: [tunnelLength - 2, 0.035, 0.52],
+    position: [tunnelCenterX, tunnelFloorY + 0.025, tunnelCenterZ],
+    material: tunnelWater,
+    shadows: false,
+    name: "Templar tunnel drainage channel",
+  });
+  for (const z of [47.72, 52.28]) {
+    addBox({
+      size: [tunnelLength, 1.45, 0.62],
+      position: [tunnelCenterX, -4.525, z],
+      material: tunnelStone,
+      collider: true,
+      name: "Templar tunnel bedrock wall",
+    });
   }
+
+  const vaultGeometry = new THREE.CylinderGeometry(
+    2.3,
+    2.3,
+    tunnelLength,
+    28,
+    24,
+    true,
+    0,
+    Math.PI,
+  );
+  vaultGeometry.rotateZ(Math.PI / 2);
+  const vault = new THREE.Mesh(vaultGeometry, vaultStone);
+  vault.position.set(tunnelCenterX, -4.0, tunnelCenterZ);
+  vault.castShadow = vault.receiveShadow = true;
+  vault.name = "Templar tunnel half-barrel vault";
+  root.add(vault);
+  addCollider([tunnelLength, 0.5, 5.2], [tunnelCenterX, -1.55, tunnelCenterZ]);
+
+  for (let x = tunnelStartX + 4; x < tunnelEndX - 3; x += 8) {
+    addArch({
+      radius: 2.08,
+      thickness: 0.16,
+      position: [x, -4.0, tunnelCenterZ],
+      material: paleStone,
+      rotationY: Math.PI / 2,
+      name: "Templar tunnel vault rib",
+    });
+  }
+  for (const x of [tunnelStartX - 0.3, tunnelEndX + 0.3]) {
+    addBox({
+      size: [0.62, 3.7, 5.05],
+      position: [x, -3.55, tunnelCenterZ],
+      material: tunnelStone,
+      collider: true,
+      name: "Templar tunnel sealed stair wall",
+    });
+  }
+
+  const addTunnelLamp = (x, side) => {
+    const z = tunnelCenterZ + side * 1.82;
+    addBox({
+      size: [0.12, 0.82, 0.12],
+      position: [x, -3.74, z],
+      material: bronze,
+      shadows: false,
+      name: "Tunnel lamp bracket",
+    });
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 8), flameMaterial);
+    flame.position.set(x, -3.16, z);
+    flame.userData.dynamic = true;
+    root.add(flame);
+    const light = new THREE.PointLight(0xff9a42, 7.5, 9, 2);
+    light.position.set(x, -3.08, z);
+    root.add(light);
+    flame.userData.animate = (time) => {
+      const flicker = 0.86 + Math.sin(time * 10.5 + x) * 0.14;
+      flame.scale.set(0.92, flicker, 0.92);
+      light.intensity = 5.8 + flicker * 2.4;
+    };
+    animated.push(flame);
+  };
+  for (let x = tunnelStartX + 7, lamp = 0; x < tunnelEndX - 4; x += 13, lamp += 1) {
+    addTunnelLamp(x, lamp % 2 ? -1 : 1);
+  }
+
+  // Port stairhouse: a discreet stone entry beside the harbour approach.
+  const stairhouse = new THREE.Group();
+  stairhouse.name = "Templar tunnel port stairhouse";
+  root.add(stairhouse);
+  addBox({ size: [5.4, 3.5, 0.55], position: [33.1, 1.75, 47.25], material: oldStone, collider: true, parent: stairhouse });
+  addBox({ size: [5.4, 3.5, 0.55], position: [33.1, 1.75, 52.75], material: oldStone, collider: true, parent: stairhouse });
+  addBox({ size: [0.55, 3.5, 6.05], position: [30.4, 1.75, 50], material: oldStone, collider: true, parent: stairhouse });
+  addBox({ size: [5.4, 0.48, 6.05], position: [33.1, 3.48, 50], material: paleStone, parent: stairhouse });
+  for (const z of [48.85, 51.15]) {
+    addBox({ size: [0.55, 3.5, 1.75], position: [35.8, 1.75, z], material: oldStone, collider: true, parent: stairhouse });
+  }
+  addBox({
+    size: [0.1, 2.85, 2.45],
+    position: [36.1, 1.43, 50],
+    material: darkRecess,
+    parent: stairhouse,
+    shadows: false,
+    name: "Tunnel stair darkness",
+  });
+  addArch({
+    radius: 1.28,
+    thickness: 0.24,
+    position: [36.13, 2.72, 50],
+    material: paleStone,
+    rotationY: Math.PI / 2,
+    parent: stairhouse,
+    name: "Port stair arch",
+  });
+
+  const tunnel = {
+    floorY: tunnelFloorY,
+    portals: [
+      {
+        id: "fortress",
+        surface: new THREE.Vector3(-59, 0, 58),
+        underground: new THREE.Vector3(-54.6, tunnelFloorY, 50),
+        enterYaw: -Math.PI / 2,
+        exitYaw: Math.PI / 2,
+      },
+      {
+        id: "port",
+        surface: new THREE.Vector3(37.1, 0, 50),
+        underground: new THREE.Vector3(35.2, tunnelFloorY, 50),
+        enterYaw: Math.PI / 2,
+        exitYaw: -Math.PI / 2,
+      },
+    ],
+  };
 
   // Inner harbour, stone quays, mole, and the extraction skiff.
   addCollider([52, 2.3, 16], [68, 0.8, 50]);
@@ -1646,6 +1813,7 @@ export function buildArena(THREE, scene) {
   addCollider([220, 8, 3], [0, 4, -94]);
 
   const zones = [
+    { name: "TEMPLAR TUNNEL", box: new THREE.Box3(new THREE.Vector3(-58, -7, 47), new THREE.Vector3(39, -1, 53)) },
     { name: "ST ANTHONY'S GATE", box: new THREE.Box3(new THREE.Vector3(72, -2, -37), new THREE.Vector3(108, 12, -7)) },
     { name: "MONTMUSART", box: new THREE.Box3(new THREE.Vector3(-98, -2, -85), new THREE.Vector3(92, 12, -63)) },
     { name: "HOSPITALLER QUARTER", box: new THREE.Box3(new THREE.Vector3(-58, -2, -63), new THREE.Vector3(-5, 14, -23)) },
@@ -1721,6 +1889,7 @@ export function buildArena(THREE, scene) {
     animated,
     bounds,
     mission,
+    tunnel,
     zones,
   };
 }

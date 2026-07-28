@@ -23,9 +23,11 @@ compressing their real distances to keep a stealth run readable.
 - The Hospitaller headquarters occupies the north-western part of the old city
   beside the twelfth-century northern wall. Its playable court is surrounded by
   massive halls, an arcade, a well, and pools based on excavated features.
-- The Templar fortress occupies the south-western sea edge. A surface-level
-  playable passage evokes the documented 150-metre tunnel between the fortress
-  and port.
+- The Templar fortress occupies the south-western sea edge. Its traversable
+  tunnel follows the documented west-to-east strategic passage toward the port,
+  crossing beneath the Pisan quarter. The game compresses its roughly
+  150-metre route to 95 metres while retaining a rock-cut lower section,
+  half-barrel hewn-stone vault, drainage channel, and discreet stair entrances.
 - Genoese, Venetian, and Pisan merchant districts fill the central and harbour
   approaches with dense houses, arcaded markets, awnings, amphorae, and stores.
 - The Cathedral close provides the principal ecclesiastical landmark.
