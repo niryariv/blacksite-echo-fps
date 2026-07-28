@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#070b0e" />
+    <meta
+      name="description"
+      content="BLACKSITE // ECHO — an original procedural Three.js FPS vertical slice."
+    />
+    <title>BLACKSITE // ECHO</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game"></canvas>
+
+      <div class="grain"></div>
+      <div id="damage-vignette"></div>
+      <div id="damage-direction" aria-hidden="true"><i></i></div>
+      <div id="letterbox" aria-hidden="true"></div>
+
+      <header id="top-hud" class="hud hidden">
+        <section class="mission-block">
+          <span class="eyebrow">LIVE OPERATION</span>
+          <strong>BLACKSITE // ECHO</strong>
+          <span id="objective">ELIMINATIONS 00 / 12</span>
+        </section>
+        <section class="score-block">
+          <div><span>SCORE</span><b id="score">00000</b></div>
+          <div><span>STREAK</span><b id="streak">×0</b></div>
+          <div><span>TIME</span><b id="timer">03:00</b></div>
+        </section>
+      </header>
+
+      <div id="compass" class="hud hidden">
+        <span id="compass-left">W</span>
+        <b id="bearing">N&nbsp;&nbsp;000</b>
+        <span id="compass-right">E</span>
+      </div>
+
+      <div id="crosshair" class="hidden" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+        <b></b>
+      </div>
+      <div id="hitmarker" aria-hidden="true"><i></i><i></i></div>
+
+      <section id="combat-feed" class="hud hidden" aria-live="polite"></section>
+
+      <footer id="bottom-hud" class="hud hidden">
+        <section class="health-panel">
+          <span class="icon">+</span>
+          <div class="meter-copy">
+            <span>VITALS</span>
+            <div class="meter"><i id="health-bar"></i></div>
+          </div>
+          <b id="health">100</b>
+        </section>
+        <section class="ammo-panel">
+          <span id="weapon-state">VX-9 // AUTO</span>
+          <div><b id="ammo">30</b><i>/</i><strong id="reserve">180</strong></div>
+        </section>
+      </footer>
+
+      <section id="interact-prompt" class="hidden"></section>
+
+      <main id="start-screen" class="screen visible">
+        <div class="screen-grid"></div>
+        <div class="brand">
+          <span class="kicker">ORBITAL RESPONSE GROUP // 07</span>
+          <h1>BLACKSITE<br /><em>ECHO</em></h1>
+          <p class="tagline">THE SIGNAL WASN'T A DISTRESS CALL.</p>
+        </div>
+        <div class="briefing-card">
+          <div class="status-line"><i></i> MISSION PACKAGE READY</div>
+          <p>
+            Infiltrate the abandoned relay station. Contain every hostile
+            synthetic before the uplink completes.
+          </p>
+          <div class="controls">
+            <span><kbd>WASD</kbd> MOVE</span>
+            <span><kbd>SHIFT</kbd> SPRINT</span>
+            <span><kbd>SPACE</kbd> VAULT</span>
+            <span><kbd>MOUSE</kbd> AIM / FIRE</span>
+            <span><kbd>R</kbd> RELOAD</span>
+            <span><kbd>ESC</kbd> PAUSE</span>
+          </div>
+          <button id="deploy-button">DEPLOY <i>→</i></button>
+          <small>Headphones recommended • Click to engage pointer lock</small>
+        </div>
+        <div class="build-id">SIMULATION BUILD // 26.07</div>
+      </main>
+
+      <section id="pause-screen" class="screen modal hidden">
+        <div>
+          <span class="kicker">TACTICAL LINK SUSPENDED</span>
+          <h2>PAUSED</h2>
+          <p>Click resume to re-engage mouse control.</p>
+          <button id="resume-button">RESUME OPERATION</button>
+        </div>
+      </section>
+
+      <section id="end-screen" class="screen modal hidden">
+        <div>
+          <span class="kicker">AFTER ACTION REPORT</span>
+          <h2 id="end-title">UPLINK SECURED</h2>
+          <p id="end-copy">Combat effectiveness recorded.</p>
+          <div class="results">
+            <span><small>SCORE</small><b id="final-score">0</b></span>
+            <span><small>ELIMINATIONS</small><b id="final-kills">0</b></span>
+            <span><small>ACCURACY</small><b id="final-accuracy">0%</b></span>
+          </div>
+          <button id="restart-button">RUN AGAIN</button>
+        </div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
