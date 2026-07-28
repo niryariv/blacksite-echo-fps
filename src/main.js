@@ -16,6 +16,13 @@ const $ = (id) => document.getElementById(id);
 const canvas = $("game");
 const mapCanvas = $("map-canvas");
 const mapContext = mapCanvas.getContext("2d");
+const mapParchment = new Image();
+mapParchment.src = `${import.meta.env.BASE_URL}assets/maps/acre-portolan-parchment.webp`;
+const mapStaticCanvas = document.createElement("canvas");
+let mapStaticKey = "";
+mapParchment.addEventListener("load", () => {
+  mapStaticKey = "";
+});
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
@@ -1063,6 +1070,10 @@ function updateHUD() {
     : game.stage === "infiltrate"
       ? "ENTER HOSPITALLER COURT"
       : "REACH HARBOUR SKIFF";
+  $("map-objective").textContent =
+    game.stage === "infiltrate"
+      ? "I · RECOVER THE SEALED DISPATCH"
+      : "II · RETURN UNSEEN TO THE HARBOUR SKIFF";
   $("waypoint-distance").textContent = `${Math.max(0, Math.round(waypointDistance))} M`;
   $("waypoint").classList.toggle("close", waypointDistance < 4);
 
@@ -1082,163 +1093,503 @@ function drawCityMap() {
   }
 
   const ctx = mapContext;
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  ctx.clearRect(0, 0, rect.width, rect.height);
-
-  const margin = 22;
+  const margin = Math.max(18, Math.min(30, rect.width * 0.026));
   const mapWidth = rect.width - margin * 2;
   const mapHeight = rect.height - margin * 2;
+  const world = { left: -108, right: 122, top: -94, bottom: 88 };
+  const scaleX = mapWidth / (world.right - world.left);
+  const scaleZ = mapHeight / (world.bottom - world.top);
   const project = (x, z) => ({
-    x: margin + ((x + 108) / 216) * mapWidth,
-    y: margin + ((z + 94) / 182) * mapHeight,
+    x: margin + (x - world.left) * scaleX,
+    y: margin + (z - world.top) * scaleZ,
   });
-  const drawWorldRect = (x1, z1, x2, z2, fill, stroke = null, width = 1) => {
-    const a = project(x1, z1);
-    const b = project(x2, z2);
-    ctx.fillStyle = fill;
-    ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
-    if (stroke) {
-      ctx.strokeStyle = stroke;
-      ctx.lineWidth = width;
-      ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
-    }
-  };
-  const line = (points, color, width = 1, dash = []) => {
-    ctx.beginPath();
+  const pathWorld = (target, points, close = false) => {
+    target.beginPath();
     points.forEach(([x, z], index) => {
       const p = project(x, z);
-      if (index === 0) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
+      if (index === 0) target.moveTo(p.x, p.y);
+      else target.lineTo(p.x, p.y);
     });
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.setLineDash(dash);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (close) target.closePath();
   };
+  const lineWorld = (target, points, color, width = 1, dash = []) => {
+    pathWorld(target, points);
+    target.strokeStyle = color;
+    target.lineWidth = width;
+    target.lineJoin = "round";
+    target.lineCap = "round";
+    target.setLineDash(dash);
+    target.stroke();
+    target.setLineDash([]);
+  };
+  const rectWorld = (target, x1, z1, x2, z2, fill, stroke = null, width = 1) => {
+    const a = project(x1, z1);
+    const b = project(x2, z2);
+    target.fillStyle = fill;
+    target.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    if (stroke) {
+      target.strokeStyle = stroke;
+      target.lineWidth = width;
+      target.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    }
+  };
+  const tower = (target, x, z, radius = 4) => {
+    const p = project(x, z);
+    target.beginPath();
+    target.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    target.fillStyle = "#b38a50";
+    target.fill();
+    target.strokeStyle = "#4d3823";
+    target.lineWidth = 1.2;
+    target.stroke();
+    target.beginPath();
+    target.moveTo(p.x - radius * 0.55, p.y);
+    target.lineTo(p.x + radius * 0.55, p.y);
+    target.stroke();
+  };
+  const staticKey = `${pixelWidth}x${pixelHeight}:${mapParchment.complete ? 1 : 0}`;
 
-  // Sea and peninsula outline.
-  ctx.fillStyle = "rgba(45,101,108,.34)";
-  ctx.fillRect(margin, margin, mapWidth, mapHeight);
-  drawWorldRect(-100, -86, 94, 81, "rgba(209,188,137,.96)", "#4f3c26", 2);
-  drawWorldRect(94, -42, 108, 16, "rgba(209,188,137,.96)", "#4f3c26", 1.5);
-  drawWorldRect(42, 42, 94, 81, "rgba(42,102,111,.62)", "#4f3c26", 1.5);
+  if (mapStaticKey !== staticKey) {
+    mapStaticKey = staticKey;
+    mapStaticCanvas.width = pixelWidth;
+    mapStaticCanvas.height = pixelHeight;
+    const ink = mapStaticCanvas.getContext("2d");
+    ink.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ink.clearRect(0, 0, rect.width, rect.height);
 
-  // Defensive lines and the main gates.
-  line([[-100, -86], [94, -86], [94, 78]], "#523b25", 4);
-  line([[-98, -64], [-24, -64]], "#705238", 2.5);
-  line([[15, -64], [79, -64]], "#705238", 2.5);
-  line([[94, -28], [94, -17]], "#d9bd7a", 6);
-  line([[-100, 81], [94, 81]], "#523b25", 3);
+    if (mapParchment.complete && mapParchment.naturalWidth > 0) {
+      const imageRatio = mapParchment.naturalWidth / mapParchment.naturalHeight;
+      const canvasRatio = rect.width / rect.height;
+      let sourceWidth = mapParchment.naturalWidth;
+      let sourceHeight = mapParchment.naturalHeight;
+      let sourceX = 0;
+      let sourceY = 0;
+      if (imageRatio > canvasRatio) {
+        sourceWidth = sourceHeight * canvasRatio;
+        sourceX = (mapParchment.naturalWidth - sourceWidth) / 2;
+      } else {
+        sourceHeight = sourceWidth / canvasRatio;
+        sourceY = (mapParchment.naturalHeight - sourceHeight) / 2;
+      }
+      ink.drawImage(
+        mapParchment,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        rect.width,
+        rect.height,
+      );
+    } else {
+      ink.fillStyle = "#dcc58e";
+      ink.fillRect(0, 0, rect.width, rect.height);
+    }
+    ink.fillStyle = "rgba(223,202,151,.15)";
+    ink.fillRect(0, 0, rect.width, rect.height);
 
-  // Principal streets and quays.
-  line([[98, -22], [62, -22], [20, -22], [0, -40], [-30, -41]], "#8b704a", 1.3, [5, 5]);
-  line([[4, -58], [4, 34], [38, 48], [38, 64], [54, 64]], "#8b704a", 1.3, [5, 5]);
-  line([[-52, 18], [18, 18], [70, 18]], "#8b704a", 1, [4, 5]);
-  line([[18, 42], [91, 42]], "#523b25", 2);
-  line([[18, 81], [91, 81]], "#523b25", 2);
+    // A muted watercolor sea surrounds the defensible peninsula.
+    ink.fillStyle = "rgba(63,112,117,.31)";
+    ink.fillRect(margin, margin, mapWidth, mapHeight);
+    const coast = [
+      [-100, -86], [94, -86], [94, -42], [108, -38], [108, 12],
+      [94, 17], [94, 40], [86, 43], [43, 43], [41, 81],
+      [-92, 81], [-100, 69], [-103, 34], [-104, -24], [-100, -86],
+    ];
+    pathWorld(ink, coast, true);
+    ink.fillStyle = "rgba(222,199,142,.94)";
+    ink.fill();
+    ink.strokeStyle = "#4f3a24";
+    ink.lineWidth = 2.3;
+    ink.stroke();
 
-  const districts = [
-    { name: "MONTMUSART", rect: [-98, -84, 91, -65], tone: "rgba(112,82,52,.12)" },
-    { name: "HOSPITALLERS", rect: [-56, -62, -5, -23], tone: "rgba(120,43,32,.16)" },
-    { name: "HOLY CROSS", rect: [-33, -24, -7, 14], tone: "rgba(117,86,48,.15)" },
-    { name: "TEMPLARS", rect: [-98, 39, -48, 79], tone: "rgba(120,43,32,.16)" },
-    { name: "PISAN", rect: [-47, 20, 18, 79], tone: "rgba(80,91,75,.11)" },
-    { name: "GENOESE", rect: [-4, -21, 23, 24], tone: "rgba(80,91,75,.15)" },
-    { name: "VENETIAN", rect: [24, -19, 87, 41], tone: "rgba(80,91,75,.11)" },
-    { name: "INNER HARBOUR", rect: [43, 43, 92, 79], tone: "rgba(41,91,101,.2)" },
-  ];
-  districts.forEach((district) => {
-    const [x1, z1, x2, z2] = district.rect;
-    drawWorldRect(x1, z1, x2, z2, district.tone, "rgba(78,58,36,.58)", 1);
-    const center = project((x1 + x2) / 2, (z1 + z2) / 2);
-    ctx.fillStyle = district.name === "INNER HARBOUR" ? "#e8d9b0" : "#5c4329";
-    ctx.font = `700 ${Math.max(8, Math.min(11, rect.width / 85))}px Arial Narrow, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(district.name, center.x, center.y);
-  });
+    // Watercolor variation and ink wavelets.
+    const seeded = (seed) => {
+      const value = Math.sin(seed * 913.17 + 17.31) * 43758.5453;
+      return value - Math.floor(value);
+    };
+    for (let i = 0; i < 70; i += 1) {
+      const x = margin + seeded(i + 2) * mapWidth;
+      const y = margin + seeded(i + 89) * mapHeight;
+      const worldPoint = {
+        x: world.left + ((x - margin) / mapWidth) * (world.right - world.left),
+        z: world.top + ((y - margin) / mapHeight) * (world.bottom - world.top),
+      };
+      const inOpenSea =
+        worldPoint.x < -101 ||
+        worldPoint.x > 108 ||
+        worldPoint.z > 82 ||
+        (worldPoint.x > 42 && worldPoint.z > 43);
+      if (!inOpenSea) continue;
+      const length = 5 + seeded(i + 311) * 13;
+      ink.beginPath();
+      ink.moveTo(x - length / 2, y);
+      ink.quadraticCurveTo(x, y + 2.4, x + length / 2, y);
+      ink.strokeStyle = `rgba(48,86,88,${0.16 + seeded(i + 620) * 0.16})`;
+      ink.lineWidth = 0.7;
+      ink.stroke();
+    }
 
-  // Documented west-east secret passage from the Templar fortress to the port.
-  line([[-59, 58], [-54, 50], [35, 50], [37, 50]], "#5f2c24", 3, [7, 5]);
-  const tunnelLabel = project(-10, 50);
-  ctx.fillStyle = "#5f2c24";
-  ctx.font = "700 10px Arial Narrow, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("TEMPLAR TUNNEL", tunnelLabel.x, tunnelLabel.y - 8);
-  for (const portal of arena.tunnel.portals) {
-    const entry = project(portal.surface.x, portal.surface.z);
-    ctx.beginPath();
-    ctx.arc(entry.x, entry.y, 4.2, 0, Math.PI * 2);
-    ctx.fillStyle = "#d7b66b";
-    ctx.fill();
-    ctx.strokeStyle = "#5f2c24";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    const districts = [
+      { name: "MONTMUSART", rect: [-97, -83, 91, -66], cols: 29, rows: 3, seed: 10, tone: "rgba(128,102,62,.11)", label: [-50, -75] },
+      { name: "WESTERN WARDS", rect: [-97, -62, -59, -24], cols: 6, rows: 6, seed: 44, tone: "rgba(128,102,62,.08)", label: null },
+      { name: "HOSPITALLER", rect: [-57, -62, -5, -24], cols: 7, rows: 5, seed: 70, tone: "rgba(130,63,43,.13)", label: [-31, -55] },
+      { name: "NORTHERN MARKET", rect: [-3, -62, 91, -24], cols: 14, rows: 6, seed: 102, tone: "rgba(128,102,62,.08)", label: null },
+      { name: "WESTERN WARD", rect: [-97, -22, -53, 37], cols: 7, rows: 9, seed: 121, tone: "rgba(128,102,62,.08)", label: null },
+      { name: "HOLY CROSS", rect: [-51, -22, -6, 16], cols: 7, rows: 6, seed: 130, tone: "rgba(135,105,55,.11)", label: [-29, 12] },
+      { name: "TEMPLAR", rect: [-96, 39, -48, 78], cols: 6, rows: 5, seed: 190, tone: "rgba(130,63,43,.14)", label: [-74, 73] },
+      { name: "PISAN", rect: [-47, 21, 18, 78], cols: 11, rows: 9, seed: 250, tone: "rgba(76,103,78,.09)", label: [-15, 69] },
+      { name: "GENOESE", rect: [-4, -20, 23, 23], cols: 5, rows: 8, seed: 340, tone: "rgba(76,103,78,.11)", label: [10, 15] },
+      { name: "VENETIAN", rect: [24, -19, 87, 40], cols: 11, rows: 9, seed: 410, tone: "rgba(76,103,78,.09)", label: [59, 31] },
+    ];
+    districts.forEach((district) => {
+      const [x1, z1, x2, z2] = district.rect;
+      rectWorld(ink, x1, z1, x2, z2, district.tone);
+    });
+
+    const reserved = [
+      [-31, -43, 18], [-20, -5, 12], [-78, 58, 18],
+      [9, 0, 7], [50, 9, 8], [37, 50, 7],
+    ];
+    const nearRoad = (x, z) =>
+      Math.abs(z + 22) < 3.5 ||
+      Math.abs(x - 4) < 3.1 ||
+      Math.abs(z - 18) < 2.7 ||
+      reserved.some(([rx, rz, radius]) => Math.hypot(x - rx, z - rz) < radius);
+    const building = (x, z, width, depth, seed) => {
+      const p = project(x, z);
+      const pw = Math.max(2.2, width * scaleX);
+      const ph = Math.max(2, depth * scaleZ);
+      const lift = 1.1 + seeded(seed + 5) * 2;
+      ink.save();
+      ink.translate(p.x, p.y);
+      ink.rotate((seeded(seed + 13) - 0.5) * 0.16);
+      ink.fillStyle = "rgba(61,45,28,.26)";
+      ink.fillRect(-pw / 2 + 2, -ph / 2 + 2.6, pw, ph);
+      ink.beginPath();
+      ink.moveTo(-pw / 2, -ph / 2);
+      ink.lineTo(pw / 2, -ph / 2);
+      ink.lineTo(pw / 2 - lift, -ph / 2 - lift);
+      ink.lineTo(-pw / 2 - lift, -ph / 2 - lift);
+      ink.closePath();
+      ink.fillStyle = seeded(seed) > 0.8 ? "#c58d58" : seeded(seed) > 0.42 ? "#d5b374" : "#e0c78e";
+      ink.fill();
+      ink.strokeStyle = "rgba(73,52,31,.72)";
+      ink.lineWidth = 0.65;
+      ink.stroke();
+      ink.fillStyle = seeded(seed + 9) > 0.72 ? "#a96b42" : "#bc915b";
+      ink.fillRect(pw / 2 - lift, -ph / 2 - lift, lift, ph + lift);
+      if (seeded(seed + 21) > 0.72 && pw > 4) {
+        ink.fillStyle = "rgba(74,56,34,.52)";
+        ink.fillRect(-pw * 0.22, -ph * 0.38, pw * 0.16, ph * 0.18);
+      }
+      ink.restore();
+    };
+    districts.forEach((district) => {
+      const [x1, z1, x2, z2] = district.rect;
+      const cellWidth = (x2 - x1) / district.cols;
+      const cellDepth = (z2 - z1) / district.rows;
+      for (let row = 0; row < district.rows; row += 1) {
+        for (let col = 0; col < district.cols; col += 1) {
+          const seed = district.seed + row * district.cols + col;
+          const x = x1 + (col + 0.5) * cellWidth + (seeded(seed) - 0.5) * cellWidth * 0.32;
+          const z = z1 + (row + 0.5) * cellDepth + (seeded(seed + 1) - 0.5) * cellDepth * 0.28;
+          if (nearRoad(x, z) || seeded(seed + 8) < 0.08) continue;
+          building(
+            x,
+            z,
+            cellWidth * (0.48 + seeded(seed + 2) * 0.28),
+            cellDepth * (0.45 + seeded(seed + 3) * 0.3),
+            seed,
+          );
+        }
+      }
+    });
+
+    // Gardens in the military and ecclesiastical compounds.
+    rectWorld(ink, -50, -56, -39, -35, "rgba(91,123,72,.26)", "#69553899", 0.8);
+    for (let treeIndex = 0; treeIndex < 16; treeIndex += 1) {
+      const p = project(-48 + (treeIndex % 4) * 2.7, -53 + Math.floor(treeIndex / 4) * 4.7);
+      ink.beginPath();
+      ink.arc(p.x, p.y, 1.4, 0, Math.PI * 2);
+      ink.fillStyle = "rgba(61,96,55,.7)";
+      ink.fill();
+    }
+    rectWorld(ink, -91, 47, -66, 70, "rgba(102,124,67,.18)", "#69553899", 0.8);
+
+    // Main roads laid over the dense fabric.
+    const roads = [
+      [[118, -22], [94, -22], [61, -22], [21, -22], [1, -40], [-30, -41]],
+      [[4, -59], [4, 33], [38, 48], [38, 64], [54, 64]],
+      [[-53, 18], [18, 18], [70, 18]],
+      [[-92, 35], [-45, 18], [-5, 18]],
+      [[24, -4], [87, -4]],
+      [[-46, 42], [18, 42], [38, 49]],
+    ];
+    roads.forEach((road, index) => {
+      lineWorld(ink, road, index < 3 ? "rgba(234,213,165,.92)" : "rgba(226,203,150,.82)", index < 3 ? 5.5 : 3.3);
+      lineWorld(ink, road, "rgba(115,84,48,.46)", 0.8, [2, 5]);
+    });
+
+    // Fortifications: heavy land walls, old-city divider, towers, and quays.
+    const walls = [
+      [[-100, -86], [94, -86], [94, -29]],
+      [[94, -15], [94, 40]],
+      [[-98, -64], [-24, -64]],
+      [[15, -64], [79, -64]],
+      [[-100, 81], [40, 81]],
+    ];
+    walls.forEach((wall) => {
+      lineWorld(ink, wall, "#503923", 6);
+      lineWorld(ink, wall, "#c2a36a", 2.4);
+      lineWorld(ink, wall, "rgba(65,45,26,.8)", 0.8, [3, 4]);
+    });
+    [
+      [-98, -85], [-73, -85], [-48, -85], [-23, -85], [2, -85],
+      [27, -85], [52, -85], [77, -85], [93, -84], [93, -57],
+      [93, -34], [93, -8], [93, 18], [-96, -64], [-58, -64],
+      [-24, -64], [16, -64], [48, -64], [79, -64], [-98, 79],
+      [-64, 80], [-30, 80], [4, 80], [39, 80],
+    ].forEach(([x, z]) => tower(ink, x, z, 3.7));
+
+    // Templar castle.
+    rectWorld(ink, -92, 46, -62, 71, "#c8a467", "#49331f", 2);
+    rectWorld(ink, -87, 51, -67, 67, "rgba(107,129,68,.22)", "#6f5635", 1);
+    [[-92, 46], [-62, 46], [-92, 71], [-62, 71]].forEach(([x, z]) => tower(ink, x, z, 5));
+
+    // Hospitaller headquarters and its excavated courtyard.
+    rectWorld(ink, -57, -61, -6, -24, "rgba(195,159,98,.8)", "#4d3721", 2);
+    rectWorld(ink, -49, -55, -14, -31, "rgba(105,133,75,.24)", "#665038", 1.3);
+    rectWorld(ink, -44, -50, -20, -36, "rgba(224,200,145,.78)", "#665038", 1);
+    for (let col = 0; col < 8; col += 1) {
+      tower(ink, -47 + col * 4.3, -32, 1.8);
+    }
+
+    // Cathedral of the Holy Cross.
+    rectWorld(ink, -29, -14, -11, 5, "#d4b476", "#49331f", 1.5);
+    rectWorld(ink, -34, -8, -6, -1, "#d4b476", "#49331f", 1.3);
+    const apse = project(-20, 7);
+    ink.beginPath();
+    ink.arc(apse.x, apse.y, 5, 0, Math.PI * 2);
+    ink.fillStyle = "#bb8953";
+    ink.fill();
+    ink.strokeStyle = "#49331f";
+    ink.stroke();
+    const cross = project(-20, -5);
+    ink.fillStyle = "#733326";
+    ink.font = "700 13px Georgia, serif";
+    ink.textAlign = "center";
+    ink.fillText("✝", cross.x, cross.y + 4);
+
+    // Merchant courts, arsenal, harbour chain, ships, and moles.
+    rectWorld(ink, 3, -10, 15, 11, "#c9a56b", "#4d3721", 1.2);
+    rectWorld(ink, 6, -6, 12, 7, "rgba(218,192,133,.78)", "#71583a", 0.8);
+    rectWorld(ink, 43, 0, 57, 18, "#c9a56b", "#4d3721", 1.2);
+    rectWorld(ink, 47, 4, 53, 14, "rgba(218,192,133,.78)", "#71583a", 0.8);
+    rectWorld(ink, 67, 26, 87, 39, "#b8935e", "#4d3721", 1.3);
+    lineWorld(ink, [[18, 42], [91, 42]], "#4c3824", 5);
+    lineWorld(ink, [[18, 81], [91, 81]], "#4c3824", 5);
+    lineWorld(ink, [[91, 42], [91, 80]], "#4c3824", 4);
+    tower(ink, 87, 64, 5.3);
+    const drawShip = (x, z, size = 1) => {
+      const p = project(x, z);
+      ink.beginPath();
+      ink.moveTo(p.x - 9 * size, p.y + 3 * size);
+      ink.quadraticCurveTo(p.x, p.y + 8 * size, p.x + 10 * size, p.y + 2 * size);
+      ink.lineTo(p.x + 7 * size, p.y + 6 * size);
+      ink.quadraticCurveTo(p.x, p.y + 10 * size, p.x - 8 * size, p.y + 6 * size);
+      ink.closePath();
+      ink.fillStyle = "#7d4e2d";
+      ink.fill();
+      ink.strokeStyle = "#422d1d";
+      ink.stroke();
+      ink.beginPath();
+      ink.moveTo(p.x, p.y + 4 * size);
+      ink.lineTo(p.x, p.y - 12 * size);
+      ink.lineTo(p.x + 7 * size, p.y - 2 * size);
+      ink.closePath();
+      ink.fillStyle = "rgba(230,211,166,.88)";
+      ink.fill();
+      ink.stroke();
+    };
+    drawShip(58, 58, 0.7);
+    drawShip(73, 69, 0.85);
+
+    // Secret tunnel, portals, and annotation.
+    lineWorld(ink, [[-59, 58], [-54, 50], [35, 50], [37, 50]], "#6e2d23", 3, [8, 5]);
+    for (const portal of arena.tunnel.portals) {
+      const entry = project(portal.surface.x, portal.surface.z);
+      ink.beginPath();
+      ink.arc(entry.x, entry.y, 4.3, 0, Math.PI * 2);
+      ink.fillStyle = "#d1aa52";
+      ink.fill();
+      ink.strokeStyle = "#632b23";
+      ink.lineWidth = 1.4;
+      ink.stroke();
+    }
+    const tunnelLabel = project(-9, 50);
+    ink.fillStyle = "#6e2d23";
+    ink.font = "700 9px Georgia, serif";
+    ink.textAlign = "center";
+    ink.fillText("TEMPLAR TUNNEL", tunnelLabel.x, tunnelLabel.y - 7);
+
+    // District names sit lightly beneath the landmark callouts.
+    districts.filter((district) => district.label).forEach((district) => {
+      const label = project(district.label[0], district.label[1]);
+      ink.fillStyle = district.name === "MONTMUSART" ? "rgba(82,57,31,.74)" : "rgba(89,61,34,.62)";
+      ink.font = `italic 700 ${Math.max(8, Math.min(10, rect.width / 115))}px Georgia, serif`;
+      ink.textAlign = "center";
+      ink.fillText(district.name, label.x, label.y);
+      ink.font = "italic 8px Georgia, serif";
+      ink.fillText("QUARTER", label.x, label.y + 9);
+    });
+
+    const callout = (x, z, label, offsetX, offsetY, align = "left") => {
+      const point = project(x, z);
+      const endX = point.x + offsetX;
+      const endY = point.y + offsetY;
+      const elbowX = point.x + offsetX * 0.58;
+      ink.beginPath();
+      ink.moveTo(point.x, point.y);
+      ink.lineTo(elbowX, endY);
+      ink.lineTo(endX, endY);
+      ink.strokeStyle = "rgba(66,45,27,.82)";
+      ink.lineWidth = 0.8;
+      ink.stroke();
+      ink.beginPath();
+      ink.arc(point.x, point.y, 1.8, 0, Math.PI * 2);
+      ink.fillStyle = "#6d3024";
+      ink.fill();
+      ink.fillStyle = "#3f2c1c";
+      ink.font = `700 ${Math.max(8, Math.min(10, rect.width / 120))}px Georgia, serif`;
+      ink.textAlign = align;
+      ink.textBaseline = "bottom";
+      ink.fillText(label, endX + (align === "left" ? 4 : -4), endY - 2);
+    };
+    callout(-31, -43, "HOSPITALLER HEADQUARTERS", -55, -29, "right");
+    callout(-20, -5, "CATHEDRAL OF THE HOLY CROSS", -42, -35, "right");
+    callout(-78, 58, "TEMPLAR CASTLE", -36, 26, "right");
+    callout(50, 9, "VENETIAN MARKET", 48, -25);
+    callout(76, 32, "ARSENAL", 40, -12);
+    callout(87, 64, "COURT OF THE CHAIN", 35, 20);
+    callout(94, -22, "ST ANTHONY’S GATE", 30, -24);
+
+    ink.fillStyle = "rgba(54,83,84,.8)";
+    ink.font = "italic 12px Georgia, serif";
+    ink.textAlign = "left";
+    ink.fillText("Mare Mediterraneum", project(-101, 10).x, project(-101, 10).y);
+    ink.fillText("Inner Harbour", project(51, 52).x, project(51, 52).y);
+    ink.fillStyle = "rgba(72,50,29,.8)";
+    ink.fillText("Road to Tyre", project(99, -49).x, project(99, -49).y);
+
+    // Scale and cartographer's rule.
+    const scaleStart = project(-96, 72);
+    ink.strokeStyle = "#49341f";
+    ink.lineWidth = 1.5;
+    ink.beginPath();
+    ink.moveTo(scaleStart.x, scaleStart.y);
+    ink.lineTo(scaleStart.x + 50 * scaleX, scaleStart.y);
+    ink.moveTo(scaleStart.x, scaleStart.y - 4);
+    ink.lineTo(scaleStart.x, scaleStart.y + 4);
+    ink.moveTo(scaleStart.x + 25 * scaleX, scaleStart.y - 3);
+    ink.lineTo(scaleStart.x + 25 * scaleX, scaleStart.y + 3);
+    ink.moveTo(scaleStart.x + 50 * scaleX, scaleStart.y - 4);
+    ink.lineTo(scaleStart.x + 50 * scaleX, scaleStart.y + 4);
+    ink.stroke();
+    ink.font = "italic 8px Georgia, serif";
+    ink.textAlign = "center";
+    ink.fillText("50 PACES", scaleStart.x + 25 * scaleX, scaleStart.y - 6);
+
+    const edge = ink.createRadialGradient(
+      rect.width / 2,
+      rect.height / 2,
+      Math.min(rect.width, rect.height) * 0.18,
+      rect.width / 2,
+      rect.height / 2,
+      Math.max(rect.width, rect.height) * 0.69,
+    );
+    edge.addColorStop(0, "rgba(79,48,22,0)");
+    edge.addColorStop(1, "rgba(54,31,14,.28)");
+    ink.fillStyle = edge;
+    ink.fillRect(0, 0, rect.width, rect.height);
   }
 
-  // Towers and landmark silhouettes.
-  [[-95, -84], [92, -84], [92, 18], [89, 76]].forEach(([x, z]) => {
-    const p = project(x, z);
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#735337";
-    ctx.fill();
-    ctx.strokeStyle = "#342617";
-    ctx.stroke();
-  });
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, pixelWidth, pixelHeight);
+  ctx.drawImage(mapStaticCanvas, 0, 0);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   const objective =
     game.stage === "infiltrate" ? missionObjects.terminal.position : missionObjects.exfil.position;
   const objectivePoint = project(objective.x, objective.z);
-  const pulse = 7 + Math.sin(game.elapsed * 4) * 2;
+  const playerPoint = project(player.position.x, player.position.z);
+
+  // A restrained live course line preserves the illustrated-map character.
+  ctx.beginPath();
+  ctx.moveTo(playerPoint.x, playerPoint.y);
+  const controlX = (playerPoint.x + objectivePoint.x) / 2;
+  const controlY = Math.min(playerPoint.y, objectivePoint.y) - 14;
+  ctx.quadraticCurveTo(controlX, controlY, objectivePoint.x, objectivePoint.y);
+  ctx.strokeStyle = "rgba(24,72,76,.5)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([3, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const pulse = 9 + Math.sin(game.elapsed * 4) * 2;
   ctx.beginPath();
   ctx.arc(objectivePoint.x, objectivePoint.y, pulse, 0, Math.PI * 2);
-  ctx.strokeStyle = "#a72e22";
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#a32e23";
+  ctx.lineWidth = 2.4;
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(objectivePoint.x, objectivePoint.y, 3.5, 0, Math.PI * 2);
-  ctx.fillStyle = "#a72e22";
+  ctx.arc(objectivePoint.x, objectivePoint.y, 4.2, 0, Math.PI * 2);
+  ctx.fillStyle = "#a32e23";
   ctx.fill();
-  ctx.fillStyle = "#78251d";
-  ctx.font = "700 10px Arial Narrow, sans-serif";
+  ctx.fillStyle = "#6d251d";
+  ctx.font = "700 10px Georgia, serif";
   ctx.textAlign = objectivePoint.x > rect.width * 0.72 ? "right" : "left";
   ctx.fillText(
     game.stage === "infiltrate" ? "SEALED DISPATCH" : "HARBOUR SKIFF",
-    objectivePoint.x + (ctx.textAlign === "left" ? 11 : -11),
-    objectivePoint.y - 9,
+    objectivePoint.x + (ctx.textAlign === "left" ? 13 : -13),
+    objectivePoint.y - 10,
   );
 
-  const playerPoint = project(player.position.x, player.position.z);
   ctx.save();
   ctx.translate(playerPoint.x, playerPoint.y);
   ctx.rotate(-player.yaw);
   ctx.beginPath();
-  ctx.moveTo(0, -10);
-  ctx.lineTo(7, 8);
+  ctx.moveTo(0, -12);
+  ctx.lineTo(8, 8);
   ctx.lineTo(0, 4);
-  ctx.lineTo(-7, 8);
+  ctx.lineTo(-8, 8);
   ctx.closePath();
-  ctx.fillStyle = game.inTunnel ? "#b88739" : "#173f4a";
+  ctx.fillStyle = game.inTunnel ? "#b27b2f" : "#173f4a";
   ctx.fill();
-  ctx.strokeStyle = "#f0dfb3";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "#f2dfae";
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
+  ctx.beginPath();
+  ctx.arc(playerPoint.x, playerPoint.y, 14, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(23,63,74,.28)";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
 
-  if (game.inTunnel) {
-    ctx.fillStyle = "#6e2d23";
-    ctx.font = "700 11px Arial Narrow, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText("BELOW STREET LEVEL", rect.width - margin, margin + 13);
-  }
-
-  ctx.fillStyle = "rgba(74,53,31,.72)";
-  ctx.font = "italic 11px Georgia, serif";
+  const currentZone = arena.zones.find((zone) => zone.box.containsPoint(player.position));
+  ctx.fillStyle = "rgba(224,199,142,.88)";
+  ctx.strokeStyle = "rgba(80,54,30,.75)";
+  ctx.lineWidth = 1;
+  ctx.fillRect(margin + 8, margin + 8, 184, 31);
+  ctx.strokeRect(margin + 8, margin + 8, 184, 31);
+  ctx.fillStyle = "#75532e";
+  ctx.font = "700 8px Georgia, serif";
   ctx.textAlign = "left";
-  ctx.fillText("Mediterraneum", project(-91, 5).x, project(-91, 5).y);
-  ctx.fillText("Road to Tyre", project(96, -47).x - 4, project(96, -47).y);
+  ctx.fillText(game.inTunnel ? "BELOW STREET LEVEL" : "PRESENT POSITION", margin + 16, margin + 20);
+  ctx.fillStyle = "#352719";
+  ctx.font = "700 11px Georgia, serif";
+  ctx.fillText(currentZone?.name || "OLD ACRE", margin + 16, margin + 33);
 }
 
 function addFeed(text) {
@@ -1279,6 +1630,11 @@ function deploy() {
   $("start-screen").classList.add("hidden");
   $("pause-screen").classList.add("hidden");
   showHUD(true);
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has("map")) {
+    mapVisible = true;
+    $("city-map").classList.remove("hidden");
+    drawCityMap();
+  }
   requestGamePointerLock();
   addFeed("NIGHT PASSAGE BEGUN");
   addFeed("NO ALARM // NO BLOODSHED");
