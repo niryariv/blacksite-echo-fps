@@ -1,5 +1,7 @@
 # Shadows of Acre
 
+[Play Shadows of Acre live on GitHub Pages](https://niryariv.github.io/shadows-of-acre/)
+
 An original first-person stealth-infiltration game built with Three.js and set
 in a playable interpretation of Frankish Acre around 1250 CE. Enter through the
 eastern land gate, cross the merchant quarters, recover a sealed dispatch from
