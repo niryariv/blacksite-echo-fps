@@ -111,13 +111,34 @@
           <p class="tagline">THE SEA KEEPS EVERY SECRET.</p>
         </div>
         <div class="briefing-card">
-          <div class="status-line"><i></i> THE MOON IS HIGH · THE EASTERN GATE IS OPEN</div>
+          <div id="route-status" class="status-line"><i></i> INSERTION · ST ANTHONY’S GATE</div>
           <p>
             Enter Frankish Acre beneath a bright Mediterranean moon. Keep to
             roof shadow, cross the merchant quarters, and take the sealed
             dispatch from the Hospitaller court. Reach the skiff unseen and
             unharmed. You enter unarmed: if the watch confirms you, the mission
             is lost.
+          </p>
+          <div class="route-heading">
+            <span>CHOOSE INSERTION</span>
+            <strong id="route-method">OPEN ROAD</strong>
+          </div>
+          <div id="route-selector" class="route-selector">
+            <button type="button" class="route-option active" data-route="gate">
+              EASTERN GATE
+            </button>
+            <button type="button" class="route-option" data-route="genoese-rope">
+              WESTERN ROPE
+            </button>
+            <button type="button" class="route-option" data-route="templar-rope">
+              TEMPLAR ROPE
+            </button>
+            <button type="button" class="route-option" data-route="pisan-breach">
+              PISAN BREACH
+            </button>
+          </div>
+          <p id="route-description" class="route-description">
+            Longest approach · broad sightlines · no climb
           </p>
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>
@@ -128,7 +149,7 @@
             <span><kbd>V</kbd> MUTE AUDIO</span>
             <span><kbd>ESC</kbd> PAUSE</span>
           </div>
-          <button id="deploy-button">ENTER ACRE <i>→</i></button>
+          <button id="deploy-button">BEGIN INFILTRATION <i>→</i></button>
           <small>Headphones recommended • Click to engage pointer lock</small>
         </div>
         <div class="build-id">HISTORICAL STEALTH MAP // ACRE 1250 CE</div>

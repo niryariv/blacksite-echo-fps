@@ -222,11 +222,18 @@ button { font: inherit; }
 .brand h1 { margin: 16px 0 3px; font: 800 clamp(65px,9vw,138px)/.7 "Arial Narrow", sans-serif; letter-spacing: -.04em; }
 .brand h1 em { color: transparent; -webkit-text-stroke: 1px #b8d5cf; font-style: normal; letter-spacing: .08em; }
 .tagline { margin-top: 30px; color: #81918f; font-size: 13px; letter-spacing: .26em; }
-.briefing-card { position:absolute; z-index:3; right:8vw; bottom:10vh; width:min(430px,42vw); padding:24px 26px; background:#07100fe8; border:1px solid #6d958c44; border-top:2px solid var(--accent); box-shadow:0 30px 80px #000; }
+.briefing-card { position:absolute; z-index:3; right:6vw; bottom:5vh; width:min(470px,44vw); max-height:90vh; overflow:auto; padding:22px 24px; background:#07100fe8; border:1px solid #6d958c44; border-top:2px solid var(--accent); box-shadow:0 30px 80px #000; }
 .status-line { color: var(--accent); font-size:10px; letter-spacing:.2em; }
 .status-line i { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); margin-right:7px; animation:pulse 1.3s infinite; }
 @keyframes pulse { 50% { opacity:.25; } }
 .briefing-card p { color:#a8b8b5; line-height:1.45; font-size:14px; }
+.route-heading { display:flex; justify-content:space-between; margin:13px 0 7px; color:#718581; font-size:9px; letter-spacing:.16em; }
+.route-heading strong { color:var(--cyan); font-weight:700; }
+.route-selector { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.briefing-card .route-option { width:auto; min-height:34px; margin:0; padding:8px 10px; justify-content:center; text-align:center; border:1px solid #708c8555; color:#80938e; background:#111d1b; font-size:9px; letter-spacing:.11em; }
+.briefing-card .route-option:hover { transform:none; border-color:#91bbb0; color:#dce9e6; }
+.briefing-card .route-option.active { border-color:var(--accent); color:#07100f; background:var(--accent); }
+.briefing-card .route-description { min-height:16px; margin:7px 0 10px; color:#6e8580; font-size:10px; letter-spacing:.06em; }
 .controls { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; padding:15px 0; border-top:1px solid #59756f33; }
 .controls span { color:#718581; font-size:10px; letter-spacing:.11em; }
 kbd { display:inline-grid; place-items:center; min-width:36px; padding:3px 5px; margin-right:5px; border:1px solid #7f9d9655; color:#dbe9e6; background:#15201e; font:600 9px system-ui, sans-serif; }

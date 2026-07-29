@@ -17,6 +17,8 @@ const mapParchment = new Image();
 const mapParchmentUrl = `${import.meta.env.BASE_URL}assets/maps/acre-portolan-parchment.webp`;
 const mapStaticCanvas = document.createElement("canvas");
 let mapStaticKey = "";
+const devFastInteractions =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("qa-fast");
 mapParchment.addEventListener("load", () => {
   mapStaticKey = "";
 });
@@ -260,6 +262,7 @@ const mouseButtons = new Set();
 const guards = [];
 let feedIndex = 0;
 let mapVisible = false;
+let selectedRouteId = "gate";
 
 const game = {
   phase: "briefing",
@@ -271,6 +274,9 @@ const game = {
   interaction: 0,
   tunnelInteraction: 0,
   tunnelCooldown: 0,
+  seaWallInteraction: 0,
+  entryRoute: arena.entryRoutes[0],
+  enteredCity: true,
   inTunnel: false,
   moonExposure: 0.2,
   targetMoonExposure: 1,
@@ -328,6 +334,26 @@ if (import.meta.env.DEV) {
     },
     blockedAt(x, z, floorY = 0) {
       return boxCollides(new THREE.Vector3(x, floorY + player.height, z));
+    },
+    setKey(code, down) {
+      if (down) keys.add(code);
+      else keys.delete(code);
+    },
+    missionState() {
+      return {
+        route: game.entryRoute?.id,
+        enteredCity: game.enteredCity,
+        stage: game.stage,
+        player: player.position.toArray(),
+        wallGuards: guards
+          .filter((guard) => guard.wallPatrol)
+          .map((guard) => ({
+            position: guard.root.position.toArray(),
+            axis: guard.wallPatrol.axis,
+            min: guard.wallPatrol.min,
+            max: guard.wallPatrol.max,
+          })),
+      };
     },
   };
   document.documentElement.dataset.gateCorridorClear = String(
@@ -410,10 +436,9 @@ const guardMaterials = {
   heraldry: new THREE.MeshStandardMaterial({ color: 0xd9d0b9, roughness: 0.96 }),
 };
 
-function createGuard(index, position) {
+function createGuard(index, position, options = {}) {
   const root = new THREE.Group();
   root.position.copy(position);
-  root.position.y = 0;
 
   const chainmail = guardMaterials.chainmail;
   const cloth = guardMaterials.cloth[index % guardMaterials.cloth.length];
@@ -537,7 +562,7 @@ function createGuard(index, position) {
   root.add(visionCone, detailRoot, farBody);
   scene.add(root);
 
-  return {
+  const guard = {
     index,
     root,
     body,
@@ -556,11 +581,37 @@ function createGuard(index, position) {
     phase: Math.random() * Math.PI * 2,
     speed: 1.25 + Math.random() * 0.18,
     idle: Math.random(),
+    wallPatrol: options.wallPatrol
+      ? {
+          axis: options.axis,
+          min: options.min,
+          max: options.max,
+          fixed: options.axis === "x" ? root.position.z : root.position.x,
+          floorY: root.position.y,
+          next: options.max,
+        }
+      : null,
   };
+  if (guard.wallPatrol) {
+    guard.target.copy(guard.home);
+    guard.target[guard.wallPatrol.axis] = guard.wallPatrol.next;
+    guard.speed = 0.92 + Math.random() * 0.16;
+  }
+  return guard;
 }
 
 const guardSpawns = arena.mission.guardSpawns;
 guardSpawns.forEach((position, index) => guards.push(createGuard(index, position)));
+arena.mission.wallGuardSpawns.forEach((wallGuard, wallIndex) => {
+  guards.push(
+    createGuard(guardSpawns.length + wallIndex, wallGuard.position, {
+      wallPatrol: true,
+      axis: wallGuard.axis,
+      min: wallGuard.min,
+      max: wallGuard.max,
+    }),
+  );
+});
 
 function createMissionObjects() {
   const terminal = new THREE.Group();
@@ -843,6 +894,10 @@ function updateGuards(dt) {
     let desired = new THREE.Vector3();
     if (guard.state === "suspicious" || guard.state === "investigate") {
       desired.copy(guard.lastSeen).sub(guard.root.position).setY(0);
+      if (guard.wallPatrol) {
+        const crossAxis = guard.wallPatrol.axis === "x" ? "z" : "x";
+        desired[crossAxis] = 0;
+      }
       if (desired.length() > 1.25) {
         desired.normalize();
         guard.root.lookAt(guard.lastSeen.x, guard.root.position.y, guard.lastSeen.z);
@@ -851,7 +906,20 @@ function updateGuards(dt) {
         guard.root.rotation.y += dt * 0.42;
       }
     } else {
-      if (guard.root.position.distanceTo(guard.target) < 1.1) {
+      if (
+        guard.wallPatrol &&
+        Math.abs(
+          guard.root.position[guard.wallPatrol.axis] -
+            guard.target[guard.wallPatrol.axis],
+        ) < 1.1
+      ) {
+        guard.wallPatrol.next =
+          guard.wallPatrol.next === guard.wallPatrol.max
+            ? guard.wallPatrol.min
+            : guard.wallPatrol.max;
+        guard.target.copy(guard.home);
+        guard.target[guard.wallPatrol.axis] = guard.wallPatrol.next;
+      } else if (!guard.wallPatrol && guard.root.position.distanceTo(guard.target) < 1.1) {
         guard.target.copy(guard.home).add(
           new THREE.Vector3((Math.random() - 0.5) * 11, 0, (Math.random() - 0.5) * 11),
         );
@@ -863,7 +931,17 @@ function updateGuards(dt) {
     const old = guard.root.position.clone();
     const guardSpeed = guard.state === "patrol" ? guard.speed : 1.75;
     guard.root.position.addScaledVector(desired, guardSpeed * dt);
-    if (guardBlocked(guard.root.position)) {
+    if (guard.wallPatrol) {
+      const axis = guard.wallPatrol.axis;
+      const crossAxis = axis === "x" ? "z" : "x";
+      guard.root.position[axis] = THREE.MathUtils.clamp(
+        guard.root.position[axis],
+        guard.wallPatrol.min,
+        guard.wallPatrol.max,
+      );
+      guard.root.position[crossAxis] = guard.wallPatrol.fixed;
+      guard.root.position.y = guard.wallPatrol.floorY;
+    } else if (guardBlocked(guard.root.position)) {
       guard.root.position.copy(old);
       guard.target.copy(guard.home).add(
         new THREE.Vector3((Math.random() - 0.5) * 8, 0, (Math.random() - 0.5) * 8),
@@ -911,6 +989,56 @@ function triggerAlarm(reason) {
   $("damage-vignette").classList.add("flash");
   addFeed(reason);
   setTimeout(() => endGame(false), 480);
+}
+
+function updateSeaWallTraversal(dt, prompt) {
+  const route = game.entryRoute;
+  if (game.enteredCity || !route?.exterior) {
+    game.seaWallInteraction = Math.max(0, game.seaWallInteraction - dt * 2.2);
+    return false;
+  }
+
+  const distance = Math.hypot(
+    player.position.x - route.exterior.x,
+    player.position.z - route.exterior.z,
+  );
+  if (distance > 2.25) {
+    game.seaWallInteraction = Math.max(0, game.seaWallInteraction - dt * 2.2);
+    return false;
+  }
+
+  if (keys.has("KeyE")) {
+    game.seaWallInteraction += dt;
+    player.noise = Math.max(player.noise, 24);
+  } else {
+    game.seaWallInteraction = Math.max(0, game.seaWallInteraction - dt * 2);
+  }
+  const duration = devFastInteractions
+    ? 0.04
+    : route.method === "MASONRY CLIMB"
+      ? 1.65
+      : 1.35;
+  const progress = THREE.MathUtils.clamp(game.seaWallInteraction / duration, 0, 1);
+  prompt.innerHTML = `HOLD <strong>[ E ]</strong> ${route.method}
+    <span class="progress"><i style="width:${progress * 100}%"></i></span>`;
+  prompt.classList.remove("hidden");
+
+  if (progress >= 1) {
+    player.height = 1.72;
+    player.floorY = 0;
+    player.position.copy(route.arrival);
+    player.velocity.set(0, 0, 0);
+    player.yaw = route.yaw;
+    player.pitch = -0.03;
+    game.enteredCity = true;
+    game.seaWallInteraction = 0;
+    game.interaction = 0;
+    game.insertionUntil = game.elapsed + 0.7;
+    $("objective").textContent = "INFILTRATE // RECOVER THE SEALED DISPATCH";
+    addFeed(`${route.shortName} // CITY BREACHED`);
+    audio.pickup();
+  }
+  return true;
 }
 
 function updateTunnelTraversal(dt, prompt) {
@@ -967,9 +1095,10 @@ function updateMission(dt) {
   });
 
   const prompt = $("interact-prompt");
-  const tunnelPrompt = updateTunnelTraversal(dt, prompt);
-  let inRange = tunnelPrompt;
-  if (!tunnelPrompt && game.stage === "infiltrate") {
+  const seaWallPrompt = updateSeaWallTraversal(dt, prompt);
+  const tunnelPrompt = !seaWallPrompt && updateTunnelTraversal(dt, prompt);
+  let inRange = seaWallPrompt || tunnelPrompt;
+  if (!seaWallPrompt && !tunnelPrompt && game.stage === "infiltrate") {
     const distance = player.position.distanceTo(missionObjects.terminal.position);
     if (distance < 2.15) {
       inRange = true;
@@ -991,7 +1120,7 @@ function updateMission(dt) {
         audio.pickup();
       }
     }
-  } else if (!tunnelPrompt && game.stage === "extract") {
+  } else if (!seaWallPrompt && !tunnelPrompt && game.stage === "extract") {
     const distance = player.position.distanceTo(missionObjects.exfil.position);
     if (distance < 2.8) {
       inRange = true;
@@ -1068,6 +1197,23 @@ function updateHUD() {
     document.documentElement.dataset.posture = player.crouched ? "crouched" : "upright";
     document.documentElement.dataset.playerX = player.position.x.toFixed(3);
     document.documentElement.dataset.playerZ = player.position.z.toFixed(3);
+    document.documentElement.dataset.entryRoute = game.entryRoute?.id || "";
+    document.documentElement.dataset.enteredCity = String(game.enteredCity);
+    document.documentElement.dataset.wallGuardsValid = String(
+      guards
+        .filter((guard) => guard.wallPatrol)
+        .every((guard) => {
+          const patrol = guard.wallPatrol;
+          const axis = patrol.axis;
+          const crossAxis = axis === "x" ? "z" : "x";
+          return (
+            guard.root.position[axis] >= patrol.min - 0.01 &&
+            guard.root.position[axis] <= patrol.max + 0.01 &&
+            Math.abs(guard.root.position[crossAxis] - patrol.fixed) < 0.01 &&
+            Math.abs(guard.root.position.y - patrol.floorY) < 0.01
+          );
+        }),
+    );
   }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
@@ -1104,21 +1250,29 @@ function updateHUD() {
   $("bearing").textContent = `${cardinal}  ${String(Math.round(degrees)).padStart(3, "0")}`;
 
   const waypointTarget =
-    game.stage === "infiltrate" ? missionObjects.terminal.position : missionObjects.exfil.position;
+    !game.enteredCity && game.entryRoute?.exterior
+      ? game.entryRoute.exterior
+      : game.stage === "infiltrate"
+        ? missionObjects.terminal.position
+        : missionObjects.exfil.position;
   const waypointDelta = waypointTarget.clone().sub(player.position);
   const waypointDistance = Math.hypot(waypointDelta.x, waypointDelta.z);
   const targetBearing = Math.atan2(waypointDelta.x, -waypointDelta.z);
   const relativeBearing = THREE.MathUtils.radToDeg(targetBearing + player.yaw);
   $("waypoint-arrow").style.transform = `rotate(${relativeBearing}deg)`;
-  $("waypoint-task").textContent = game.inTunnel
-    ? game.stage === "infiltrate"
-      ? "EXIT TUNNEL // REACH HOSPITALLER COURT"
-      : "FOLLOW TUNNEL EAST // HARBOUR"
-    : game.stage === "infiltrate"
-      ? "ENTER HOSPITALLER COURT"
-      : "REACH HARBOUR SKIFF";
+  $("waypoint-task").textContent = !game.enteredCity
+    ? `${game.entryRoute.method} // ENTER ACRE`
+    : game.inTunnel
+      ? game.stage === "infiltrate"
+        ? "EXIT TUNNEL // REACH HOSPITALLER COURT"
+        : "FOLLOW TUNNEL EAST // HARBOUR"
+      : game.stage === "infiltrate"
+        ? "ENTER HOSPITALLER COURT"
+        : "REACH HARBOUR SKIFF";
   $("map-objective").textContent =
-    game.stage === "infiltrate"
+    !game.enteredCity
+      ? `I · ENTER VIA ${game.entryRoute.shortName}`
+      : game.stage === "infiltrate"
       ? "I · RECOVER THE SEALED DISPATCH"
       : "II · RETURN UNSEEN TO THE HARBOUR SKIFF";
   $("waypoint-distance").textContent = `${Math.max(0, Math.round(waypointDistance))} M`;
@@ -1482,6 +1636,26 @@ function drawCityMap() {
     ink.textAlign = "center";
     ink.fillText("TEMPLAR TUNNEL", tunnelLabel.x, tunnelLabel.y - 7);
 
+    // Document every playable sea entry directly on the held city map.
+    arena.entryRoutes.filter((route) => route.exterior).forEach((route) => {
+      const entry = project(route.exterior.x, route.exterior.z);
+      ink.beginPath();
+      ink.arc(entry.x, entry.y, 5.2, 0, Math.PI * 2);
+      ink.fillStyle = "#285f63";
+      ink.fill();
+      ink.strokeStyle = "#ead7a2";
+      ink.lineWidth = 1.4;
+      ink.stroke();
+      ink.fillStyle = "#365e5d";
+      ink.font = "700 8px Georgia, serif";
+      ink.textAlign = route.exterior.x < -100 ? "left" : "center";
+      ink.fillText(
+        route.shortName,
+        entry.x + (route.exterior.x < -100 ? 8 : 0),
+        entry.y + (route.exterior.x < -100 ? -7 : 14),
+      );
+    });
+
     // District names sit lightly beneath the landmark callouts.
     districts.filter((district) => district.label).forEach((district) => {
       const label = project(district.label[0], district.label[1]);
@@ -1569,7 +1743,11 @@ function drawCityMap() {
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   const objective =
-    game.stage === "infiltrate" ? missionObjects.terminal.position : missionObjects.exfil.position;
+    !game.enteredCity && game.entryRoute?.exterior
+      ? game.entryRoute.exterior
+      : game.stage === "infiltrate"
+        ? missionObjects.terminal.position
+        : missionObjects.exfil.position;
   const objectivePoint = project(objective.x, objective.z);
   const playerPoint = project(player.position.x, player.position.z);
 
@@ -1599,7 +1777,11 @@ function drawCityMap() {
   ctx.font = "700 10px Georgia, serif";
   ctx.textAlign = objectivePoint.x > rect.width * 0.72 ? "right" : "left";
   ctx.fillText(
-    game.stage === "infiltrate" ? "SEALED DISPATCH" : "HARBOUR SKIFF",
+    !game.enteredCity
+      ? game.entryRoute.method
+      : game.stage === "infiltrate"
+        ? "SEALED DISPATCH"
+        : "HARBOUR SKIFF",
     objectivePoint.x + (ctx.textAlign === "left" ? 13 : -13),
     objectivePoint.y - 10,
   );
@@ -1668,11 +1850,42 @@ function requestGamePointerLock() {
   }
 }
 
+function selectEntryRoute(routeId) {
+  const route = arena.entryRoutes.find((candidate) => candidate.id === routeId);
+  if (!route) return;
+  selectedRouteId = route.id;
+  document.querySelectorAll(".route-option").forEach((button) => {
+    button.classList.toggle("active", button.dataset.route === route.id);
+  });
+  $("route-status").innerHTML = `<i></i> INSERTION · ${route.name}`;
+  $("route-method").textContent = route.method;
+  $("route-description").textContent = route.description;
+}
+
 function deploy() {
+  const route =
+    arena.entryRoutes.find((candidate) => candidate.id === selectedRouteId) ||
+    arena.entryRoutes[0];
   audio.unlock();
   audio.ambientStart();
+  player.height = 1.72;
+  player.floorY = route.spawn.y - player.height;
+  player.position.copy(route.spawn);
+  player.velocity.set(0, 0, 0);
+  player.yaw = route.yaw;
+  player.pitch = -0.03;
   game.phase = "running";
-  game.insertionUntil = game.elapsed + 2.5;
+  game.entryRoute = route;
+  game.enteredCity = route.id === "gate";
+  game.seaWallInteraction = 0;
+  game.insertionUntil = game.elapsed + (game.enteredCity ? 2.5 : 1.25);
+  if (devFastInteractions && !game.enteredCity) {
+    keys.add("KeyE");
+    setTimeout(() => keys.delete("KeyE"), 180);
+  }
+  $("objective").textContent = game.enteredCity
+    ? "INFILTRATE // RECOVER THE SEALED DISPATCH"
+    : `INFILTRATE // ${route.method} AT ${route.shortName}`;
   $("start-screen").classList.remove("visible");
   $("start-screen").classList.add("hidden");
   $("pause-screen").classList.add("hidden");
@@ -1683,7 +1896,7 @@ function deploy() {
     drawCityMap();
   }
   requestGamePointerLock();
-  addFeed("NIGHT PASSAGE BEGUN");
+  addFeed(`${route.shortName} // INSERTION BEGUN`);
   addFeed("UNARMED // LEAVE NO TRACE");
 }
 
@@ -1780,6 +1993,9 @@ document.addEventListener("pointerlockchange", () => {
 addEventListener("blur", () => mouseButtons.clear());
 
 $("deploy-button").addEventListener("click", deploy);
+document.querySelectorAll(".route-option").forEach((button) => {
+  button.addEventListener("click", () => selectEntryRoute(button.dataset.route));
+});
 $("resume-button").addEventListener("click", requestGamePointerLock);
 $("restart-button").addEventListener("click", () => location.reload());
 canvas.addEventListener("click", () => {
@@ -2012,6 +2228,21 @@ if (import.meta.env.DEV) {
           arena.tunnel.portals[1].underground.z,
         ),
       ),
+  );
+  document.documentElement.dataset.entryAnchorsClear = String(
+    arena.entryRoutes.every((route) => {
+      const points = [route.spawn, route.arrival];
+      if (route.exterior) {
+        points.push(
+          new THREE.Vector3(
+            route.exterior.x,
+            route.exterior.y + player.height,
+            route.exterior.z,
+          ),
+        );
+      }
+      return points.every((point) => !boxCollides(point));
+    }),
   );
 
   player.position.copy(savedPosition);

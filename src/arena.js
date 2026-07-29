@@ -32,7 +32,79 @@ export function buildArena(THREE, scene) {
       new THREE.Vector3(28, 0, 38),
       new THREE.Vector3(46, 0, 56),
     ],
+    wallGuardSpawns: [
+      {
+        position: new THREE.Vector3(-100, 1.66, -24),
+        axis: "z",
+        min: -31,
+        max: 5,
+      },
+      {
+        position: new THREE.Vector3(-100, 1.66, 39),
+        axis: "z",
+        min: 20,
+        max: 59,
+      },
+      {
+        position: new THREE.Vector3(-84, 1.66, 81),
+        axis: "x",
+        min: -91,
+        max: -51,
+      },
+      {
+        position: new THREE.Vector3(-24, 1.66, 81),
+        axis: "x",
+        min: -31,
+        max: 11,
+      },
+    ],
   };
+
+  const entryRoutes = [
+    {
+      id: "gate",
+      name: "ST ANTHONY’S GATE",
+      shortName: "EASTERN GATE",
+      method: "OPEN ROAD",
+      description: "Longest approach · broad sightlines · no climb",
+      spawn: mission.playerStart.clone(),
+      arrival: mission.playerStart.clone(),
+      yaw: Math.PI / 2,
+    },
+    {
+      id: "genoese-rope",
+      name: "GENOESE SEA ROPE",
+      shortName: "WESTERN ROPE",
+      method: "ROPE CLIMB",
+      description: "Close to the western wards · watched from above",
+      spawn: new THREE.Vector3(-104.2, 2.08, -11),
+      exterior: new THREE.Vector3(-103.2, 0.36, -11),
+      arrival: new THREE.Vector3(-96.6, 1.72, -11),
+      yaw: -Math.PI / 2,
+    },
+    {
+      id: "templar-rope",
+      name: "TEMPLAR SEA ROPE",
+      shortName: "TEMPLAR ROPE",
+      method: "ROPE CLIMB",
+      description: "Near the tunnel · little cover on the landing",
+      spawn: new THREE.Vector3(-70, 2.08, 85.2),
+      exterior: new THREE.Vector3(-70, 0.36, 84),
+      arrival: new THREE.Vector3(-70, 1.72, 77.6),
+      yaw: 0,
+    },
+    {
+      id: "pisan-breach",
+      name: "PISAN WALL BREACH",
+      shortName: "PISAN BREACH",
+      method: "MASONRY CLIMB",
+      description: "Fast harbour access · brightest patrol sector",
+      spawn: new THREE.Vector3(-9, 2.08, 85.2),
+      exterior: new THREE.Vector3(-9, 0.36, 84),
+      arrival: new THREE.Vector3(-9, 1.72, 77.6),
+      yaw: 0,
+    },
+  ];
 
   const bounds = new THREE.Box3(
     new THREE.Vector3(-108, -2, -92),
@@ -531,6 +603,7 @@ export function buildArena(THREE, scene) {
   const rockScale = new THREE.Vector3();
   let rockIndex = 0;
   for (let z = -79; z <= 77; z += 6.2) {
+    if (Math.abs(z + 11) < 8) continue;
     rockQuaternion.setFromEuler(new THREE.Euler(Math.random(), Math.random(), Math.random()));
     rockScale.set(1.2 + Math.random() * 1.8, 0.7 + Math.random() * 0.9, 1 + Math.random() * 1.5);
     rockMatrix.compose(
@@ -541,6 +614,7 @@ export function buildArena(THREE, scene) {
     coastRocks.setMatrixAt(rockIndex++, rockMatrix);
   }
   for (let x = -94; x <= 38 && rockIndex < 58; x += 5.2) {
+    if (Math.abs(x + 70) < 8 || Math.abs(x + 9) < 8) continue;
     rockQuaternion.setFromEuler(new THREE.Euler(Math.random(), Math.random(), Math.random()));
     rockScale.set(1 + Math.random() * 1.5, 0.65 + Math.random(), 1.2 + Math.random() * 1.7);
     rockMatrix.compose(
@@ -553,6 +627,103 @@ export function buildArena(THREE, scene) {
   coastRocks.count = rockIndex;
   coastRocks.instanceMatrix.needsUpdate = true;
   root.add(coastRocks);
+
+  // Three small boats form playable sea-wall insertions. Their open bows face
+  // the masonry, while low gunwales keep the player off the walkable water.
+  const ropeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x6f4a27,
+    roughness: 1,
+  });
+  const boatMaterial = new THREE.MeshStandardMaterial({
+    color: 0x3b2417,
+    map: woodTexture,
+    roughness: 0.94,
+  });
+  const addRope = (x, z, height = 2.75) => {
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.055, 0.065, height, 8),
+      ropeMaterial,
+    );
+    rope.position.set(x, height / 2 + 0.12, z);
+    rope.castShadow = true;
+    rope.name = "Hanging sea-wall rope";
+    root.add(rope);
+    for (let knotY = 0.38; knotY < height; knotY += 0.48) {
+      const knot = new THREE.Mesh(
+        new THREE.TorusGeometry(0.11, 0.032, 6, 10),
+        ropeMaterial,
+      );
+      knot.position.set(x, knotY, z);
+      knot.rotation.x = Math.PI / 2;
+      knot.name = "Rope climbing knot";
+      root.add(knot);
+    }
+  };
+  const addInsertionBoat = ({ x, z, orientation = "south" }) => {
+    const alongX = orientation === "south";
+    addBox({
+      size: alongX ? [5.4, 0.28, 4.8] : [4.8, 0.28, 5.4],
+      position: [x, 0.22, z],
+      material: boatMaterial,
+      name: "Sea insertion skiff deck",
+    });
+    if (alongX) {
+      for (const side of [-1, 1]) {
+        addBox({
+          size: [0.24, 0.82, 4.8],
+          position: [x + side * 2.58, 0.63, z],
+          material: boatMaterial,
+          collider: true,
+          name: "Skiff gunwale",
+        });
+      }
+      addBox({
+        size: [5.4, 0.82, 0.24],
+        position: [x, 0.63, z + 2.28],
+        material: boatMaterial,
+        collider: true,
+        name: "Skiff stern",
+      });
+    } else {
+      for (const side of [-1, 1]) {
+        addBox({
+          size: [4.8, 0.82, 0.24],
+          position: [x, 0.63, z + side * 2.58],
+          material: boatMaterial,
+          collider: true,
+          name: "Skiff gunwale",
+        });
+      }
+      addBox({
+        size: [0.24, 0.82, 5.4],
+        position: [x - 2.28, 0.63, z],
+        material: boatMaterial,
+        collider: true,
+        name: "Skiff stern",
+      });
+    }
+  };
+
+  addInsertionBoat({ x: -104.2, z: -11, orientation: "west" });
+  addRope(-101.82, -11);
+  addInsertionBoat({ x: -70, z: 85.2 });
+  addRope(-70, 82.82);
+  addInsertionBoat({ x: -9, z: 85.2 });
+  // The Pisan approach uses eroded kurkar blocks as handholds instead of rope.
+  for (let step = 0; step < 5; step += 1) {
+    addBox({
+      size: [0.72, 0.26, 0.52],
+      position: [-9 + (step % 2 ? 0.38 : -0.32), 0.35 + step * 0.37, 82.86],
+      material: paleStone,
+      name: "Pisan breach handhold",
+    });
+  }
+  addBox({
+    size: [2.2, 0.42, 0.72],
+    position: [-9, 1.82, 81.9],
+    material: oldStone,
+    name: "Broken Pisan parapet",
+  });
 
   const addCrenellations = (axis, start, end, fixed, y, parent = root) => {
     for (let p = start; p <= end; p += 4.5) {
@@ -1888,12 +2059,16 @@ export function buildArena(THREE, scene) {
 
   return {
     colliders,
-    spawnPoints: [mission.playerStart.clone()],
-    enemySpawns: mission.guardSpawns.map((position) => position.clone()),
+    spawnPoints: entryRoutes.map((route) => route.spawn.clone()),
+    enemySpawns: [
+      ...mission.guardSpawns.map((position) => position.clone()),
+      ...mission.wallGuardSpawns.map((guard) => guard.position.clone()),
+    ],
     pickups,
     animated,
     bounds,
     mission,
+    entryRoutes,
     tunnel,
     zones,
   };
