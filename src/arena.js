@@ -1030,6 +1030,28 @@ export function buildArena(THREE, scene) {
       collider: true,
       name,
     });
+    addCylinder({
+      radius: radius + 0.24,
+      height: 0.3,
+      position: [x, height - 0.58, z],
+      material: paleStone,
+      segments: 18,
+      name: "Tower projecting stone string course",
+    });
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 3) {
+      const slit = addBox({
+        size: [0.16, 0.92, 0.075],
+        position: [
+          x + Math.cos(angle) * radius * 1.035,
+          height * 0.56,
+          z + Math.sin(angle) * radius * 1.035,
+        ],
+        material: darkRecess,
+        shadows: false,
+        name: "Tower arrow slit",
+      });
+      slit.rotation.y = Math.PI / 2 - angle;
+    }
     for (let a = 0; a < Math.PI * 2; a += Math.PI / 5) {
       addBox({
         size: [1.7, 1.4, 1.7],
@@ -1125,17 +1147,59 @@ export function buildArena(THREE, scene) {
       name: "Stone foundation course",
     });
 
+    const detailCode = Math.abs(Math.round(x * 41 + z * 67 + h * 29));
+    const detailVariant = (detailCode % 997) / 997;
+    const roofRise = Math.min(2.4, d * 0.24);
+    const addHouseChimney = (offsetX, offsetZ, surfaceY) => {
+      const chimneyHeight = 1.05 + (detailCode % 3) * 0.16;
+      addBox({
+        size: [0.62, chimneyHeight, 0.62],
+        position: [x + offsetX, surfaceY + chimneyHeight / 2, z + offsetZ],
+        material: oldStone,
+        parent: house,
+        shadows: false,
+        name: "Coursed rooftop chimney",
+      });
+      addBox({
+        size: [0.76, 0.16, 0.76],
+        position: [x + offsetX, surfaceY + chimneyHeight + 0.02, z + offsetZ],
+        material: paleStone,
+        parent: house,
+        shadows: false,
+        name: "Chimney cap course",
+      });
+      addBox({
+        size: [0.43, 0.035, 0.43],
+        position: [x + offsetX, surfaceY + chimneyHeight + 0.115, z + offsetZ],
+        material: darkRecess,
+        parent: house,
+        shadows: false,
+        name: "Soot-black chimney opening",
+      });
+    };
+
     const pitched = roof && cityRandom() > 0.44;
     if (pitched) {
       addPitchedRoof({ x, z, w: w + 0.55, d: d + 0.55, y: h, parent: house });
       addBox({
         size: [w + 0.75, 0.16, 0.28],
-        position: [x, h + Math.min(2.4, d * 0.24) + 0.04, z],
+        position: [x, h + roofRise + 0.04, z],
         material: paleStone,
         parent: house,
         shadows: false,
         name: "Roof ridge",
       });
+      if (detailVariant > 0.42) {
+        const offsetZ = (detailCode % 2 ? -0.22 : 0.19) * d;
+        const surfaceY = h + roofRise * (
+          1 - Math.min(1, Math.abs(offsetZ) / Math.max(0.1, d / 2))
+        );
+        addHouseChimney(
+          (detailCode % 3 - 1) * w * 0.18,
+          offsetZ,
+          surfaceY,
+        );
+      }
     } else {
       addBox({
         size: [w + 0.35, 0.34, d + 0.35],
@@ -1160,6 +1224,52 @@ export function buildArena(THREE, scene) {
           name: "Roof parapet",
         });
       }
+      if (detailVariant > 0.62) {
+        const accessX = x + (detailCode % 2 ? -1 : 1) * w * 0.24;
+        const accessZ = z - d * 0.18;
+        addBox({
+          size: [2.15, 1.45, 2.05],
+          position: [accessX, h + 0.73, accessZ],
+          material,
+          parent: house,
+          shadows: false,
+          name: "Flat-roof stair enclosure",
+        });
+        addBox({
+          size: [2.32, 0.16, 2.22],
+          position: [accessX, h + 1.5, accessZ],
+          material: paleStone,
+          parent: house,
+          shadows: false,
+          name: "Roof access cap",
+        });
+        addBox({
+          size: [0.82, 1.05, 0.07],
+          position: [accessX, h + 0.57, accessZ + 1.06],
+          material: darkRecess,
+          parent: house,
+          shadows: false,
+          name: "Roof stair doorway",
+        });
+      } else if (detailVariant > 0.24) {
+        addHouseChimney(
+          (detailCode % 2 ? -1 : 1) * w * 0.23,
+          -d * 0.16,
+          h + 0.34,
+        );
+      }
+      addBox({
+        size: [0.16, 0.16, 0.72],
+        position: [
+          x + (detailCode % 2 ? -1 : 1) * w * 0.32,
+          h + 0.32,
+          z + d / 2 + 0.35,
+        ],
+        material: oldStone,
+        parent: house,
+        shadows: false,
+        name: "Projecting roof drainage spout",
+      });
     }
 
     const facadeZ = z + d / 2 + 0.1;
@@ -1175,6 +1285,21 @@ export function buildArena(THREE, scene) {
     addBox({ size: [0.34, 2.85, 0.32], position: [x - 1.08, 1.43, facadeZ], material: paleStone, parent: house, shadows: false });
     addBox({ size: [0.34, 2.85, 0.32], position: [x + 1.08, 1.43, facadeZ], material: paleStone, parent: house, shadows: false });
     addArch({ radius: 1.08, thickness: 0.24, position: [x, 2.72, facadeZ], material: paleStone, parent: house, name: "Door arch" });
+    const repairSide = detailCode % 2 ? -1 : 1;
+    for (let course = 0; course < 3; course += 1) {
+      addBox({
+        size: [0.72 + (course % 2) * 0.28, 0.24, 0.075],
+        position: [
+          x + repairSide * (2.05 + course * 0.42),
+          0.72 + course * 0.34,
+          facadeZ + 0.145,
+        ],
+        material: course === 1 ? paleStone : oldStone,
+        parent: house,
+        shadows: false,
+        name: "Exposed masonry repair course",
+      });
+    }
 
     // A shared two-colour palette lets all shutters collapse into two static
     // batches instead of creating a separate draw call for every house.
@@ -1199,6 +1324,14 @@ export function buildArena(THREE, scene) {
           parent: house,
           shadows: false,
           name: "Window lintel",
+        });
+        addBox({
+          size: [1.18, 0.12, 0.34],
+          position: [wx, level - 0.66, facadeZ + 0.08],
+          material: paleStone,
+          parent: house,
+          shadows: false,
+          name: "Projecting window sill",
         });
         for (const side of [-1, 1]) {
           const shutter = addBox({
@@ -1245,6 +1378,14 @@ export function buildArena(THREE, scene) {
             shadows: false,
             name: "Side window lintel",
           });
+          addBox({
+            size: [0.31, 0.12, 1.08],
+            position: [facadeX + side * 0.05, level - 0.57, wz],
+            material: paleStone,
+            parent: house,
+            shadows: false,
+            name: "Side window sill",
+          });
           for (const shutterSide of [-1, 1]) {
             const shutter = addBox({
               size: [0.1, 0.98, 0.3],
@@ -1261,6 +1402,17 @@ export function buildArena(THREE, scene) {
     }
 
     if (h > 6.2 && cityRandom() > 0.58) {
+      for (const supportX of [-1.45, 0, 1.45]) {
+        const corbel = addBox({
+          size: [0.15, 1.08, 0.16],
+          position: [x + supportX, 4.22, facadeZ + 0.35],
+          material: darkTimber,
+          parent: house,
+          shadows: false,
+          name: "Diagonal balcony corbel",
+        });
+        corbel.rotation.x = 0.58;
+      }
       addBox({
         size: [Math.min(5.4, w * 0.45), 0.3, 1.35],
         position: [x, 4.7, facadeZ + 0.62],
