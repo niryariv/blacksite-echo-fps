@@ -138,7 +138,14 @@ const stars = new THREE.Points(
     fog: false,
   }),
 );
+stars.frustumCulled = false;
 nightSky.add(stars);
+const fixedCelestialRotation = new THREE.Quaternion();
+const fixedStarAnchor = new THREE.Vector3(
+  starPositions[0],
+  starPositions[1],
+  starPositions[2],
+);
 
 const moonCanvas = document.createElement("canvas");
 moonCanvas.width = moonCanvas.height = 256;
@@ -202,10 +209,9 @@ const gradePass = new ShaderPass({
   `,
   fragmentShader: `
     uniform sampler2D tDiffuse;
-    uniform float time;
     varying vec2 vUv;
     float hash(vec2 p) {
-      return fract(sin(dot(p, vec2(127.1, 311.7)) + time * 17.0) * 43758.5453);
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
     }
     void main() {
       vec3 color = texture2D(tDiffuse, vUv).rgb;
@@ -1358,6 +1364,19 @@ function updateHUD() {
           );
         }),
     );
+    const liveStarAnchor = new THREE.Vector3(
+      stars.geometry.attributes.position.getX(0),
+      stars.geometry.attributes.position.getY(0),
+      stars.geometry.attributes.position.getZ(0),
+    );
+    document.documentElement.dataset.starFieldFixed = String(
+      liveStarAnchor.distanceToSquared(fixedStarAnchor) < 1e-10 &&
+      nightSky.quaternion.angleTo(fixedCelestialRotation) < 1e-10,
+    );
+    document.documentElement.dataset.starAnchor = liveStarAnchor
+      .toArray()
+      .map((value) => value.toFixed(3))
+      .join(",");
   }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
@@ -2331,12 +2350,11 @@ function animate() {
       }
     }
   } else if (game.phase === "briefing") {
-    camera.position.x = 100 + Math.sin(game.elapsed * 0.12) * 4;
-    camera.position.y = 25 + Math.sin(game.elapsed * 0.2) * 0.5;
-    camera.position.z = 105;
+    camera.position.set(100, 25, 105);
     camera.lookAt(-18, 5, -18);
   }
   nightSky.position.copy(camera.position);
+  nightSky.quaternion.copy(fixedCelestialRotation);
   if (!mapVisible && (game.phase === "running" || game.phase === "briefing")) {
     const renderStarted = performance.now();
     composer.render();
