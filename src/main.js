@@ -364,6 +364,7 @@ if (import.meta.env.DEV) {
         triangles: renderer.info.render.triangles,
         textures: renderer.info.memory.textures,
         geometries: renderer.info.memory.geometries,
+        staticCity: arena.renderBudget,
       };
     },
     blockedAt(x, z, floorY = 0) {
@@ -498,25 +499,105 @@ const guardGeometries = {
   farBody: new THREE.CapsuleGeometry(0.34, 1.12, 4, 8),
   vision: guardVisionGeometry,
 };
+const createGuardSurface = (size, painter, repeatX = 1, repeatY = 1) => {
+  const surface = document.createElement("canvas");
+  surface.width = surface.height = size;
+  const context = surface.getContext("2d");
+  painter(context, size);
+  const texture = new THREE.CanvasTexture(surface);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeatX, repeatY);
+  texture.anisotropy = 4;
+  return texture;
+};
+const mailTexture = createGuardSurface(128, (context, size) => {
+  context.fillStyle = "#8f9692";
+  context.fillRect(0, 0, size, size);
+  context.lineWidth = 1.45;
+  for (let row = -1; row < 18; row += 1) {
+    for (let column = -1; column < 18; column += 1) {
+      const x = column * 8 + (row % 2 ? 4 : 0);
+      const y = row * 7;
+      context.strokeStyle = "rgba(25,29,28,.72)";
+      context.beginPath();
+      context.ellipse(x, y, 3.7, 2.7, 0, 0, Math.PI * 2);
+      context.stroke();
+      context.strokeStyle = "rgba(230,235,224,.42)";
+      context.beginPath();
+      context.arc(x - 0.5, y - 0.6, 2.7, Math.PI * 1.05, Math.PI * 1.78);
+      context.stroke();
+    }
+  }
+}, 3, 4);
+const clothTexture = createGuardSurface(128, (context, size) => {
+  context.fillStyle = "#c8bca7";
+  context.fillRect(0, 0, size, size);
+  for (let line = 0; line < size; line += 3) {
+    context.fillStyle = line % 6
+      ? "rgba(52,37,26,.045)"
+      : "rgba(255,247,219,.07)";
+    context.fillRect(0, line, size, 1);
+    context.fillRect(line, 0, 1, size);
+  }
+  const wear = context.createLinearGradient(0, 0, size, size);
+  wear.addColorStop(0, "rgba(255,255,255,.06)");
+  wear.addColorStop(0.58, "rgba(255,255,255,0)");
+  wear.addColorStop(1, "rgba(48,31,19,.18)");
+  context.fillStyle = wear;
+  context.fillRect(0, 0, size, size);
+}, 2, 3);
+const leatherTexture = createGuardSurface(128, (context, size) => {
+  context.fillStyle = "#765035";
+  context.fillRect(0, 0, size, size);
+  for (let mark = 0; mark < 95; mark += 1) {
+    const x = (mark * 47) % size;
+    const y = (mark * 83) % size;
+    context.fillStyle = mark % 4
+      ? "rgba(31,16,8,.07)"
+      : "rgba(239,193,126,.065)";
+    context.beginPath();
+    context.ellipse(x, y, 1 + (mark % 3), 0.5 + (mark % 2), mark * 0.31, 0, Math.PI * 2);
+    context.fill();
+  }
+}, 2, 3);
 const guardMaterials = {
   chainmail: new THREE.MeshStandardMaterial({
-    color: 0x535957,
+    color: 0x68706d,
+    map: mailTexture,
+    bumpMap: mailTexture,
+    bumpScale: 0.026,
     metalness: 0.48,
-    roughness: 0.68,
+    roughness: 0.62,
   }),
   cloth: [0x71352b, 0x2c302b, 0x3c4b51].map(
     (color) => new THREE.MeshStandardMaterial({
       color,
+      map: clothTexture,
       metalness: 0.05,
       roughness: 0.95,
     }),
   ),
   leggings: [0x303636, 0x382f2b].map(
-    (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.98 }),
+    (color) => new THREE.MeshStandardMaterial({
+      color,
+      map: clothTexture,
+      roughness: 0.98,
+    }),
   ),
-  leather: new THREE.MeshStandardMaterial({ color: 0x3b2517, roughness: 0.9 }),
+  leather: new THREE.MeshStandardMaterial({
+    color: 0x4c2e1b,
+    map: leatherTexture,
+    bumpMap: leatherTexture,
+    bumpScale: 0.018,
+    roughness: 0.88,
+  }),
   skin: new THREE.MeshStandardMaterial({ color: 0x9b6f50, roughness: 0.92 }),
-  heraldry: new THREE.MeshStandardMaterial({ color: 0xd9d0b9, roughness: 0.96 }),
+  heraldry: new THREE.MeshStandardMaterial({
+    color: 0xd9d0b9,
+    map: clothTexture,
+    roughness: 0.96,
+  }),
 };
 
 function createGuard(index, position, options = {}) {
@@ -707,32 +788,101 @@ function createMissionObjects() {
   terminal.position.copy(arena.mission.target);
   terminal.name = "Sealed harbour dispatch";
   const dark = new THREE.MeshStandardMaterial({
-    color: 0x422816,
+    color: 0x5a351e,
+    map: leatherTexture,
+    bumpMap: leatherTexture,
+    bumpScale: 0.025,
     metalness: 0.08,
     roughness: 0.88,
   });
+  const chestIron = new THREE.MeshStandardMaterial({
+    color: 0x242622,
+    metalness: 0.72,
+    roughness: 0.58,
+  });
+  const parchmentTexture = createGuardSurface(256, (context, size) => {
+    context.fillStyle = "#d5c08d";
+    context.fillRect(0, 0, size, size);
+    for (let line = 0; line < 15; line += 1) {
+      const y = 34 + line * 12;
+      context.fillStyle = line % 4
+        ? "rgba(67,43,24,.18)"
+        : "rgba(67,43,24,.1)";
+      context.fillRect(28 + (line % 3) * 7, y, size - 65 - (line % 4) * 8, 1.25);
+    }
+    const edge = context.createRadialGradient(
+      size / 2,
+      size / 2,
+      size * 0.18,
+      size / 2,
+      size / 2,
+      size * 0.72,
+    );
+    edge.addColorStop(0, "rgba(255,250,218,0)");
+    edge.addColorStop(1, "rgba(74,43,20,.28)");
+    context.fillStyle = edge;
+    context.fillRect(0, 0, size, size);
+  });
+  const parchmentMaterial = new THREE.MeshStandardMaterial({
+    color: 0xe7d2a0,
+    map: parchmentTexture,
+    bumpMap: parchmentTexture,
+    bumpScale: 0.012,
+    roughness: 0.96,
+    side: THREE.DoubleSide,
+  });
   const glow = new THREE.MeshStandardMaterial({
-    color: 0x9a2f20,
-    emissive: 0xe56d27,
-    emissiveIntensity: 1.8,
+    color: 0x8d251d,
+    emissive: 0x9d321f,
+    emissiveIntensity: 0.9,
     metalness: 0.05,
-    roughness: 0.72,
+    roughness: 0.8,
   });
   const pedestal = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.82, 0.9), dark);
   pedestal.position.y = 0.41;
   pedestal.castShadow = true;
+  for (const x of [-0.51, 0.51]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.86, 0.94), chestIron);
+    band.position.set(x, 0.43, 0);
+    band.castShadow = true;
+    terminal.add(band);
+  }
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.07), chestIron);
+  lock.position.set(0, 0.58, 0.48);
+  terminal.add(lock);
+  const scrollGeometry = new THREE.PlaneGeometry(0.9, 0.58, 8, 5);
+  const scrollPositions = scrollGeometry.attributes.position;
+  for (let index = 0; index < scrollPositions.count; index += 1) {
+    const x = scrollPositions.getX(index);
+    const y = scrollPositions.getY(index);
+    scrollPositions.setZ(index, Math.sin(x * 11) * 0.008 + Math.cos(y * 15) * 0.006);
+  }
+  scrollGeometry.computeVertexNormals();
   const scroll = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.75, 0.52),
-    new THREE.MeshStandardMaterial({ color: 0xd5c18f, roughness: 0.92, side: THREE.DoubleSide }),
+    scrollGeometry,
+    parchmentMaterial,
   );
   scroll.rotation.x = -Math.PI / 2;
-  scroll.position.set(0, 0.84, 0);
+  scroll.position.set(0, 0.855, 0);
+  scroll.castShadow = true;
+  for (const x of [-0.45, 0.45]) {
+    const roll = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.07, 0.58, 12),
+      parchmentMaterial,
+    );
+    roll.rotation.x = Math.PI / 2;
+    roll.position.set(x, 0.875, 0);
+    roll.castShadow = true;
+    terminal.add(roll);
+  }
+  const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.018, 0.58), glow);
+  ribbon.position.set(0.17, 0.884, 0);
   const screen = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.055, 18), glow);
-  screen.rotation.x = Math.PI / 2;
-  screen.position.set(0, 0.88, 0.18);
-  const light = new THREE.PointLight(0xff9b48, 3.5, 4.5, 2);
-  light.position.set(0, 1.3, 0.3);
-  terminal.add(pedestal, scroll, screen, light);
+  screen.position.set(0.17, 0.92, 0.11);
+  screen.name = "Wax seal";
+  const light = new THREE.PointLight(0xff9b48, 2.2, 4.5, 2);
+  light.position.set(0, 1.25, 0.25);
+  terminal.add(pedestal, scroll, ribbon, screen, light);
   scene.add(terminal);
 
   const exfil = new THREE.Group();
@@ -1357,8 +1507,8 @@ function updateTunnelTraversal(dt, prompt) {
 
 function updateMission(dt) {
   missionObjects.terminalScreen.material.emissiveIntensity =
-    2.7 + Math.sin(game.elapsed * 3.1) * 0.55;
-  missionObjects.terminalLight.intensity = 4.2 + Math.sin(game.elapsed * 2.4) * 1.4;
+    0.78 + Math.sin(game.elapsed * 3.1) * 0.16;
+  missionObjects.terminalLight.intensity = 2.1 + Math.sin(game.elapsed * 2.4) * 0.55;
   missionObjects.rings.forEach((ring, index) => {
     ring.rotation.z += dt * (0.18 + index * 0.08);
     ring.material.opacity = 0.45 + Math.sin(game.elapsed * 2 + index) * 0.2;

@@ -148,22 +148,134 @@ export function buildArena(THREE, scene) {
   const plasterNormal = loadSurface("plaster-normal.jpg");
   const plasterRough = loadSurface("plaster-rough.jpg");
 
+  const seededPainter = (seed) => {
+    let state = seed >>> 0;
+    return () => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  };
+  const cityRandom = seededPainter(0xac1250);
   const woodTexture = canvasTexture(
-    128,
+    256,
     (ctx, s) => {
-      ctx.fillStyle = "#4c2f1c";
+      const random = seededPainter(0xa4c3);
+      const base = ctx.createLinearGradient(0, 0, s, 0);
+      base.addColorStop(0, "#4b2b18");
+      base.addColorStop(0.48, "#785032");
+      base.addColorStop(1, "#422414");
+      ctx.fillStyle = base;
       ctx.fillRect(0, 0, s, s);
-      for (let x = 0; x < s; x += 16) {
-        ctx.strokeStyle = `rgba(30,15,7,${0.25 + Math.random() * 0.25})`;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x + Math.sin(x) * 2, s);
-        ctx.stroke();
+      for (let plank = 0; plank < 8; plank += 1) {
+        const x = plank * (s / 8);
+        ctx.fillStyle = plank % 2
+          ? "rgba(238,181,119,.055)"
+          : "rgba(31,14,6,.09)";
+        ctx.fillRect(x, 0, s / 8, s);
+        ctx.fillStyle = "rgba(18,9,4,.55)";
+        ctx.fillRect(x, 0, 2, s);
+        for (let grain = 0; grain < 8; grain += 1) {
+          const gx = x + 3 + random() * (s / 8 - 6);
+          ctx.strokeStyle = `rgba(31,13,6,${0.12 + random() * 0.18})`;
+          ctx.lineWidth = 0.65 + random() * 1.2;
+          ctx.beginPath();
+          ctx.moveTo(gx, -8);
+          for (let y = 0; y <= s + 8; y += 16) {
+            ctx.lineTo(gx + Math.sin(y * 0.055 + grain) * (1.2 + random() * 1.6), y);
+          }
+          ctx.stroke();
+        }
+        if (plank % 3 === 1) {
+          const knotY = 32 + random() * (s - 64);
+          ctx.strokeStyle = "rgba(28,12,5,.48)";
+          for (let ring = 0; ring < 3; ring += 1) {
+            ctx.beginPath();
+            ctx.ellipse(
+              x + s / 16,
+              knotY,
+              2.5 + ring * 2.2,
+              5 + ring * 3.4,
+              0,
+              0,
+              Math.PI * 2,
+            );
+            ctx.stroke();
+          }
+        }
       }
+      const wear = ctx.createLinearGradient(0, 0, 0, s);
+      wear.addColorStop(0, "rgba(238,212,170,.08)");
+      wear.addColorStop(0.45, "rgba(0,0,0,0)");
+      wear.addColorStop(1, "rgba(15,7,3,.16)");
+      ctx.fillStyle = wear;
+      ctx.fillRect(0, 0, s, s);
     },
-    4,
+    3,
     2,
   );
+  const sailTexture = canvasTexture(256, (ctx, s) => {
+    const random = seededPainter(0x51a1);
+    ctx.fillStyle = "#d8cba8";
+    ctx.fillRect(0, 0, s, s);
+    for (let line = 0; line <= s; line += 3) {
+      ctx.fillStyle = line % 6
+        ? "rgba(77,58,35,.025)"
+        : "rgba(255,248,218,.045)";
+      ctx.fillRect(0, line, s, 1);
+      ctx.fillRect(line, 0, 1, s);
+    }
+    for (let seam = 1; seam < 4; seam += 1) {
+      const x = (seam * s) / 4;
+      ctx.fillStyle = "rgba(74,52,31,.2)";
+      ctx.fillRect(x, 0, 2, s);
+      ctx.fillStyle = "rgba(255,244,207,.14)";
+      ctx.fillRect(x + 2, 0, 1, s);
+    }
+    for (let speck = 0; speck < 90; speck += 1) {
+      ctx.fillStyle = `rgba(73,49,28,${0.025 + random() * 0.06})`;
+      ctx.fillRect(random() * s, random() * s, 1 + random() * 2, 1 + random() * 2);
+    }
+    const edgeWear = ctx.createRadialGradient(s / 2, s / 2, s * 0.18, s / 2, s / 2, s * 0.72);
+    edgeWear.addColorStop(0, "rgba(255,255,255,0)");
+    edgeWear.addColorStop(1, "rgba(74,48,26,.22)");
+    ctx.fillStyle = edgeWear;
+    ctx.fillRect(0, 0, s, s);
+  });
+  const potteryTexture = canvasTexture(256, (ctx, s) => {
+    const random = seededPainter(0xac4e);
+    ctx.fillStyle = "#b75e3e";
+    ctx.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 7) {
+      ctx.fillStyle = y % 21
+        ? "rgba(255,186,126,.035)"
+        : "rgba(74,28,17,.12)";
+      ctx.fillRect(0, y, s, 1);
+    }
+    for (let speck = 0; speck < 180; speck += 1) {
+      const light = random() > 0.58;
+      ctx.fillStyle = light
+        ? `rgba(243,173,116,${0.05 + random() * 0.1})`
+        : `rgba(62,24,15,${0.04 + random() * 0.1})`;
+      const radius = 0.4 + random() * 1.3;
+      ctx.beginPath();
+      ctx.arc(random() * s, random() * s, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }, 2, 3);
+  const sackTexture = canvasTexture(128, (ctx, s) => {
+    const random = seededPainter(0x5ac7);
+    ctx.fillStyle = "#a88a5a";
+    ctx.fillRect(0, 0, s, s);
+    for (let line = 0; line < s; line += 3) {
+      ctx.fillStyle = "rgba(255,230,177,.08)";
+      ctx.fillRect(0, line, s, 1);
+      ctx.fillRect(line, 0, 1, s);
+    }
+    for (let mark = 0; mark < 70; mark += 1) {
+      ctx.fillStyle = `rgba(55,35,18,${0.025 + random() * 0.08})`;
+      ctx.fillRect(random() * s, random() * s, 1 + random() * 3, 1 + random() * 3);
+    }
+  }, 3, 3);
   const roofTexture = canvasTexture(
     256,
     (ctx, s) => {
@@ -233,10 +345,28 @@ export function buildArena(THREE, scene) {
     roughness: 1,
   });
   const timber = new THREE.MeshStandardMaterial({
-    color: 0xf0ddc9,
+    color: 0xb58e66,
     map: woodTexture,
-    roughness: 0.9,
+    bumpMap: woodTexture,
+    bumpScale: 0.035,
+    roughness: 0.88,
   });
+  const darkTimber = new THREE.MeshStandardMaterial({
+    color: 0x6f4b30,
+    map: woodTexture,
+    bumpMap: woodTexture,
+    bumpScale: 0.042,
+    roughness: 0.94,
+  });
+  const shutterMaterials = [0x315b5a, 0x6e3827].map(
+    (color) => new THREE.MeshStandardMaterial({
+      color,
+      map: woodTexture,
+      bumpMap: woodTexture,
+      bumpScale: 0.028,
+      roughness: 0.93,
+    }),
+  );
   const roofMaterial = new THREE.MeshStandardMaterial({
     color: 0xf5e2d7,
     map: roofTexture,
@@ -284,19 +414,19 @@ export function buildArena(THREE, scene) {
       ctx.fillRect(0, 0, s, s);
       ctx.globalCompositeOperation = "overlay";
       for (let i = 0; i < 180; i += 1) {
-        const x = Math.random() * s;
-        const y = Math.random() * s;
-        const length = 12 + Math.random() * 42;
-        const tone = 105 + Math.floor(Math.random() * 48);
+        const x = cityRandom() * s;
+        const y = cityRandom() * s;
+        const length = 12 + cityRandom() * 42;
+        const tone = 105 + Math.floor(cityRandom() * 48);
         ctx.strokeStyle = `rgba(${tone},${210 - tone / 2},255,.45)`;
-        ctx.lineWidth = 1 + Math.random() * 2.2;
+        ctx.lineWidth = 1 + cityRandom() * 2.2;
         ctx.beginPath();
         ctx.moveTo(x - length / 2, y);
         ctx.bezierCurveTo(
           x - length / 5,
-          y - 5 - Math.random() * 8,
+          y - 5 - cityRandom() * 8,
           x + length / 5,
-          y + 5 + Math.random() * 8,
+          y + 5 + cityRandom() * 8,
           x + length / 2,
           y,
         );
@@ -313,14 +443,19 @@ export function buildArena(THREE, scene) {
     roughness: 0.38,
   });
   const sail = new THREE.MeshStandardMaterial({
-    color: 0xeee1bf,
-    roughness: 0.9,
+    color: 0xf1e2be,
+    map: sailTexture,
+    bumpMap: sailTexture,
+    bumpScale: 0.018,
+    roughness: 0.94,
     side: THREE.DoubleSide,
   });
   const awningMaterials = awningTextures.map(
     (map) => new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map,
+      bumpMap: sackTexture,
+      bumpScale: 0.012,
       side: THREE.DoubleSide,
       roughness: 0.94,
     }),
@@ -606,10 +741,10 @@ export function buildArena(THREE, scene) {
   let rockIndex = 0;
   for (let z = -79; z <= 77; z += 6.2) {
     if (Math.abs(z + 11) < 8) continue;
-    rockQuaternion.setFromEuler(new THREE.Euler(Math.random(), Math.random(), Math.random()));
-    rockScale.set(1.2 + Math.random() * 1.8, 0.7 + Math.random() * 0.9, 1 + Math.random() * 1.5);
+    rockQuaternion.setFromEuler(new THREE.Euler(cityRandom(), cityRandom(), cityRandom()));
+    rockScale.set(1.2 + cityRandom() * 1.8, 0.7 + cityRandom() * 0.9, 1 + cityRandom() * 1.5);
     rockMatrix.compose(
-      new THREE.Vector3(-101.2 + Math.random() * 1.5, 0.25 + Math.random() * 0.4, z + Math.random() * 2),
+      new THREE.Vector3(-101.2 + cityRandom() * 1.5, 0.25 + cityRandom() * 0.4, z + cityRandom() * 2),
       rockQuaternion,
       rockScale,
     );
@@ -617,10 +752,10 @@ export function buildArena(THREE, scene) {
   }
   for (let x = -94; x <= 38 && rockIndex < 58; x += 5.2) {
     if (Math.abs(x + 70) < 8 || Math.abs(x + 9) < 8) continue;
-    rockQuaternion.setFromEuler(new THREE.Euler(Math.random(), Math.random(), Math.random()));
-    rockScale.set(1 + Math.random() * 1.5, 0.65 + Math.random(), 1.2 + Math.random() * 1.7);
+    rockQuaternion.setFromEuler(new THREE.Euler(cityRandom(), cityRandom(), cityRandom()));
+    rockScale.set(1 + cityRandom() * 1.5, 0.65 + cityRandom(), 1.2 + cityRandom() * 1.7);
     rockMatrix.compose(
-      new THREE.Vector3(x + Math.random() * 2, 0.22 + Math.random() * 0.4, 82 + Math.random()),
+      new THREE.Vector3(x + cityRandom() * 2, 0.22 + cityRandom() * 0.4, 82 + cityRandom()),
       rockQuaternion,
       rockScale,
     );
@@ -637,8 +772,10 @@ export function buildArena(THREE, scene) {
     roughness: 1,
   });
   const boatMaterial = new THREE.MeshStandardMaterial({
-    color: 0x3b2417,
+    color: 0x654126,
     map: woodTexture,
+    bumpMap: woodTexture,
+    bumpScale: 0.04,
     roughness: 0.94,
   });
   const addRope = (x, z, height = 2.75) => {
@@ -871,7 +1008,7 @@ export function buildArena(THREE, scene) {
     w,
     d,
     h,
-    material = plasterMaterials[Math.floor(Math.random() * plasterMaterials.length)],
+    material = plasterMaterials[Math.floor(cityRandom() * plasterMaterials.length)],
     roof = true,
     name = "Frankish townhouse",
   }) => {
@@ -895,7 +1032,7 @@ export function buildArena(THREE, scene) {
       name: "Stone foundation course",
     });
 
-    const pitched = roof && Math.random() > 0.44;
+    const pitched = roof && cityRandom() > 0.44;
     if (pitched) {
       addPitchedRoof({ x, z, w: w + 0.55, d: d + 0.55, y: h, parent: house });
       addBox({
@@ -946,10 +1083,9 @@ export function buildArena(THREE, scene) {
     addBox({ size: [0.34, 2.85, 0.32], position: [x + 1.08, 1.43, facadeZ], material: paleStone, parent: house, shadows: false });
     addArch({ radius: 1.08, thickness: 0.24, position: [x, 2.72, facadeZ], material: paleStone, parent: house, name: "Door arch" });
 
-    const shutterMaterial = new THREE.MeshStandardMaterial({
-      color: Math.random() > 0.5 ? 0x315b5a : 0x6e3827,
-      roughness: 0.95,
-    });
+    // A shared two-colour palette lets all shutters collapse into two static
+    // batches instead of creating a separate draw call for every house.
+    const shutterMaterial = shutterMaterials[cityRandom() > 0.5 ? 0 : 1];
     const windows = Math.min(3, Math.max(2, Math.floor(w / 4.8)));
     const levels = h > 7.1 ? [3.6, 6.15] : [Math.min(h - 1.35, 3.7)];
     for (const level of levels) {
@@ -1031,7 +1167,7 @@ export function buildArena(THREE, scene) {
       }
     }
 
-    if (h > 6.2 && Math.random() > 0.58) {
+    if (h > 6.2 && cityRandom() > 0.58) {
       addBox({
         size: [Math.min(5.4, w * 0.45), 0.3, 1.35],
         position: [x, 4.7, facadeZ + 0.62],
@@ -1528,28 +1664,93 @@ export function buildArena(THREE, scene) {
   const createHullGeometry = (length = 8, width = 3.5, depth = 1.25) => {
     const l = length / 2;
     const w = width / 2;
+    const sections = [
+      [-1, 0, 0.18, 0.42],
+      [-0.72, 0.68, 0.07, 0.7],
+      [-0.24, 0.98, 0, 1],
+      [0.34, 1, 0, 0.94],
+      [0.78, 0.82, 0.08, 0.62],
+      [1, 0.32, 0.16, 0.28],
+    ];
+    const positions = [];
+    const uvs = [];
+    for (let index = 0; index < sections.length; index += 1) {
+      const [zFactor, widthFactor, sheer, keelFactor] = sections[index];
+      const v = index / (sections.length - 1);
+      positions.push(
+        -w * widthFactor, sheer, zFactor * l,
+        w * widthFactor, sheer, zFactor * l,
+        0, -depth * keelFactor, zFactor * l,
+      );
+      uvs.push(0, v, 1, v, 0.5, v);
+    }
+    const indices = [];
+    for (let index = 0; index < sections.length - 1; index += 1) {
+      const current = index * 3;
+      const next = current + 3;
+      indices.push(
+        current, current + 2, next,
+        next, current + 2, next + 2,
+        current + 1, next + 1, current + 2,
+        next + 1, next + 2, current + 2,
+      );
+    }
+    indices.push(0, 1, 2);
+    const stern = (sections.length - 1) * 3;
+    indices.push(stern, stern + 2, stern + 1);
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(
-        [
-          0, 0.15, -l,
-          -w, 0, -l * 0.12,
-          w, 0, -l * 0.12,
-          -w * 0.78, 0, l,
-          w * 0.78, 0, l,
-          0, -depth * 0.66, -l * 0.72,
-          0, -depth, 0,
-          0, -depth * 0.58, l * 0.86,
-        ],
-        3,
-      ),
+      new THREE.Float32BufferAttribute(positions, 3),
     );
-    geometry.setIndex([
-      0, 5, 1, 1, 5, 6, 1, 6, 3, 3, 6, 7,
-      2, 5, 0, 2, 6, 5, 4, 6, 2, 4, 7, 6,
-      3, 7, 4,
-    ]);
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+
+  const createLateenSailGeometry = (subdivisions = 7) => {
+    const a = new THREE.Vector3(-2.2, 2.6, 0);
+    const b = new THREE.Vector3(2.2, 1.15, 0);
+    const c = new THREE.Vector3(-1.65, -2.5, 0);
+    const positions = [];
+    const uvs = [];
+    const indexOf = new Map();
+    for (let i = 0; i <= subdivisions; i += 1) {
+      for (let j = 0; j <= subdivisions - i; j += 1) {
+        const u = i / subdivisions;
+        const v = j / subdivisions;
+        const point = a.clone()
+          .multiplyScalar(1 - u - v)
+          .addScaledVector(b, u)
+          .addScaledVector(c, v);
+        point.z = Math.sin(Math.PI * u) * Math.sin(Math.PI * v) * 0.22;
+        indexOf.set(`${i},${j}`, positions.length / 3);
+        positions.push(point.x, point.y, point.z);
+        uvs.push(u, 1 - v);
+      }
+    }
+    const indices = [];
+    for (let i = 0; i < subdivisions; i += 1) {
+      for (let j = 0; j < subdivisions - i; j += 1) {
+        indices.push(
+          indexOf.get(`${i},${j}`),
+          indexOf.get(`${i + 1},${j}`),
+          indexOf.get(`${i},${j + 1}`),
+        );
+        if (i + j <= subdivisions - 2) {
+          indices.push(
+            indexOf.get(`${i + 1},${j}`),
+            indexOf.get(`${i + 1},${j + 1}`),
+            indexOf.get(`${i},${j + 1}`),
+          );
+        }
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices);
     geometry.computeVertexNormals();
     return geometry;
   };
@@ -1576,21 +1777,7 @@ export function buildArena(THREE, scene) {
     yard.position.y = 5.7;
     yard.rotation.z = Math.PI / 2 - 0.32;
     boat.add(yard);
-    const sailGeometry = new THREE.BufferGeometry();
-    sailGeometry.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute([
-        -2.2, 2.6, 0,
-        2.2, 1.15, 0,
-        -1.65, -2.5, 0,
-      ], 3),
-    );
-    sailGeometry.setAttribute(
-      "uv",
-      new THREE.Float32BufferAttribute([0, 1, 1, 0.78, 0.12, 0], 2),
-    );
-    sailGeometry.setIndex([0, 1, 2]);
-    sailGeometry.computeVertexNormals();
+    const sailGeometry = createLateenSailGeometry();
     const canvas = new THREE.Mesh(sailGeometry, sail);
     canvas.position.set(0, 4.35, 0);
     boat.add(canvas);
@@ -1641,7 +1828,70 @@ export function buildArena(THREE, scene) {
   animated.push(skiff);
 
   // Market props, amphorae, olive trees, and linen awnings.
-  const pottery = new THREE.MeshStandardMaterial({ color: 0xc56d48, roughness: 0.95 });
+  const pottery = new THREE.MeshStandardMaterial({
+    color: 0xd17d58,
+    map: potteryTexture,
+    bumpMap: potteryTexture,
+    bumpScale: 0.022,
+    roughness: 0.96,
+  });
+  const amphoraGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.075, -0.7),
+      new THREE.Vector2(0.18, -0.57),
+      new THREE.Vector2(0.34, -0.28),
+      new THREE.Vector2(0.37, 0.14),
+      new THREE.Vector2(0.29, 0.37),
+      new THREE.Vector2(0.17, 0.51),
+      new THREE.Vector2(0.13, 0.65),
+      new THREE.Vector2(0.19, 0.69),
+    ],
+    14,
+  );
+  const amphoraHandleGeometry = new THREE.TorusGeometry(0.17, 0.028, 5, 10);
+  const amphoraRimGeometry = new THREE.TorusGeometry(0.19, 0.028, 5, 12);
+  const addAmphora = ({
+    x,
+    y,
+    z,
+    scale = 1,
+    rotation = 0,
+    parent = root,
+    name = "Trade amphora",
+  }) => {
+    const jar = new THREE.Group();
+    jar.position.set(x, y, z);
+    jar.rotation.y = rotation;
+    jar.scale.setScalar(scale);
+    jar.name = name;
+    parent.add(jar);
+
+    const body = new THREE.Mesh(amphoraGeometry, pottery);
+    body.castShadow = body.receiveShadow = true;
+    body.name = `${name} body`;
+    jar.add(body);
+
+    const rim = new THREE.Mesh(amphoraRimGeometry, pottery);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.69;
+    rim.name = `${name} rolled rim`;
+    jar.add(rim);
+
+    for (const side of [-1, 1]) {
+      const handle = new THREE.Mesh(amphoraHandleGeometry, pottery);
+      handle.position.set(side * 0.24, 0.45, 0);
+      handle.scale.set(0.56, 1, 0.64);
+      handle.name = `${name} handle`;
+      jar.add(handle);
+    }
+
+    const opening = new THREE.Mesh(new THREE.CircleGeometry(0.145, 12), darkRecess);
+    opening.rotation.x = -Math.PI / 2;
+    opening.position.y = 0.695;
+    opening.name = `${name} opening`;
+    jar.add(opening);
+    return jar;
+  };
   const addMarketAwning = (x, z, variant = 0) => {
     const geometry = new THREE.PlaneGeometry(6.2, 4.2, 12, 6);
     const position = geometry.attributes.position;
@@ -1682,13 +1932,12 @@ export function buildArena(THREE, scene) {
     [61, -19], [42, -20], [18, -17], [19, 20], [-4, 35], [35, 48], [40, 57],
   ].forEach(([x, z], index) => {
     for (let i = 0; i < 3; i += 1) {
-      addCylinder({
-        radius: 0.28 + i * 0.06,
-        height: 0.8 + i * 0.12,
-        position: [x + i * 0.65, 0.4 + i * 0.06, z + (i % 2) * 0.55],
-        material: pottery,
-        segments: 10,
-        name: "Trade amphora",
+      addAmphora({
+        x: x + i * 0.68,
+        y: 0.7 * (0.82 + i * 0.08),
+        z: z + (i % 2) * 0.55,
+        scale: 0.82 + i * 0.08,
+        rotation: (index * 0.61 + i * 0.83) % (Math.PI * 2),
       });
     }
     if (index < 5) {
@@ -1705,10 +1954,33 @@ export function buildArena(THREE, scene) {
     root.add(crate);
     addBox({ size: [1.35, 1.15, 1.2], position: [0, 0.58, 0], material: timber, parent: crate, name: "Cargo crate" });
     for (const edge of [-0.58, 0.58]) {
-      addBox({ size: [0.12, 1.2, 1.28], position: [edge, 0.58, 0], material: oldStone, parent: crate, shadows: false });
+      addBox({ size: [0.12, 1.2, 1.28], position: [edge, 0.58, 0], material: darkTimber, parent: crate, shadows: false, name: "Crate edge batten" });
     }
     for (const y of [0.08, 1.08]) {
-      addBox({ size: [1.44, 0.1, 1.3], position: [0, y, 0], material: oldStone, parent: crate, shadows: false });
+      addBox({ size: [1.44, 0.1, 1.3], position: [0, y, 0], material: darkTimber, parent: crate, shadows: false, name: "Crate cross batten" });
+    }
+    for (const faceZ of [-0.615, 0.615]) {
+      const brace = addBox({
+        size: [0.11, 1.42, 0.07],
+        position: [0, 0.58, faceZ],
+        material: darkTimber,
+        parent: crate,
+        shadows: false,
+        name: "Diagonal crate brace",
+      });
+      brace.rotation.z = faceZ > 0 ? -0.78 : 0.78;
+      for (const xNail of [-0.47, 0.47]) {
+        for (const yNail of [0.18, 0.98]) {
+          const nail = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.028, 0.028, 0.035, 6),
+            agedIron,
+          );
+          nail.rotation.x = Math.PI / 2;
+          nail.position.set(xNail, yNail, faceZ + Math.sign(faceZ) * 0.055);
+          nail.name = "Hand-forged crate nail";
+          crate.add(nail);
+        }
+      }
     }
   };
   [
@@ -1716,27 +1988,52 @@ export function buildArena(THREE, scene) {
     [33, 47, 1.1, 0.05], [36, 58, 0.85, -0.1], [44, 60, 0.75, 0.3],
   ].forEach(([x, z, scale, rotation]) => addTradeCrate(x, z, scale, rotation));
 
+  const barrelGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.39, -0.62),
+      new THREE.Vector2(0.44, -0.53),
+      new THREE.Vector2(0.5, -0.28),
+      new THREE.Vector2(0.52, 0),
+      new THREE.Vector2(0.5, 0.28),
+      new THREE.Vector2(0.44, 0.53),
+      new THREE.Vector2(0.39, 0.62),
+    ],
+    16,
+  );
+  const barrelLidGeometry = new THREE.CylinderGeometry(0.39, 0.39, 0.05, 16);
   [
     [60, -17], [23, 17], [-2, 31], [37, 55], [43, 58],
   ].forEach(([x, z]) => {
-    const barrel = addCylinder({
-      radius: 0.48,
-      height: 1.25,
-      position: [x, 0.63, z],
-      material: timber,
-      segments: 14,
-      name: "Coopered barrel",
-    });
-    for (const y of [-0.38, 0.38]) {
-      const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.47, 0.035, 6, 18), agedIron);
-      hoop.rotation.x = Math.PI / 2;
-      hoop.position.set(x, 0.63 + y, z);
-      root.add(hoop);
+    const barrel = new THREE.Group();
+    barrel.position.set(x, 0.63, z);
+    barrel.name = "Coopered barrel";
+    root.add(barrel);
+    const body = new THREE.Mesh(barrelGeometry, timber);
+    body.castShadow = body.receiveShadow = true;
+    body.name = "Bulging barrel staves";
+    barrel.add(body);
+    for (const y of [-0.6, 0.6]) {
+      const lid = new THREE.Mesh(barrelLidGeometry, darkTimber);
+      lid.position.y = y;
+      lid.name = "Recessed barrel head";
+      barrel.add(lid);
     }
-    barrel.scale.set(1, 1, 1);
+    for (const y of [-0.4, 0, 0.4]) {
+      const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.485 + (y === 0 ? 0.035 : 0), 0.032, 6, 18), agedIron);
+      hoop.rotation.x = Math.PI / 2;
+      hoop.position.y = y;
+      hoop.name = "Barrel iron hoop";
+      barrel.add(hoop);
+    }
   });
 
-  const wicker = new THREE.MeshStandardMaterial({ color: 0x9b713d, roughness: 1 });
+  const wicker = new THREE.MeshStandardMaterial({
+    color: 0xad824c,
+    map: sackTexture,
+    bumpMap: sackTexture,
+    bumpScale: 0.018,
+    roughness: 1,
+  });
   const marketProduce = [
     new THREE.MeshStandardMaterial({ color: 0x7e5224, roughness: 0.96 }),
     new THREE.MeshStandardMaterial({ color: 0x60713a, roughness: 0.98 }),
@@ -1768,7 +2065,13 @@ export function buildArena(THREE, scene) {
     }
   });
 
-  const sackMaterial = new THREE.MeshStandardMaterial({ color: 0xb69a6a, roughness: 1 });
+  const sackMaterial = new THREE.MeshStandardMaterial({
+    color: 0xc1a578,
+    map: sackTexture,
+    bumpMap: sackTexture,
+    bumpScale: 0.035,
+    roughness: 1,
+  });
   [
     [57.5, -17.5, 0.9], [55.8, -18.2, 0.68], [21.4, 20.2, 0.76],
     [35.2, 55.5, 0.82], [46, 59.2, 0.72],
@@ -1780,9 +2083,16 @@ export function buildArena(THREE, scene) {
     sack.castShadow = sack.receiveShadow = true;
     sack.name = "Merchant grain sack";
     root.add(sack);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.27, 0.28, 9), sackMaterial);
+    neck.position.set(x, 0.88 * scale, z);
+    neck.scale.set(scale, scale, scale);
+    neck.rotation.y = index * 0.7;
+    neck.castShadow = true;
+    neck.name = "Gathered sack neck";
+    root.add(neck);
     const tie = new THREE.Mesh(new THREE.TorusGeometry(0.1 * scale, 0.025, 5, 10), wicker);
     tie.rotation.x = Math.PI / 2;
-    tie.position.set(x, 0.86 * scale, z);
+    tie.position.set(x, 0.82 * scale, z);
     root.add(tie);
   });
 
@@ -1870,29 +2180,13 @@ export function buildArena(THREE, scene) {
       });
     }
     for (let column = 0; column < columns; column += 1) {
-      const jar = new THREE.Mesh(
-        new THREE.LatheGeometry(
-          [
-            new THREE.Vector2(0.08, -0.68),
-            new THREE.Vector2(0.2, -0.52),
-            new THREE.Vector2(0.34, -0.22),
-            new THREE.Vector2(0.33, 0.26),
-            new THREE.Vector2(0.19, 0.48),
-            new THREE.Vector2(0.14, 0.62),
-            new THREE.Vector2(0.2, 0.66),
-          ],
-          12,
-        ),
-        pottery,
-      );
-      jar.position.set(
-        x + (column - (columns - 1) / 2) * 0.72,
-        0.72,
+      addAmphora({
+        x: x + (column - (columns - 1) / 2) * 0.72,
+        y: 0.72,
         z,
-      );
-      jar.castShadow = jar.receiveShadow = true;
-      jar.name = "Stored transport jar";
-      root.add(jar);
+        rotation: column * 0.73,
+        name: "Stored transport jar",
+      });
     }
     addStreetCoverCollider(cover, [rackWidth, 1.72, 1.18], [x, 0.86, z]);
   };
@@ -2060,7 +2354,60 @@ export function buildArena(THREE, scene) {
   addBoundCrate(harbourWork, 39.2, 49.55, [3.25, 1.18, 1.35]);
   addStreetCoverCollider(harbourWork, [3.25, 2.2, 1.35], [39.2, 1.1, 49.35]);
 
-  const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x365238, roughness: 1 });
+  const oliveLeafTexture = canvasTexture(256, (ctx, s) => {
+    const random = seededPainter(0x0117e);
+    ctx.clearRect(0, 0, s, s);
+    ctx.strokeStyle = "rgba(83,66,39,.9)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.08, s * 0.75);
+    ctx.bezierCurveTo(s * 0.38, s * 0.58, s * 0.63, s * 0.4, s * 0.94, s * 0.23);
+    ctx.stroke();
+    for (let leaf = 0; leaf < 34; leaf += 1) {
+      const t = 0.08 + random() * 0.86;
+      const x = s * (0.08 + t * 0.86) + (random() - 0.5) * 24;
+      const y = s * (0.75 - t * 0.52) + (random() - 0.5) * 34;
+      const length = 11 + random() * 10;
+      const width = 3.2 + random() * 3;
+      const angle = -0.75 + (random() - 0.5) * 1.9;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      const leafGradient = ctx.createLinearGradient(-length / 2, 0, length / 2, 0);
+      leafGradient.addColorStop(0, random() > 0.45 ? "#263f2b" : "#455d3e");
+      leafGradient.addColorStop(0.55, random() > 0.52 ? "#61705a" : "#3a5638");
+      leafGradient.addColorStop(1, "#1f3526");
+      ctx.fillStyle = leafGradient;
+      ctx.beginPath();
+      ctx.moveTo(-length / 2, 0);
+      ctx.quadraticCurveTo(0, -width, length / 2, 0);
+      ctx.quadraticCurveTo(0, width, -length / 2, 0);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(185,189,145,.28)";
+      ctx.lineWidth = 0.65;
+      ctx.beginPath();
+      ctx.moveTo(-length * 0.38, 0);
+      ctx.lineTo(length * 0.38, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  });
+  oliveLeafTexture.wrapS = oliveLeafTexture.wrapT = THREE.ClampToEdgeWrapping;
+  const leafMaterial = new THREE.MeshStandardMaterial({
+    color: 0xb2c1a5,
+    map: oliveLeafTexture,
+    alphaTest: 0.38,
+    side: THREE.DoubleSide,
+    roughness: 0.96,
+  });
+  const oliveCardGeometry = new THREE.PlaneGeometry(2.1, 1.35, 3, 2);
+  const oliveCardPositions = oliveCardGeometry.attributes.position;
+  for (let index = 0; index < oliveCardPositions.count; index += 1) {
+    const x = oliveCardPositions.getX(index);
+    const y = oliveCardPositions.getY(index);
+    oliveCardPositions.setZ(index, Math.sin(x * 2.1) * Math.cos(y * 2.8) * 0.065);
+  }
+  oliveCardGeometry.computeVertexNormals();
   [
     [104, -44], [105, 8], [103, 26], [-90, -46], [-91, -23], [-89, 21],
   ].forEach(([x, z]) => {
@@ -2085,13 +2432,22 @@ export function buildArena(THREE, scene) {
       [-0.45, 5.05, -1.25, 1.2, 0.62, 1.35],
       [0.7, 5.25, 1.25, 1.25, 0.65, 1.25],
     ];
-    clusters.forEach(([ox, oy, oz, sx, sy, sz]) => {
-      const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), leafMaterial);
-      crown.scale.set(sx, sy, sz);
-      crown.position.set(x + ox, oy, z + oz);
-      crown.rotation.set(Math.random(), Math.random(), Math.random());
-      crown.castShadow = crown.receiveShadow = true;
-      root.add(crown);
+    clusters.forEach(([ox, oy, oz, sx, sy, sz], clusterIndex) => {
+      for (let card = 0; card < 3; card += 1) {
+        const crown = new THREE.Mesh(oliveCardGeometry, leafMaterial);
+        crown.scale.set(sx, sy * 1.7, sz);
+        crown.position.set(
+          x + ox + (card - 1) * 0.08,
+          oy + (card % 2) * 0.08,
+          z + oz,
+        );
+        crown.rotation.y = card * Math.PI / 3 + clusterIndex * 0.19;
+        crown.rotation.x = card === 2 ? 0.48 : (card - 0.5) * 0.08;
+        crown.castShadow = true;
+        crown.receiveShadow = false;
+        crown.name = "Olive leaf spray";
+        root.add(crown);
+      }
     });
   });
 
@@ -2205,9 +2561,9 @@ export function buildArena(THREE, scene) {
   const dustCount = 260;
   const dustPositions = new Float32Array(dustCount * 3);
   for (let i = 0; i < dustCount; i += 1) {
-    dustPositions[i * 3] = -90 + Math.random() * 180;
-    dustPositions[i * 3 + 1] = 0.35 + Math.random() * 7;
-    dustPositions[i * 3 + 2] = -70 + Math.random() * 140;
+    dustPositions[i * 3] = -90 + cityRandom() * 180;
+    dustPositions[i * 3 + 1] = 0.35 + cityRandom() * 7;
+    dustPositions[i * 3 + 2] = -70 + cityRandom() * 140;
   }
   const dustGeometry = new THREE.BufferGeometry();
   dustGeometry.setAttribute("position", new THREE.BufferAttribute(dustPositions, 3));
@@ -2235,7 +2591,7 @@ export function buildArena(THREE, scene) {
   birds.name = "Harbour gulls";
   root.add(birds);
   for (let i = 0; i < 9; i += 1) {
-    const wingSpan = 0.55 + Math.random() * 0.45;
+    const wingSpan = 0.55 + cityRandom() * 0.45;
     const birdGeometry = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-wingSpan, 0, 0),
       new THREE.Vector3(0, -0.18, 0),
@@ -2246,8 +2602,8 @@ export function buildArena(THREE, scene) {
       birdGeometry,
       new THREE.LineBasicMaterial({ color: 0x282822, transparent: true, opacity: 0.75 }),
     );
-    bird.position.set((Math.random() - 0.5) * 22, Math.random() * 8, (Math.random() - 0.5) * 18);
-    bird.rotation.y = Math.random() * Math.PI * 2;
+    bird.position.set((cityRandom() - 0.5) * 22, cityRandom() * 8, (cityRandom() - 0.5) * 18);
+    bird.rotation.y = cityRandom() * Math.PI * 2;
     birds.add(bird);
   }
   birds.userData.animate = (time) => {
@@ -2320,12 +2676,23 @@ export function buildArena(THREE, scene) {
     mesh.removeFromParent();
     mesh.geometry.dispose();
   });
+  const renderBudget = {
+    sourceStaticMeshes: staticMeshes.length,
+    staticBatches: 0,
+    staticTriangles: 0,
+    staticVertices: 0,
+  };
   for (const batch of staticBatches.values()) {
     if (!batch.geometries.length) continue;
     const geometry = batch.geometries.length === 1
       ? batch.geometries[0]
       : mergeGeometries(batch.geometries, false);
     if (!geometry) continue;
+    renderBudget.staticBatches += 1;
+    renderBudget.staticVertices += geometry.attributes.position.count;
+    renderBudget.staticTriangles += geometry.index
+      ? geometry.index.count / 3
+      : geometry.attributes.position.count / 3;
     const mesh = new THREE.Mesh(geometry, batch.material);
     mesh.castShadow = batch.castShadow;
     mesh.receiveShadow = batch.receiveShadow;
@@ -2349,5 +2716,6 @@ export function buildArena(THREE, scene) {
     zones,
     streetCover,
     streetStories,
+    renderBudget,
   };
 }
