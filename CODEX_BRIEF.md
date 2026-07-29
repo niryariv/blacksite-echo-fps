@@ -1,4 +1,4 @@
-# Codex execution brief: Acre 1250 stealth-infiltration vertical slice
+# Codex execution brief: Shadows of Acre
 
 Build and finish a self-contained first-person stealth-infiltration vertical
 slice in this workspace. The goal is to produce the highest-quality, original

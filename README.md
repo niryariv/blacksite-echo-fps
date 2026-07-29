@@ -1,4 +1,4 @@
-# ACRE // SHADOWS
+# Shadows of Acre
 
 An original first-person stealth-infiltration game built with Three.js and set
 in a playable interpretation of Frankish Acre around 1250 CE. Enter through the
