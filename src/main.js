@@ -1615,7 +1615,7 @@ function addFeed(text) {
 }
 
 function showHUD(show) {
-  ["top-hud", "bottom-hud", "compass", "waypoint", "map-key", "crosshair", "combat-feed"].forEach((id) => {
+  ["top-hud", "bottom-hud", "compass", "waypoint", "map-key", "combat-feed"].forEach((id) => {
     $(id).classList.toggle("hidden", !show);
   });
 }

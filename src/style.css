@@ -185,15 +185,6 @@ button { font: inherit; }
 .moon-panel.dappled { border-left-color: #8cb0daaa; background: #10192aaa; }
 .moon-panel.exposed { border-left-color: #b9d5ff; background: #14233dcc; }
 .moon-panel.exposed .moon-icon, .moon-panel.exposed #moon-state { color: #d8e7ff; }
-#crosshair { position: fixed; z-index: 11; width: 44px; height: 44px; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; }
-#crosshair i { position: absolute; background: #fff; box-shadow: 0 0 3px #000; transition: transform .08s; }
-#crosshair i:nth-child(1), #crosshair i:nth-child(2) { width: 8px; height: 1px; top: 21px; }
-#crosshair i:nth-child(1) { left: 4px; } #crosshair i:nth-child(2) { right: 4px; }
-#crosshair i:nth-child(3), #crosshair i:nth-child(4) { height: 8px; width: 1px; left: 21px; }
-#crosshair i:nth-child(3) { top: 4px; } #crosshair i:nth-child(4) { bottom: 4px; }
-#crosshair b { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--accent); left: 21px; top: 21px; }
-#crosshair.kick i:nth-child(1) { transform: translateX(-5px); } #crosshair.kick i:nth-child(2) { transform: translateX(5px); }
-#crosshair.kick i:nth-child(3) { transform: translateY(-5px); } #crosshair.kick i:nth-child(4) { transform: translateY(5px); }
 #combat-feed { top: 112px; right: 32px; width: 260px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 #combat-feed span { animation: feed 3.4s forwards; padding: 5px 8px; border-right: 2px solid var(--accent); background: #07100fcc; font-size: 11px; letter-spacing: .08em; }
 @keyframes feed { 0% {opacity:0; transform:translateX(15px)} 10%,75% {opacity:1; transform:none} 100% {opacity:0; transform:translateX(8px)} }

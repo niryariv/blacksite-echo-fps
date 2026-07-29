@@ -27,7 +27,7 @@ browser stealth experience realistic for this repository and execution window.
 - A large cohesive city with cover, collision, atmosphere, recognizable
   historical landmarks, readable districts, multiple lanes, and no
   inaccessible mission objectives.
-- Strong presentation: loading/start overlay, HUD, pause state, crosshair,
+- Strong presentation: loading/start overlay, HUD, pause state,
   performance-conscious shadows, fog, post-processing, and responsive layout.
 
 ## Engineering requirements
