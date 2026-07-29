@@ -39,6 +39,10 @@ Open the local URL printed by Vite, click **Enter Acre**, and allow mouse captur
 The cleanest result is earned by completing the mission with zero takedowns and
 almost no watch suspicion. Guards can see, hear, investigate disturbances, and
 discover incapacitated colleagues, so the dagger should remain a last resort.
+The mission unfolds beneath a bright Mediterranean moon: open ground makes the
+player easier to see, while buildings, walls, and the underground Templar tunnel
+provide shelter. The live **Moon Exposure** meter shows when moonlight is raising
+the risk of detection.
 
 Rendering quality adapts to the device’s measured frame workload. The game uses
 single-pass animated water, shared guard resources and distance models,

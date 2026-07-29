@@ -404,15 +404,15 @@ export function buildArena(THREE, scene) {
   // again for planar reflections. The scrolling normal map supplies motion.
   waterNormals.repeat.set(18, 14);
   const waterMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x0a6878,
+    color: 0x031f32,
     normalMap: waterNormals,
     normalScale: new THREE.Vector2(0.46, 0.46),
-    roughness: 0.28,
-    metalness: 0.06,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.26,
+    roughness: 0.34,
+    metalness: 0.12,
+    clearcoat: 0.48,
+    clearcoatRoughness: 0.3,
     transparent: true,
-    opacity: 0.94,
+    opacity: 0.97,
     depthWrite: true,
   });
   const water = new THREE.Mesh(new THREE.PlaneGeometry(430, 360, 1, 1), waterMaterial);

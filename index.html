@@ -85,14 +85,24 @@
       <section id="combat-feed" class="hud hidden" aria-live="polite"></section>
 
       <footer id="bottom-hud" class="hud hidden">
-        <section class="health-panel">
-          <span class="icon">◌</span>
-          <div class="meter-copy">
-            <span>NOISE SIGNATURE</span>
-            <div class="meter"><i id="noise-bar"></i></div>
-          </div>
-          <b id="noise-state">SILENT</b>
-        </section>
+        <div class="stealth-panels">
+          <section class="health-panel">
+            <span class="icon">◌</span>
+            <div class="meter-copy">
+              <span>NOISE SIGNATURE</span>
+              <div class="meter"><i id="noise-bar"></i></div>
+            </div>
+            <b id="noise-state">SILENT</b>
+          </section>
+          <section id="moon-panel" class="moon-panel">
+            <span class="moon-icon">☾</span>
+            <div class="meter-copy">
+              <span>MOON EXPOSURE</span>
+              <div class="meter moon-meter"><i id="moon-bar"></i></div>
+            </div>
+            <b id="moon-state">SHELTERED</b>
+          </section>
+        </div>
         <section class="ammo-panel">
           <span id="weapon-state">LEVANTINE DAGGER // LAST RESORT</span>
           <div><b id="knife-integrity">II</b><i>/</i><strong>EDGE</strong></div>
@@ -109,11 +119,12 @@
           <p class="tagline">THE SEA KEEPS EVERY SECRET.</p>
         </div>
         <div class="briefing-card">
-          <div class="status-line"><i></i> THE EASTERN GATE IS OPEN</div>
+          <div class="status-line"><i></i> THE MOON IS HIGH · THE EASTERN GATE IS OPEN</div>
           <p>
-            Enter Frankish Acre, cross its merchant quarters, and take the
-            sealed harbour dispatch from the Hospitaller court. Reach the
-            waiting skiff unseen and unharmed. Your dagger is a last resort.
+            Enter Frankish Acre beneath a bright Mediterranean moon. Keep to
+            roof shadow, cross the merchant quarters, and take the sealed
+            dispatch from the Hospitaller court. Reach the skiff unseen and
+            unharmed. Your dagger is a last resort.
           </p>
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>

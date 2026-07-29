@@ -6,7 +6,6 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { Sky } from "three/addons/objects/Sky.js";
 import { buildArena } from "./arena.js";
 import { CombatAudio } from "./audio.js";
 
@@ -44,43 +43,135 @@ renderer.shadowMap.needsUpdate = true;
 renderer.info.autoReset = false;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.02;
+renderer.toneMappingExposure = 0.88;
 
 const scene = new THREE.Scene();
-const surfaceBackgroundColor = new THREE.Color(0x526f79);
-const tunnelBackgroundColor = new THREE.Color(0x0c0b09);
+const surfaceBackgroundColor = new THREE.Color(0x030815);
+const tunnelBackgroundColor = new THREE.Color(0x070706);
 scene.background = surfaceBackgroundColor.clone();
-scene.fog = new THREE.Fog(0x667c7f, 105, 320);
-const surfaceFogColor = new THREE.Color(0x667c7f);
-const tunnelFogColor = new THREE.Color(0x17140f);
+scene.fog = new THREE.Fog(0x13243a, 68, 240);
+const surfaceFogColor = new THREE.Color(0x13243a);
+const tunnelFogColor = new THREE.Color(0x12110e);
 
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.04, 280);
 camera.rotation.order = "YXZ";
 scene.add(camera);
-const viewLight = new THREE.PointLight(0xffd2a0, 0.5, 3.5, 2);
+const viewLight = new THREE.PointLight(0xb8ccff, 0.14, 3.2, 2);
 viewLight.position.set(0.25, 0.3, -0.4);
 camera.add(viewLight);
 
-const sky = new Sky();
-sky.scale.setScalar(450000);
-sky.name = "Mediterranean dusk sky";
-scene.add(sky);
-const skyUniforms = sky.material.uniforms;
-skyUniforms.turbidity.value = 7.5;
-skyUniforms.rayleigh.value = 1.65;
-skyUniforms.mieCoefficient.value = 0.006;
-skyUniforms.mieDirectionalG.value = 0.84;
-const sunDirection = new THREE.Vector3();
-sunDirection.setFromSphericalCoords(
-  1,
-  THREE.MathUtils.degToRad(84),
-  THREE.MathUtils.degToRad(140),
+const moonDirection = new THREE.Vector3(0.46, 0.76, 0.46).normalize();
+const nightSky = new THREE.Group();
+nightSky.name = "Moon and stars";
+scene.add(nightSky);
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(258, 32, 16),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    vertexShader: `
+      varying vec3 vSkyPosition;
+      void main() {
+        vSkyPosition = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vSkyPosition;
+      void main() {
+        float height = clamp(normalize(vSkyPosition).y, 0.0, 1.0);
+        vec3 horizon = vec3(0.035, 0.075, 0.135);
+        vec3 zenith = vec3(0.002, 0.008, 0.028);
+        vec3 color = mix(horizon, zenith, pow(height, 0.58));
+        color += vec3(0.018, 0.03, 0.045) * exp(-height * 12.0);
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  }),
 );
-skyUniforms.sunPosition.value.copy(sunDirection);
+sky.name = "Mediterranean night sky";
+nightSky.add(sky);
+let starSeed = 73129;
+const starRandom = () => {
+  starSeed = (starSeed * 16807) % 2147483647;
+  return (starSeed - 1) / 2147483646;
+};
+const starPositions = [];
+for (let index = 0; index < (compactDevice ? 360 : 620); index += 1) {
+  const azimuth = starRandom() * Math.PI * 2;
+  const elevation = -0.04 + starRandom() * 0.97;
+  const horizontal = Math.sqrt(Math.max(0, 1 - elevation * elevation));
+  const radius = 246;
+  starPositions.push(
+    Math.cos(azimuth) * horizontal * radius,
+    elevation * radius,
+    Math.sin(azimuth) * horizontal * radius,
+  );
+}
+const starGeometry = new THREE.BufferGeometry();
+starGeometry.setAttribute(
+  "position",
+  new THREE.Float32BufferAttribute(starPositions, 3),
+);
+const stars = new THREE.Points(
+  starGeometry,
+  new THREE.PointsMaterial({
+    color: 0xcbd9ff,
+    size: compactDevice ? 0.8 : 1.05,
+    sizeAttenuation: false,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    fog: false,
+  }),
+);
+nightSky.add(stars);
+
+const moonCanvas = document.createElement("canvas");
+moonCanvas.width = moonCanvas.height = 256;
+const moonContext = moonCanvas.getContext("2d");
+const moonHalo = moonContext.createRadialGradient(128, 128, 34, 128, 128, 120);
+moonHalo.addColorStop(0, "rgba(211,226,255,.42)");
+moonHalo.addColorStop(0.36, "rgba(151,185,255,.12)");
+moonHalo.addColorStop(1, "rgba(100,150,255,0)");
+moonContext.fillStyle = moonHalo;
+moonContext.fillRect(0, 0, 256, 256);
+moonContext.beginPath();
+moonContext.arc(128, 128, 43, 0, Math.PI * 2);
+moonContext.fillStyle = "#e7e9d7";
+moonContext.fill();
+[
+  [111, 114, 9, 0.11],
+  [143, 101, 6, 0.09],
+  [139, 137, 11, 0.08],
+  [116, 148, 5, 0.12],
+  [151, 121, 4, 0.1],
+].forEach(([x, y, radius, opacity]) => {
+  moonContext.beginPath();
+  moonContext.arc(x, y, radius, 0, Math.PI * 2);
+  moonContext.fillStyle = `rgba(83,93,101,${opacity})`;
+  moonContext.fill();
+});
+const moonTexture = new THREE.CanvasTexture(moonCanvas);
+moonTexture.colorSpace = THREE.SRGBColorSpace;
+const moon = new THREE.Sprite(
+  new THREE.SpriteMaterial({
+    map: moonTexture,
+    color: 0xffffff,
+    transparent: true,
+    depthWrite: false,
+    fog: false,
+  }),
+);
+moon.position.copy(moonDirection).multiplyScalar(222);
+moon.scale.set(18, 18, 1);
+moon.name = "Moon";
+nightSky.add(moon);
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.55;
+scene.environmentIntensity = 0.24;
 pmremGenerator.dispose();
 
 const composer = new EffectComposer(renderer);
@@ -107,10 +198,10 @@ const gradePass = new ShaderPass({
     void main() {
       vec3 color = texture2D(tDiffuse, vUv).rgb;
       float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-      color = mix(vec3(luma), color, 1.08);
-      color = (color - 0.5) * 1.025 + 0.5;
-      color += vec3(0.018, 0.006, -0.012) * smoothstep(0.55, 1.0, luma);
-      color += vec3(-0.006, 0.008, 0.012) * smoothstep(0.5, 0.0, luma);
+      color = mix(vec3(luma), color, 0.94);
+      color = (color - 0.5) * 1.045 + 0.5;
+      color += vec3(-0.014, 0.006, 0.038) * smoothstep(0.48, 1.0, luma);
+      color += vec3(-0.012, 0.002, 0.024) * smoothstep(0.5, 0.0, luma);
       float vignette = smoothstep(0.84, 0.28, length(vUv - 0.5));
       color *= mix(0.84, 1.0, vignette);
       color += (hash(vUv * vec2(1733.0, 947.0)) - 0.5) * 0.007;
@@ -136,24 +227,24 @@ function applyRenderSize() {
 
 applyRenderSize();
 
-const ambient = new THREE.HemisphereLight(0xb8d8df, 0x66503c, 1.28);
+const ambient = new THREE.HemisphereLight(0x536c9d, 0x080b14, 0.38);
 scene.add(ambient);
-const sunLight = new THREE.DirectionalLight(0xffc27e, 2.5);
-const sunTarget = new THREE.Object3D();
-scene.add(sunTarget);
-sunLight.target = sunTarget;
-sunLight.position.set(-70, 62, 38);
-sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(1024, 1024);
-sunLight.shadow.camera.left = -47;
-sunLight.shadow.camera.right = 47;
-sunLight.shadow.camera.top = 47;
-sunLight.shadow.camera.bottom = -47;
-sunLight.shadow.camera.near = 1;
-sunLight.shadow.camera.far = 190;
-sunLight.shadow.bias = -0.00035;
-sunLight.shadow.normalBias = 0.025;
-scene.add(sunLight);
+const moonLight = new THREE.DirectionalLight(0xa9c7ff, 1.16);
+const moonTarget = new THREE.Object3D();
+scene.add(moonTarget);
+moonLight.target = moonTarget;
+moonLight.position.copy(moonDirection).multiplyScalar(92);
+moonLight.castShadow = true;
+moonLight.shadow.mapSize.set(1024, 1024);
+moonLight.shadow.camera.left = -47;
+moonLight.shadow.camera.right = 47;
+moonLight.shadow.camera.top = 47;
+moonLight.shadow.camera.bottom = -47;
+moonLight.shadow.camera.near = 1;
+moonLight.shadow.camera.far = 190;
+moonLight.shadow.bias = -0.00035;
+moonLight.shadow.normalBias = 0.025;
+scene.add(moonLight);
 let shadowUpdateElapsed = Infinity;
 
 const arena = buildArena(THREE, scene);
@@ -182,6 +273,9 @@ const game = {
   tunnelInteraction: 0,
   tunnelCooldown: 0,
   inTunnel: false,
+  moonExposure: 0.2,
+  targetMoonExposure: 1,
+  moonlit: true,
   compromised: false,
   insertionUntil: Infinity,
 };
@@ -202,11 +296,14 @@ const player = {
 if (import.meta.env.DEV) {
   const requestedView = new URLSearchParams(location.search).get("view");
   if (requestedView) {
-    const [x, z, yaw, floorY = 0] = requestedView.split(",").map(Number);
-    if ([x, z, yaw, floorY].every(Number.isFinite)) {
+    const [x, z, yaw, floorY = 0, pitch = player.pitch] = requestedView
+      .split(",")
+      .map(Number);
+    if ([x, z, yaw, floorY, pitch].every(Number.isFinite)) {
       player.floorY = floorY;
       player.position.set(x, floorY + player.height, z);
       player.yaw = yaw;
+      player.pitch = THREE.MathUtils.clamp(pitch, -1.45, 1.45);
     }
   }
 }
@@ -215,11 +312,12 @@ camera.rotation.set(player.pitch, player.yaw, 0);
 
 if (import.meta.env.DEV) {
   globalThis.__acreDebug = {
-    teleport(x, z, yaw = player.yaw, floorY = 0) {
+    teleport(x, z, yaw = player.yaw, floorY = 0, pitch = player.pitch) {
       player.floorY = floorY;
       player.position.set(x, floorY + player.height, z);
       player.velocity.set(0, 0, 0);
       player.yaw = yaw;
+      player.pitch = THREE.MathUtils.clamp(pitch, -1.45, 1.45);
     },
     stats() {
       return {
@@ -640,6 +738,30 @@ function clearLineOfSight(from, to) {
   return nearestWallHit(from, direction) >= distance - 0.35;
 }
 
+const moonProbeOrigin = new THREE.Vector3();
+let moonCheckElapsed = Infinity;
+function updateMoonExposure(dt) {
+  moonCheckElapsed += dt;
+  if (moonCheckElapsed >= 0.18) {
+    if (player.floorY < -1) {
+      game.targetMoonExposure = 0;
+    } else {
+      moonProbeOrigin.copy(player.position);
+      moonProbeOrigin.y += 0.12;
+      const moonClearance = nearestWallHit(moonProbeOrigin, moonDirection);
+      game.targetMoonExposure = moonClearance > 72 ? 1 : 0.08;
+    }
+    game.moonlit = game.targetMoonExposure > 0.5;
+    moonCheckElapsed = 0;
+  }
+  game.moonExposure = THREE.MathUtils.damp(
+    game.moonExposure,
+    game.targetMoonExposure,
+    5.5,
+    dt,
+  );
+}
+
 function boxCollides(position) {
   const minY = position.y - player.height;
   for (const box of arena.colliders) {
@@ -776,9 +898,15 @@ function updateGuards(dt) {
     guard.detailRoot.visible = fullDetail;
     guard.farBody.visible = !fullDetail;
     guard.visionCone.visible = distance < 34;
+    const moonVisibility = 0.62 + game.moonExposure * 0.38;
     const seesPlayer =
       game.elapsed >= game.insertionUntil &&
-      guardCanSee(guard, player.position, player.crouched ? 12.5 : 15, 66);
+      guardCanSee(
+        guard,
+        player.position,
+        (player.crouched ? 12.5 : 15) * moonVisibility,
+        66,
+      );
     const hearingRadius = 2.2 + player.noise * 0.115;
     const hearsPlayer = distance < hearingRadius && player.noise > 20;
 
@@ -792,7 +920,8 @@ function updateGuards(dt) {
       guard.lastSeen.copy(player.position);
       const proximity = THREE.MathUtils.clamp(1.35 - distance / 22, 0.5, 1.2);
       const posture = player.crouched ? 0.52 : player.noise > 70 ? 1.35 : 1;
-      guard.awareness += dt * 48 * proximity * posture;
+      const illumination = 0.48 + game.moonExposure * 0.62;
+      guard.awareness += dt * 48 * proximity * posture * illumination;
       guard.state = "suspicious";
     } else {
       guard.awareness = Math.max(0, guard.awareness - dt * 18);
@@ -1053,25 +1182,25 @@ function updateTunnelAtmosphere(dt) {
   const blend = 1 - Math.exp(-dt * 4.5);
   ambient.intensity = THREE.MathUtils.damp(
     ambient.intensity,
-    underground ? 0.16 : 1.28,
+    underground ? 0.12 : 0.38,
     4.5,
     dt,
   );
-  sunLight.intensity = THREE.MathUtils.damp(
-    sunLight.intensity,
-    underground ? 0.08 : 2.5,
+  moonLight.intensity = THREE.MathUtils.damp(
+    moonLight.intensity,
+    underground ? 0.03 : 1.16,
     4.5,
     dt,
   );
   viewLight.intensity = THREE.MathUtils.damp(
     viewLight.intensity,
-    underground ? 0.22 : 0.5,
+    underground ? 0.2 : 0.14,
     4.5,
     dt,
   );
   scene.environmentIntensity = THREE.MathUtils.damp(
     scene.environmentIntensity,
-    underground ? 0.16 : 0.55,
+    underground ? 0.12 : 0.24,
     4.5,
     dt,
   );
@@ -1080,8 +1209,8 @@ function updateTunnelAtmosphere(dt) {
     underground ? tunnelBackgroundColor : surfaceBackgroundColor,
     blend,
   );
-  scene.fog.near = THREE.MathUtils.damp(scene.fog.near, underground ? 7 : 105, 4.5, dt);
-  scene.fog.far = THREE.MathUtils.damp(scene.fog.far, underground ? 43 : 320, 4.5, dt);
+  scene.fog.near = THREE.MathUtils.damp(scene.fog.near, underground ? 7 : 68, 4.5, dt);
+  scene.fog.far = THREE.MathUtils.damp(scene.fog.far, underground ? 43 : 240, 4.5, dt);
   const targetCameraFar = underground ? 68 : 280;
   const nextCameraFar = THREE.MathUtils.damp(camera.far, targetCameraFar, 5, dt);
   if (Math.abs(nextCameraFar - camera.far) > 0.05) {
@@ -1089,6 +1218,7 @@ function updateTunnelAtmosphere(dt) {
     camera.updateProjectionMatrix();
   }
   sky.visible = !underground;
+  nightSky.visible = !underground;
 }
 
 function updateHUD() {
@@ -1113,6 +1243,14 @@ function updateHUD() {
     player.noise > 65 ? "var(--danger)" : player.noise > 25 ? "var(--accent)" : "var(--cyan)";
   $("noise-state").textContent =
     player.noise > 65 ? "LOUD" : player.noise > 25 ? "AUDIBLE" : "SILENT";
+  const moonExposure = THREE.MathUtils.clamp(game.moonExposure, 0, 1);
+  $("moon-bar").style.width = `${Math.max(2, moonExposure * 100)}%`;
+  $("moon-bar").style.background =
+    moonExposure > 0.7 ? "#c4dcff" : moonExposure > 0.3 ? "#86addd" : "#496786";
+  const moonState = moonExposure > 0.7 ? "MOONLIT" : moonExposure > 0.3 ? "DAPPLED" : "SHELTERED";
+  $("moon-state").textContent = moonState;
+  $("moon-panel").classList.toggle("exposed", moonExposure > 0.7);
+  $("moon-panel").classList.toggle("dappled", moonExposure > 0.3 && moonExposure <= 0.7);
   $("knife-integrity").textContent = ["—", "I", "II"][game.knifeIntegrity] || "—";
 
   const degrees = THREE.MathUtils.euclideanModulo(THREE.MathUtils.radToDeg(player.yaw), 360);
@@ -1910,8 +2048,8 @@ function animate() {
   gradePass.uniforms.time.value = game.elapsed;
   shadowUpdateElapsed += dt;
   if (renderQuality.shadows && shadowUpdateElapsed >= 0.12) {
-    sunTarget.position.set(player.position.x, 0, player.position.z);
-    sunLight.position.set(player.position.x - 70, 62, player.position.z + 38);
+    moonTarget.position.set(player.position.x, 0, player.position.z);
+    moonLight.position.copy(player.position).addScaledVector(moonDirection, 92);
     renderer.shadowMap.needsUpdate = true;
     shadowUpdateElapsed = 0;
   }
@@ -1921,6 +2059,7 @@ function animate() {
   if (game.phase === "running") {
     game.missionTime += dt;
     updatePlayer(dt);
+    updateMoonExposure(dt);
     updateGuards(dt);
     if (game.phase === "running") updateMission(dt);
     hudElapsed += dt;
@@ -1944,6 +2083,7 @@ function animate() {
   } else {
     knife.root.visible = true;
   }
+  nightSky.position.copy(camera.position);
   if (!mapVisible && (game.phase === "running" || game.phase === "briefing")) {
     const renderStarted = performance.now();
     composer.render();
