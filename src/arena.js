@@ -478,7 +478,35 @@ export function buildArena(THREE, scene) {
     side: THREE.DoubleSide,
     roughness: 0.95,
   });
-  const flameMaterial = new THREE.MeshBasicMaterial({ color: 0xffa72f });
+  const flameTexture = canvasTexture(128, (ctx, s) => {
+    ctx.clearRect(0, 0, s, s);
+    const halo = ctx.createRadialGradient(s / 2, s * 0.58, 2, s / 2, s * 0.58, s * 0.42);
+    halo.addColorStop(0, "rgba(255,224,126,.48)");
+    halo.addColorStop(0.48, "rgba(255,128,24,.16)");
+    halo.addColorStop(1, "rgba(255,72,10,0)");
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, s, s);
+    const body = ctx.createLinearGradient(0, s * 0.18, 0, s * 0.86);
+    body.addColorStop(0, "rgba(255,176,40,.15)");
+    body.addColorStop(0.34, "rgba(255,111,15,.92)");
+    body.addColorStop(0.72, "rgba(255,198,66,.98)");
+    body.addColorStop(1, "rgba(255,246,180,.98)");
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.5, s * 0.12);
+    ctx.bezierCurveTo(s * 0.7, s * 0.38, s * 0.73, s * 0.66, s * 0.54, s * 0.88);
+    ctx.bezierCurveTo(s * 0.31, s * 0.83, s * 0.27, s * 0.57, s * 0.42, s * 0.38);
+    ctx.bezierCurveTo(s * 0.47, s * 0.31, s * 0.46, s * 0.22, s * 0.5, s * 0.12);
+    ctx.fill();
+  });
+  flameTexture.wrapS = flameTexture.wrapT = THREE.ClampToEdgeWrapping;
+  const flameSpriteMaterial = new THREE.SpriteMaterial({
+    map: flameTexture,
+    color: 0xffffff,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
 
   const addCollider = (size, position) => {
     const center = new THREE.Vector3(...position);
@@ -768,7 +796,9 @@ export function buildArena(THREE, scene) {
   // Three small boats form playable sea-wall insertions. Their open bows face
   // the masonry, while low gunwales keep the player off the walkable water.
   const ropeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x6f4a27,
+    color: 0x8b6338,
+    bumpMap: sackTexture,
+    bumpScale: 0.045,
     roughness: 1,
   });
   const boatMaterial = new THREE.MeshStandardMaterial({
@@ -777,6 +807,13 @@ export function buildArena(THREE, scene) {
     bumpMap: woodTexture,
     bumpScale: 0.04,
     roughness: 0.94,
+  });
+  const craneCargoMaterial = new THREE.MeshStandardMaterial({
+    color: 0x9c7e4e,
+    map: sackTexture,
+    bumpMap: sackTexture,
+    bumpScale: 0.035,
+    roughness: 1,
   });
   const addRope = (x, z, height = 2.75) => {
     const rope = new THREE.Mesh(
@@ -799,47 +836,66 @@ export function buildArena(THREE, scene) {
     }
   };
   const addInsertionBoat = ({ x, z, orientation = "south" }) => {
-    const alongX = orientation === "south";
+    const alongZ = orientation === "south";
+    const skiff = new THREE.Group();
+    skiff.position.set(x, 0, z);
+    skiff.rotation.y = alongZ ? 0 : Math.PI / 2;
+    skiff.name = "Sea insertion skiff";
+    root.add(skiff);
+
+    const hull = new THREE.Mesh(createHullGeometry(5.4, 3.25, 0.78), boatMaterial);
+    hull.position.y = 0.72;
+    hull.castShadow = hull.receiveShadow = true;
+    hull.name = "Curved insertion skiff hull";
+    skiff.add(hull);
     addBox({
-      size: alongX ? [5.4, 0.28, 4.8] : [4.8, 0.28, 5.4],
-      position: [x, 0.22, z],
-      material: boatMaterial,
-      name: "Sea insertion skiff deck",
+      size: [2.15, 0.12, 3.65],
+      position: [0, 0.7, 0.2],
+      material: darkTimber,
+      parent: skiff,
+      name: "Skiff floorboards",
     });
-    if (alongX) {
-      for (const side of [-1, 1]) {
-        addBox({
-          size: [0.24, 0.82, 4.8],
-          position: [x + side * 2.58, 0.63, z],
-          material: boatMaterial,
-          collider: true,
-          name: "Skiff gunwale",
-        });
-      }
+    for (const seatZ of [-1.35, 0, 1.35]) {
       addBox({
-        size: [5.4, 0.82, 0.24],
-        position: [x, 0.63, z + 2.28],
-        material: boatMaterial,
-        collider: true,
-        name: "Skiff stern",
+        size: [2.72, 0.13, 0.34],
+        position: [0, 0.9, seatZ],
+        material: timber,
+        parent: skiff,
+        shadows: false,
+        name: "Skiff thwart",
       });
+    }
+    for (const side of [-1, 1]) {
+      addBox({
+        size: [0.11, 0.17, 4.35],
+        position: [side * 1.46, 0.98, 0.12],
+        material: darkTimber,
+        parent: skiff,
+        shadows: false,
+        name: "Raised skiff gunwale",
+      });
+    }
+    const painter = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.045, 2.55, 7),
+      timber,
+    );
+    painter.position.set(-1.05, 1.02, 0.85);
+    painter.rotation.z = Math.PI / 2;
+    painter.rotation.y = 0.28;
+    painter.name = "Skiff steering oar";
+    skiff.add(painter);
+
+    // Collision follows the visible narrow hull while leaving the bow open.
+    if (alongZ) {
+      for (const side of [-1, 1]) {
+        addCollider([0.24, 0.82, 4.45], [x + side * 1.46, 0.63, z + 0.1]);
+      }
+      addCollider([3.15, 0.82, 0.24], [x, 0.63, z + 2.35]);
     } else {
       for (const side of [-1, 1]) {
-        addBox({
-          size: [4.8, 0.82, 0.24],
-          position: [x, 0.63, z + side * 2.58],
-          material: boatMaterial,
-          collider: true,
-          name: "Skiff gunwale",
-        });
+        addCollider([4.45, 0.82, 0.24], [x + 0.1, 0.63, z + side * 1.46]);
       }
-      addBox({
-        size: [0.24, 0.82, 5.4],
-        position: [x - 2.28, 0.63, z],
-        material: boatMaterial,
-        collider: true,
-        name: "Skiff stern",
-      });
+      addCollider([0.24, 0.82, 3.15], [x - 2.35, 0.63, z]);
     }
   };
 
@@ -991,14 +1047,51 @@ export function buildArena(THREE, scene) {
   addTower(89, 76, 5.8, 11, "Burj al-Sultan harbour tower");
 
   const addDoor = (parent, x, y, z, rotation = 0) => {
+    const doorway = new THREE.Group();
+    doorway.position.set(x, y, z);
+    doorway.rotation.y = rotation;
+    doorway.name = "Plank-and-iron street door";
+    parent.add(doorway);
     const door = addBox({
       size: [1.65, 2.6, 0.18],
-      position: [x, y, z],
+      position: [0, 0, 0],
       material: timber,
-      parent,
+      parent: doorway,
       shadows: false,
+      name: "Vertical timber door planks",
     });
-    door.rotation.y = rotation;
+    for (const strapY of [-0.78, 0, 0.78]) {
+      addBox({
+        size: [0.72, 0.075, 0.045],
+        position: [-0.4, strapY, 0.115],
+        material: agedIron,
+        parent: doorway,
+        shadows: false,
+        name: "Hand-forged door hinge strap",
+      });
+      const pivot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.065, 0.065, 0.16),
+        agedIron,
+      );
+      pivot.position.set(-0.76, strapY, 0.125);
+      pivot.name = "Door hinge pin";
+      doorway.add(pivot);
+    }
+    const latchRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.105, 0.018, 4, 8),
+      agedIron,
+    );
+    latchRing.position.set(0.48, -0.05, 0.14);
+    latchRing.name = "Iron door pull";
+    doorway.add(latchRing);
+    addBox({
+      size: [1.55, 0.12, 0.07],
+      position: [0, -1.18, 0.11],
+      material: darkTimber,
+      parent: doorway,
+      shadows: false,
+      name: "Weathered door foot rail",
+    });
     return door;
   };
 
@@ -1540,8 +1633,22 @@ export function buildArena(THREE, scene) {
       shadows: false,
       name: "Tunnel lamp bracket",
     });
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.34, 8), flameMaterial);
-    flame.position.set(x, -3.16, z);
+    const bowl = new THREE.Mesh(
+      new THREE.ConeGeometry(0.17, 0.18, 10, 1, true),
+      bronze,
+    );
+    bowl.rotation.z = Math.PI;
+    bowl.position.set(x, -3.35, z);
+    bowl.name = "Tunnel oil-lamp bowl";
+    root.add(bowl);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.022, 5, 12), bronze);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.set(x, -3.27, z);
+    rim.name = "Tunnel lamp rim";
+    root.add(rim);
+    const flame = new THREE.Sprite(flameSpriteMaterial);
+    flame.position.set(x, -3.08, z);
+    flame.scale.set(0.42, 0.62, 1);
     flame.userData.dynamic = true;
     root.add(flame);
     const light = new THREE.PointLight(0xff9a42, 7.5, 9, 2);
@@ -1549,7 +1656,7 @@ export function buildArena(THREE, scene) {
     root.add(light);
     flame.userData.animate = (time) => {
       const flicker = 0.86 + Math.sin(time * 10.5 + x) * 0.14;
-      flame.scale.set(0.92, flicker, 0.92);
+      flame.scale.set(0.4 + flicker * 0.05, 0.55 + flicker * 0.12, 1);
       light.intensity = 5.8 + flicker * 2.4;
     };
     animated.push(flame);
@@ -1613,7 +1720,42 @@ export function buildArena(THREE, scene) {
   addCollider([28, 2.3, 12], [80, 0.8, 64]);
   addBox({ size: [48, 1.65, 3], position: [67, 0.3, 42], material: oldStone, collider: true, name: "Northern harbour quay" });
   addBox({ size: [3, 1.65, 37], position: [42, 0.3, 61], material: oldStone, collider: true, name: "Western harbour quay" });
-  addBox({ size: [24, 0.8, 6], position: [42, 0.4, 64], material: timber, name: "Harbour jetty" });
+  addBox({
+    size: [24, 0.5, 5.55],
+    position: [42, 0.25, 64],
+    material: darkTimber,
+    name: "Harbour jetty substructure",
+  });
+  for (let plank = -11.4, index = 0; plank <= 11.4; plank += 0.95, index += 1) {
+    const deckPlank = addBox({
+      size: [0.88, 0.14, 5.82],
+      position: [42 + plank, 0.57 + (index % 4 === 0 ? 0.018 : 0), 64],
+      material: index % 5 === 0 ? darkTimber : timber,
+      shadows: false,
+      name: "Individual jetty deck plank",
+    });
+    deckPlank.rotation.y = (index % 3 - 1) * 0.002;
+  }
+  for (const postX of [31.2, 42, 52.8]) {
+    for (const postZ of [61.3, 66.7]) {
+      addCylinder({
+        radius: 0.14,
+        height: 1.5,
+        position: [postX, 0.12, postZ],
+        material: darkTimber,
+        segments: 8,
+        name: "Jetty mooring post",
+      });
+      const cap = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 8, 5),
+        darkTimber,
+      );
+      cap.position.set(postX, 0.89, postZ);
+      cap.scale.y = 0.55;
+      cap.name = "Mooring post cap";
+      root.add(cap);
+    }
+  }
   addBox({ size: [5, 2.2, 58], position: [91, 0.7, 50], material: oldStone, collider: true, name: "Harbour mole" });
   addBox({ size: [41, 2.2, 4], position: [71, 0.7, 80], material: oldStone, collider: true, name: "Southern harbour mole" });
 
@@ -1641,27 +1783,94 @@ export function buildArena(THREE, scene) {
       name: "Crane boom",
     });
     boom.rotation.x = -0.08;
-    addBox({ size: [2.7, 0.26, 0.32], position: [0, 4.25, 0], material: timber, parent: crane });
-    const rope = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 4.45, 4.4),
-        new THREE.Vector3(0, 1.1, 4.4),
-      ]),
-      new THREE.LineBasicMaterial({ color: 0x392717 }),
+    addBox({ size: [2.7, 0.26, 0.32], position: [0, 4.25, 0], material: timber, parent: crane, name: "Crane head beam" });
+    for (const direction of [-1, 1]) {
+      const brace = addBox({
+        size: [0.18, 3.25, 0.2],
+        position: [0, 2.35, 0.02],
+        material: darkTimber,
+        parent: crane,
+        shadows: false,
+        name: "Crane diagonal brace",
+      });
+      brace.rotation.z = direction * 0.72;
+    }
+    const drum = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.38, 0.38, 1.62, 14),
+      darkTimber,
     );
+    drum.position.set(0, 2.62, 0.28);
+    drum.rotation.z = Math.PI / 2;
+    drum.name = "Crane rope drum";
+    crane.add(drum);
+    const axle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.07, 2.35, 8),
+      agedIron,
+    );
+    axle.position.copy(drum.position);
+    axle.rotation.z = Math.PI / 2;
+    axle.name = "Crane iron axle";
+    crane.add(axle);
+    const windingWheel = new THREE.Mesh(
+      new THREE.TorusGeometry(0.62, 0.055, 5, 12),
+      darkTimber,
+    );
+    windingWheel.position.set(1.18, 2.62, 0.28);
+    windingWheel.rotation.y = Math.PI / 2;
+    windingWheel.name = "Crane winding wheel";
+    crane.add(windingWheel);
+    for (let spoke = 0; spoke < 3; spoke += 1) {
+      const angle = (spoke / 3) * Math.PI;
+      const spokeMesh = addBox({
+        size: [0.06, 0.9, 0.06],
+        position: [1.18, 2.62, 0.28],
+        material: darkTimber,
+        parent: crane,
+        shadows: false,
+        name: "Winding wheel spoke",
+      });
+      spokeMesh.rotation.x = angle;
+    }
+    const pulley = new THREE.Mesh(
+      new THREE.TorusGeometry(0.22, 0.045, 5, 10),
+      agedIron,
+    );
+    pulley.position.set(0, 4.34, 4.34);
+    pulley.rotation.y = Math.PI / 2;
+    pulley.name = "Crane pulley";
+    crane.add(pulley);
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.026, 0.026, 3.45, 6),
+      ropeMaterial,
+    );
+    rope.position.set(0, 2.72, 4.4);
+    rope.name = "Crane lifting rope";
     crane.add(rope);
-    const cargoNet = new THREE.Mesh(
-      new THREE.SphereGeometry(0.58, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0x846837, wireframe: true, roughness: 1 }),
+    const cargo = new THREE.Mesh(
+      new THREE.SphereGeometry(0.62, 12, 9),
+      craneCargoMaterial,
     );
-    cargoNet.scale.y = 0.72;
-    cargoNet.position.set(0, 0.72, 4.4);
-    crane.add(cargoNet);
+    cargo.scale.set(0.92, 0.72, 0.82);
+    cargo.position.set(0, 0.82, 4.4);
+    cargo.castShadow = true;
+    cargo.name = "Crane suspended cargo bundle";
+    crane.add(cargo);
+    for (const rotation of [0, Math.PI / 2]) {
+      const sling = new THREE.Mesh(
+        new THREE.TorusGeometry(0.54, 0.025, 4, 10),
+        ropeMaterial,
+      );
+      sling.position.copy(cargo.position);
+      sling.rotation.set(Math.PI / 2, rotation, 0);
+      sling.scale.y = 0.75;
+      sling.name = "Cargo rope sling";
+      crane.add(sling);
+    }
   };
   addHarbourCrane(46, 52, 0);
   addHarbourCrane(84, 44, Math.PI / 2);
 
-  const createHullGeometry = (length = 8, width = 3.5, depth = 1.25) => {
+  function createHullGeometry(length = 8, width = 3.5, depth = 1.25) {
     const l = length / 2;
     const w = width / 2;
     const sections = [
@@ -1707,7 +1916,7 @@ export function buildArena(THREE, scene) {
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
     return geometry;
-  };
+  }
 
   const createLateenSailGeometry = (subdivisions = 7) => {
     const a = new THREE.Vector3(-2.2, 2.6, 0);
@@ -2452,24 +2661,52 @@ export function buildArena(THREE, scene) {
   });
 
   const addTorch = (x, z, y = 2.4) => {
-    addBox({ size: [0.18, 1.4, 0.18], position: [x, y - 0.7, z], material: bronze, shadows: false });
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.52, 9), flameMaterial);
-    flame.position.set(x, y, z);
-    root.add(flame);
-    const flameCore = new THREE.Mesh(
-      new THREE.ConeGeometry(0.09, 0.31, 8),
-      new THREE.MeshBasicMaterial({ color: 0xfff1a3 }),
+    addBox({
+      size: [0.11, 1.55, 0.11],
+      position: [x, y - 0.9, z],
+      material: agedIron,
+      shadows: false,
+      name: "Torch iron standard",
+    });
+    const basket = new THREE.Mesh(
+      new THREE.ConeGeometry(0.24, 0.28, 10, 1, true),
+      bronze,
     );
-    flameCore.position.set(x, y - 0.05, z);
-    flameCore.userData.dynamic = true;
-    root.add(flameCore);
+    basket.rotation.z = Math.PI;
+    basket.position.set(x, y - 0.18, z);
+    basket.name = "Hammered torch basket";
+    root.add(basket);
+    const basketRim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.026, 5, 14), bronze);
+    basketRim.rotation.x = Math.PI / 2;
+    basketRim.position.set(x, y - 0.05, z);
+    basketRim.name = "Torch basket rim";
+    root.add(basketRim);
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
+      const prong = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.018, 0.023, 0.42, 5),
+        agedIron,
+      );
+      prong.position.set(
+        x + Math.cos(angle) * 0.19,
+        y + 0.05,
+        z + Math.sin(angle) * 0.19,
+      );
+      prong.rotation.z = Math.cos(angle) * -0.13;
+      prong.rotation.x = Math.sin(angle) * 0.13;
+      prong.name = "Torch basket prong";
+      root.add(prong);
+    }
+    const flame = new THREE.Sprite(flameSpriteMaterial);
+    flame.position.set(x, y + 0.17, z);
+    flame.scale.set(0.62, 0.92, 1);
+    flame.userData.dynamic = true;
+    root.add(flame);
     const light = new THREE.PointLight(0xff9d42, 8, 10, 2);
-    light.position.set(x, y, z);
+    light.position.set(x, y + 0.1, z);
     root.add(light);
     flame.userData.animate = (time) => {
       const flicker = 0.82 + Math.sin(time * 8 + x) * 0.18;
-      flame.scale.set(0.9 + flicker * 0.14, 0.88 + flicker * 0.25, 0.9 + flicker * 0.14);
-      flameCore.scale.y = 0.92 + Math.sin(time * 11 + z) * 0.18;
+      flame.scale.set(0.55 + flicker * 0.09, 0.78 + flicker * 0.18, 1);
       light.intensity = 6.5 + flicker * 2.8;
     };
     animated.push(flame);

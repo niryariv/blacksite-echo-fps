@@ -71,14 +71,57 @@ try {
   if (budget.staticBatches > 60) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
+  if (budget.staticTriangles > 110000) {
+    throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
+  }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
     throw new Error("Arena navigation metadata is incomplete");
+  }
+
+  const playerHeight = 1.72;
+  const playerRadius = 0.46;
+  const blockedAt = (position) => {
+    const minY = position.y - playerHeight;
+    return arena.colliders.some(
+      (box) =>
+        position.x + playerRadius > box.min.x &&
+        position.x - playerRadius < box.max.x &&
+        position.z + playerRadius > box.min.z &&
+        position.z - playerRadius < box.max.z &&
+        position.y > box.min.y &&
+        minY < box.max.y,
+    );
+  };
+  const blockedEntryAnchors = arena.entryRoutes
+    .flatMap((route) => {
+      const anchors = [
+        [route.id, "spawn", route.spawn],
+        [route.id, "arrival", route.arrival],
+      ];
+      if (route.exterior) {
+        anchors.push([
+          route.id,
+          "exterior",
+          new THREE.Vector3(
+            route.exterior.x,
+            route.exterior.y + playerHeight,
+            route.exterior.z,
+          ),
+        ]);
+      }
+      return anchors;
+    })
+    .filter(([, , position]) => blockedAt(position))
+    .map(([routeId, anchor]) => `${routeId}:${anchor}`);
+  if (blockedEntryAnchors.length) {
+    throw new Error(`Blocked entry anchors: ${blockedEntryAnchors.join(", ")}`);
   }
 
   console.log(JSON.stringify({
     renderBudget: budget,
     colliders: arena.colliders.length,
     entryRoutes: arena.entryRoutes.length,
+    blockedEntryAnchors,
     zones: arena.zones.length,
   }, null, 2));
 } finally {
