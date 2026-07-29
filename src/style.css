@@ -238,6 +238,34 @@ button { font: inherit; }
 #combat-feed span { animation: feed 3.4s forwards; padding: 5px 8px; border-right: 2px solid var(--accent); background: #07100fcc; font-size: 11px; letter-spacing: .08em; }
 @keyframes feed { 0% {opacity:0; transform:translateX(15px)} 10%,75% {opacity:1; transform:none} 100% {opacity:0; transform:translateX(8px)} }
 
+#life-panel {
+  right: 32px; top: 238px; width: min(350px, calc(100vw - 64px));
+  padding: 14px 16px 15px; background: linear-gradient(135deg, #07100ff2, #0b1512d9);
+  border: 1px solid #92734255; border-right: 3px solid var(--accent);
+  box-shadow: 0 18px 55px #0009; animation: life-in .35s ease-out;
+}
+#life-panel header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+#life-panel header span, #life-panel header b {
+  color: var(--accent); font-size: 8px; letter-spacing: .18em;
+}
+#life-panel header b { color: #7c8d87; white-space: nowrap; }
+#life-panel > strong {
+  display: block; color: var(--ink); font: 700 18px "Arial Narrow", sans-serif;
+  letter-spacing: .09em;
+}
+#life-panel small {
+  display: block; margin-top: 2px; color: var(--cyan);
+  font-size: 8px; font-weight: 700; letter-spacing: .19em;
+}
+#life-panel p {
+  margin: 9px 0 0; color: #b9c1b9; font: 13px/1.42 Georgia, serif;
+  text-shadow: 0 2px 6px #000;
+}
+@keyframes life-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
 #interact-prompt {
   position: fixed; z-index: 12; left: 50%; bottom: 20%; transform: translateX(-50%);
   padding: 7px 14px; background: #07100fde; border: 1px solid #79908b66;
@@ -315,6 +343,8 @@ button:hover { transform:translateY(-2px); filter:brightness(1.15); }
   .results { gap:20px; } .modal > div { padding:30px 18px; }
   #waypoint { top: 105px; left: 16px; width: 235px; }
   #map-key { right: 16px; bottom: 112px; }
+  #life-panel { right: 16px; top: 176px; width: min(310px, calc(100vw - 32px)); }
+  #life-panel p { font-size: 12px; }
   #city-map { padding: 2vh 2vw; }
   .map-frame { width: 96vw; height: 92vh; padding: 10px; border-width: 4px; }
   .map-frame h2 { font-size: 22px; }

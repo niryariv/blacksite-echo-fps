@@ -13,6 +13,8 @@ export function buildArena(THREE, scene) {
   const colliders = [];
   const animated = [];
   const pickups = [];
+  const streetCover = [];
+  const streetStories = [];
   const root = new THREE.Group();
   root.name = "Acre, 1250 CE";
   scene.add(root);
@@ -1784,6 +1786,280 @@ export function buildArena(THREE, scene) {
     root.add(tie);
   });
 
+  // Street life is also stealth infrastructure. These clusters are based on
+  // excavated or documented activities in thirteenth-century Acre: communal
+  // merchant warehouses, imported ceramics, Hospitaller water and sugar
+  // storage, the working harbour, and the Templar port passage. Unlike the
+  // smaller decorative market props above, every substantial cluster has
+  // conservative collision volumes so it blocks both the player and a
+  // guard's line of sight.
+  const dyedCloth = [
+    new THREE.MeshStandardMaterial({ color: 0x8b493e, roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0x445e67, roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: 0x9a7a43, roughness: 1 }),
+  ];
+  const fishNetMaterial = new THREE.LineBasicMaterial({
+    color: 0x8a7555,
+    transparent: true,
+    opacity: 0.82,
+  });
+
+  const beginStreetCover = ({
+    id,
+    title,
+    context,
+    fact,
+    position,
+    approach,
+    radius = 5.5,
+  }) => {
+    const cover = {
+      id,
+      title,
+      position: new THREE.Vector3(position[0], 0, position[1]),
+      approach: new THREE.Vector3(approach[0], 0, approach[1]),
+      colliderIndexes: [],
+    };
+    streetCover.push(cover);
+    streetStories.push({
+      id,
+      title,
+      context,
+      fact,
+      position: cover.position.clone(),
+      radius,
+    });
+    return cover;
+  };
+  const addStreetCoverCollider = (cover, size, position) => {
+    cover.colliderIndexes.push(colliders.length);
+    addCollider(size, position);
+  };
+  const addBoundCrate = (cover, x, z, size = [1.65, 1.45, 1.25]) => {
+    addBox({
+      size,
+      position: [x, size[1] / 2, z],
+      material: timber,
+      name: "Rope-bound merchant chest",
+    });
+    for (const offset of [-size[0] * 0.28, size[0] * 0.28]) {
+      addBox({
+        size: [0.07, size[1] + 0.05, size[2] + 0.07],
+        position: [x + offset, size[1] / 2, z],
+        material: ropeMaterial,
+        shadows: false,
+        name: "Cargo binding",
+      });
+    }
+    addStreetCoverCollider(cover, size, [x, size[1] / 2, z]);
+  };
+  const addAmphoraRack = (cover, x, z, columns = 3) => {
+    const rackWidth = columns * 0.72 + 0.35;
+    addBox({
+      size: [rackWidth, 0.16, 1.16],
+      position: [x, 0.16, z],
+      material: timber,
+      name: "Amphora rack sill",
+    });
+    for (const offset of [-rackWidth / 2 + 0.1, rackWidth / 2 - 0.1]) {
+      addBox({
+        size: [0.13, 1.72, 1.18],
+        position: [x + offset, 0.86, z],
+        material: timber,
+        name: "Amphora rack upright",
+      });
+    }
+    for (let column = 0; column < columns; column += 1) {
+      const jar = new THREE.Mesh(
+        new THREE.LatheGeometry(
+          [
+            new THREE.Vector2(0.08, -0.68),
+            new THREE.Vector2(0.2, -0.52),
+            new THREE.Vector2(0.34, -0.22),
+            new THREE.Vector2(0.33, 0.26),
+            new THREE.Vector2(0.19, 0.48),
+            new THREE.Vector2(0.14, 0.62),
+            new THREE.Vector2(0.2, 0.66),
+          ],
+          12,
+        ),
+        pottery,
+      );
+      jar.position.set(
+        x + (column - (columns - 1) / 2) * 0.72,
+        0.72,
+        z,
+      );
+      jar.castShadow = jar.receiveShadow = true;
+      jar.name = "Stored transport jar";
+      root.add(jar);
+    }
+    addStreetCoverCollider(cover, [rackWidth, 1.72, 1.18], [x, 0.86, z]);
+  };
+  const addClothBale = (cover, x, z, width, height, materialIndex = 0) => {
+    addBox({
+      size: [width, height, 1.18],
+      position: [x, height / 2, z],
+      material: dyedCloth[materialIndex % dyedCloth.length],
+      name: "Rope-bound cloth bale",
+    });
+    for (const offset of [-width * 0.27, width * 0.27]) {
+      addBox({
+        size: [0.055, height + 0.04, 1.22],
+        position: [x + offset, height / 2, z],
+        material: ropeMaterial,
+        shadows: false,
+        name: "Bale cord",
+      });
+    }
+    addStreetCoverCollider(cover, [width, height, 1.18], [x, height / 2, z]);
+  };
+
+  const venetianCargo = beginStreetCover({
+    id: "venetian-fondaco",
+    title: "THE VENETIAN FONDACO",
+    context: "WAREHOUSE, SHOPS, AND LODGING",
+    fact: "A Venetian fondaco in Acre combined a warehouse, sixteen retail spaces, and lodgings above—commerce and daily life shared one building.",
+    position: [64.8, -17.5],
+    approach: [64.8, -15.2],
+  });
+  addBoundCrate(venetianCargo, 64.1, -17.55, [2.15, 1.8, 1.35]);
+  addBoundCrate(venetianCargo, 66.05, -18.0, [1.35, 1.32, 1.2]);
+  addAmphoraRack(venetianCargo, 62.15, -17.6, 2);
+
+  const genoeseMarket = beginStreetCover({
+    id: "genoese-market",
+    title: "A MEDITERRANEAN MARKET",
+    context: "GENOESE QUARTER",
+    fact: "Ceramics excavated in Crusader Acre came from Cyprus, the Aegean, Syria, Italy, and North Africa—a material record of the people and cargo passing through its markets.",
+    position: [14.25, 5.4],
+    approach: [16.6, 5.4],
+  });
+  addClothBale(genoeseMarket, 14.25, 4.85, 2.4, 1.58, 0);
+  addClothBale(genoeseMarket, 14.9, 6.12, 1.35, 1.24, 1);
+  const marketRoll = addCylinder({
+    radius: 0.34,
+    height: 2.2,
+    position: [13.05, 0.82, 6.12],
+    material: dyedCloth[2],
+    segments: 14,
+    name: "Rolled market textile",
+  });
+  marketRoll.rotation.z = Math.PI / 2;
+  addStreetCoverCollider(genoeseMarket, [2.2, 0.72, 0.72], [13.05, 0.72, 6.12]);
+
+  const hospitallerWater = beginStreetCover({
+    id: "hospitaller-water",
+    title: "WATER FOR A CROWDED HOUSE",
+    context: "HOSPITALLER SERVICE LANE",
+    fact: "The Hospitaller court had wells and plastered pools: the northern installation served drinking and laundry, while the southern pool was probably used for washing.",
+    position: [-8.45, -48],
+    approach: [-8.45, -45.4],
+  });
+  addAmphoraRack(hospitallerWater, -8.45, -48.1, 3);
+  addBox({
+    size: [2.65, 0.22, 1.3],
+    position: [-8.4, 1.86, -48.1],
+    material: dyedCloth[1],
+    name: "Drying linen",
+  });
+  addStreetCoverCollider(hospitallerWater, [2.65, 0.22, 1.3], [-8.4, 1.86, -48.1]);
+
+  const sugarStore = beginStreetCover({
+    id: "hospitaller-sugar",
+    title: "SUGAR VESSELS",
+    context: "HOSPITALLER QUARTER",
+    fact: "Excavators found hundreds of cone-shaped sugar pots and smaller molasses jars stored in rows here. Sugar was one of the region's major Crusader-period industries.",
+    position: [-6, -31.5],
+    approach: [-3.2, -31.5],
+  });
+  addBoundCrate(sugarStore, -6.05, -32.1, [2.35, 1.55, 1.2]);
+  for (let column = 0; column < 4; column += 1) {
+    const sugarCone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.32, 0.85, 12),
+      pottery,
+    );
+    sugarCone.position.set(-7.1 + column * 0.7, 1.95, -31.45);
+    sugarCone.rotation.z = Math.PI;
+    sugarCone.castShadow = true;
+    sugarCone.name = "Cone-shaped sugar vessel";
+    root.add(sugarCone);
+  }
+  addStreetCoverCollider(sugarStore, [2.85, 1.02, 0.78], [-6.05, 1.58, -31.45]);
+
+  const pisanJars = beginStreetCover({
+    id: "pisan-quayside",
+    title: "THE PISAN QUAYSIDE",
+    context: "PORT-SIDE MERCHANT QUARTER",
+    fact: "The Pisan quarter stood between the Templar fortress and the harbour mole. Racks protected fragile transport jars while cargo waited for a shop or ship.",
+    position: [14.65, 33.2],
+    approach: [14.65, 30.5],
+  });
+  addAmphoraRack(pisanJars, 14.65, 33.2, 4);
+  addBoundCrate(pisanJars, 15.5, 34.65, [1.6, 1.35, 1.2]);
+
+  const templarFreight = beginStreetCover({
+    id: "templar-freight",
+    title: "FORTRESS TO PORT",
+    context: "TEMPLAR QUARTER",
+    fact: "A 150-metre strategic tunnel linked the Templar fortress to Acre's port and crossed beneath the Pisan quarter.",
+    position: [-46, 39.6],
+    approach: [-46, 37.2],
+  });
+  addBox({
+    size: [3.8, 0.28, 1.85],
+    position: [-46, 0.68, 39.6],
+    material: timber,
+    name: "Porter's two-wheel handcart",
+  });
+  for (const x of [-47.35, -44.65]) {
+    const wheel = new THREE.Mesh(
+      new THREE.TorusGeometry(0.78, 0.12, 8, 18),
+      timber,
+    );
+    wheel.position.set(x, 0.78, 39.6);
+    wheel.rotation.y = Math.PI / 2;
+    wheel.castShadow = true;
+    wheel.name = "Timber cart wheel";
+    root.add(wheel);
+  }
+  addClothBale(templarFreight, -46.35, 39.6, 2.45, 1.72, 2);
+  addStreetCoverCollider(templarFreight, [3.8, 1.75, 1.85], [-46, 0.88, 39.6]);
+
+  const harbourWork = beginStreetCover({
+    id: "harbour-work",
+    title: "THE WORKING HARBOUR",
+    context: "INNER HARBOUR",
+    fact: "Acre's natural bay made it the main Crusader port of the Holy Land. Ships, porters, merchants, and pilgrims pressed into a densely built city behind the quays.",
+    position: [39.2, 49.2],
+    approach: [39.2, 51.7],
+  });
+  for (const x of [37.8, 40.6]) {
+    addBox({
+      size: [0.14, 2.35, 0.14],
+      position: [x, 1.18, 49.2],
+      material: timber,
+      name: "Fishing-net drying post",
+    });
+  }
+  const netPoints = [];
+  for (let row = 0; row <= 5; row += 1) {
+    const y = 0.35 + row * 0.35;
+    netPoints.push(new THREE.Vector3(37.8, y, 49.2), new THREE.Vector3(40.6, y, 49.2));
+  }
+  for (let column = 0; column <= 8; column += 1) {
+    const x = 37.8 + column * 0.35;
+    netPoints.push(new THREE.Vector3(x, 0.35, 49.2), new THREE.Vector3(x, 2.1, 49.2));
+  }
+  const dryingNet = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(netPoints),
+    fishNetMaterial,
+  );
+  dryingNet.name = "Harbour fishing net";
+  root.add(dryingNet);
+  addBoundCrate(harbourWork, 39.2, 49.55, [3.25, 1.18, 1.35]);
+  addStreetCoverCollider(harbourWork, [3.25, 2.2, 1.35], [39.2, 1.1, 49.35]);
+
   const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x365238, roughness: 1 });
   [
     [104, -44], [105, 8], [103, 26], [-90, -46], [-91, -23], [-89, 21],
@@ -2071,5 +2347,7 @@ export function buildArena(THREE, scene) {
     entryRoutes,
     tunnel,
     zones,
+    streetCover,
+    streetStories,
   };
 }

@@ -29,6 +29,8 @@ const devGuardAudioTest =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-audio");
 const devGuardAlertTest =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-alert-audio");
+const devCoverTestId =
+  import.meta.env.DEV && new URLSearchParams(location.search).get("qa-cover");
 const waterSurfaceY = 0.02;
 const waterFloorY = -1.54;
 mapParchment.addEventListener("load", () => {
@@ -283,6 +285,9 @@ const guards = [];
 let feedIndex = 0;
 let mapVisible = false;
 let selectedRouteId = "gate";
+const discoveredStreetStories = new Set();
+let activeStreetStoryId = "";
+let streetStoryVisibleUntil = 0;
 
 const game = {
   phase: "briefing",
@@ -380,12 +385,61 @@ if (import.meta.env.DEV) {
           })),
       };
     },
+    coverSites() {
+      return arena.streetCover.map((cover) => ({
+        id: cover.id,
+        position: cover.position.toArray(),
+        approach: cover.approach.toArray(),
+        colliders: cover.colliderIndexes.length,
+      }));
+    },
   };
   document.documentElement.dataset.gateCorridorClear = String(
     Array.from({ length: 51 }, (_, index) => 116 - index * 0.5).every(
       (x) => !boxCollides(new THREE.Vector3(x, player.height, -22)),
     ),
   );
+  document.documentElement.dataset.streetCoverCount = String(arena.streetCover.length);
+  document.documentElement.dataset.streetStoriesCount = String(arena.streetStories.length);
+  document.documentElement.dataset.streetCoverCollidersValid = String(
+    arena.streetCover.every(
+      (cover) =>
+        cover.colliderIndexes.length > 0 &&
+        cover.colliderIndexes.every(
+          (index) => index >= 0 && index < arena.colliders.length,
+        ),
+    ),
+  );
+  const blockedCoverApproaches = arena.streetCover
+    .filter(
+      (cover) =>
+        boxCollides(
+          new THREE.Vector3(cover.approach.x, player.height, cover.approach.z),
+        ),
+    )
+    .map((cover) => cover.id);
+  const failedCoverOcclusion = arena.streetCover
+    .filter((cover) => {
+      const approachEye = cover.approach.clone();
+      approachEye.y = 1.55;
+      const oppositeEye = cover.position
+        .clone()
+        .multiplyScalar(2)
+        .sub(cover.approach);
+      oppositeEye.y = 1.55;
+      return clearLineOfSight(approachEye, oppositeEye);
+    })
+    .map((cover) => cover.id);
+  document.documentElement.dataset.streetCoverApproachesClear = String(
+    blockedCoverApproaches.length === 0,
+  );
+  document.documentElement.dataset.streetCoverBlockedApproaches =
+    blockedCoverApproaches.join(",");
+  document.documentElement.dataset.streetCoverOccludes = String(
+    failedCoverOcclusion.length === 0,
+  );
+  document.documentElement.dataset.streetCoverFailedOcclusion =
+    failedCoverOcclusion.join(",");
 }
 
 const guardShieldShape = new THREE.Shape();
@@ -1447,6 +1501,10 @@ function updateHUD() {
     document.documentElement.dataset.guardAudio = JSON.stringify(
       audio.guardDiagnostics(),
     );
+    document.documentElement.dataset.streetDiscoveries = String(
+      discoveredStreetStories.size,
+    );
+    document.documentElement.dataset.activeStreetStory = activeStreetStoryId;
   }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
@@ -1534,6 +1592,50 @@ function updateHUD() {
   $("location").textContent = player.inWater
     ? "MEDITERRANEAN SEA"
     : currentZone?.name || "OLD ACRE";
+  updateStreetStories();
+}
+
+function updateStreetStories() {
+  const panel = $("life-panel");
+  if (game.inTunnel || player.inWater) {
+    if (game.elapsed >= streetStoryVisibleUntil) panel.classList.add("hidden");
+    return;
+  }
+
+  let nearest = null;
+  let nearestDistance = Infinity;
+  for (const story of arena.streetStories) {
+    const distance = Math.hypot(
+      story.position.x - player.position.x,
+      story.position.z - player.position.z,
+    );
+    if (distance <= story.radius && distance < nearestDistance) {
+      nearest = story;
+      nearestDistance = distance;
+    }
+  }
+
+  if (nearest) {
+    streetStoryVisibleUntil = game.elapsed + 7.5;
+    if (activeStreetStoryId !== nearest.id) {
+      activeStreetStoryId = nearest.id;
+      const firstDiscovery = !discoveredStreetStories.has(nearest.id);
+      discoveredStreetStories.add(nearest.id);
+      $("life-title").textContent = nearest.title;
+      $("life-context").textContent = nearest.context;
+      $("life-copy").textContent = nearest.fact;
+      $("life-progress").textContent =
+        `DISCOVERED ${discoveredStreetStories.size} / ${arena.streetStories.length}`;
+      panel.classList.add("hidden");
+      requestAnimationFrame(() => panel.classList.remove("hidden"));
+      if (firstDiscovery) addFeed(`LIFE IN ACRE // ${nearest.title}`);
+    } else {
+      panel.classList.remove("hidden");
+    }
+  } else if (game.elapsed >= streetStoryVisibleUntil) {
+    panel.classList.add("hidden");
+    activeStreetStoryId = "";
+  }
 }
 
 function drawCityMap() {
@@ -2088,6 +2190,7 @@ function showHUD(show) {
   ["top-hud", "bottom-hud", "compass", "waypoint", "map-key", "combat-feed"].forEach((id) => {
     $(id).classList.toggle("hidden", !show);
   });
+  if (!show) $("life-panel").classList.add("hidden");
 }
 
 function hideCityMap() {
@@ -2133,9 +2236,21 @@ function deploy() {
   if (devGuardAlertTest && route.id === "gate") {
     player.position.set(80, 1.72, -22);
   }
+  const coverTest = arena.streetCover.find((cover) => cover.id === devCoverTestId);
+  if (coverTest) {
+    player.floorY = 0;
+    player.position.copy(coverTest.approach);
+    player.position.y = player.height;
+  }
   player.velocity.set(0, 0, 0);
   player.yaw = route.yaw;
   player.pitch = -0.03;
+  if (coverTest) {
+    player.yaw = Math.atan2(
+      coverTest.approach.x - coverTest.position.x,
+      coverTest.approach.z - coverTest.position.z,
+    );
+  }
   guards.forEach((guard) => {
     guard.lastAudioDistance = Math.hypot(
       guard.root.position.x - player.position.x,

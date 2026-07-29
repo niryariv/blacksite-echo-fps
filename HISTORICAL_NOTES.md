@@ -36,6 +36,31 @@ compressing their real distances to keep a stealth run readable.
   The visible thirteenth-century city is correctly described as Frankish rather
   than wholly Byzantine.
 
+## Street life and playable cover
+
+The street-cover clusters are not intended as decorative clutter. They turn
+documented parts of Acre's economy and infrastructure into stealth choices:
+
+- Rope-bound chests, bales, shops, and upper lodging evoke the Italian
+  communes' combined commercial and residential buildings. A surviving
+  Venetian inventory describes a *fondaco* with a warehouse, sixteen retail
+  spaces, and lodging above.
+- Racked transport jars reflect Acre's unusually varied ceramic assemblage.
+  Excavated wares originated across the eastern and western Mediterranean,
+  including Cyprus, the Aegean, Syria, Italy, and North Africa.
+- The Hospitaller service lane uses water jars and drying linen to interpret
+  the excavated court wells and plastered pools used for drinking, laundering,
+  and washing.
+- Cone-shaped pots interpret hundreds of sugar vessels found stored in rows
+  above the Hospitaller reservoir, together with smaller molasses jars.
+- A porter's cart beside the Templar approach and drying nets over harbour
+  cargo communicate the movement and temporary storage of goods between the
+  port, merchant quarters, and fortified compounds.
+
+These installations are compressed and representative: their exact positions
+within the game's streets are level-design decisions, while their materials,
+uses, and neighborhood associations come from the sources below.
+
 ## Primary research anchors
 
 - UNESCO World Heritage Centre, [Old City of Acre](https://whc.unesco.org/en/list/1042/)
@@ -45,6 +70,9 @@ compressing their real distances to keep a stealth run readable.
 - Old Akko Development Company, [The Templars Tunnel](https://www.akko.org.il/en/attraction/the-templars-tunnel/)
 - Old Akko Development Company, [The Akko Citadel Conservation Project](https://www.akko.org.il/en/the-akko-citadel-conservation-project/)
 - Old Akko Development Company, [Akko Authentic Markets](https://www.akko.org.il/en/attraction/akko-authentic-markets/)
+- Israel Antiquities Authority, [Elemental and Petrographic Analyses of Local
+  and Imported Ceramics from Crusader Acre](https://publications.iaa.org.il/atiqot/vol59/iss1/12/)
+- Israel Antiquities Authority, [The Fortifications of the Genoese Quarter](https://publications.iaa.org.il/atiqot/vol111/iss1/9/)
 
 ## Scholarly cross-check
 
@@ -53,3 +81,10 @@ compressing their real distances to keep a stealth run readable.
 - David Jacoby, “Crusader Acre in the Thirteenth Century: Urban Layout and
   Topography,” *Studi Medievali*.
 - Benjamin Z. Kedar, “The Outer Walls of Frankish Acre,” *Atiqot* 31.
+- David Jacoby, “New Venetian Evidence on Crusader Acre,” in *The Experience
+  of Crusading*, vol. 2, and “Aspects of Everyday Life in Frankish Acre,”
+  *Crusades* 4.
+- Anne E. Lester and Laura K. Morreale, [“A Crusader's Death and Life in
+  Acre”](https://cornellpress.manifoldapp.org/read/aa2b50d1-da8d-46f0-b699-f90dc8ab86e7/section/2f894fa7-353e-4f88-8b1a-29afb82a8515),
+  for a recent synthesis of Acre's quarters, harbour, property inventories, and
+  daily life.
