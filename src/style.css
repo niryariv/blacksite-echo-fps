@@ -26,6 +26,31 @@ button { font: inherit; }
   transition: opacity .22s;
 }
 #damage-vignette.flash { opacity: 1; transition-duration: .03s; }
+#water-overlay {
+  position: fixed; inset: 0; z-index: 6; pointer-events: none; opacity: 0;
+  transition: opacity .35s, background .35s;
+}
+#water-overlay.surface {
+  opacity: 1;
+  background:
+    linear-gradient(180deg, transparent 0 57%, #0c496555 61%, #062b42b8 100%),
+    radial-gradient(ellipse at 50% 61%, #8dd7df24, transparent 48%);
+  box-shadow: inset 0 -24vh 90px #031c2e88;
+}
+#water-overlay.surface::after {
+  content: ""; position: absolute; left: -5%; right: -5%; top: 59%;
+  height: 3px; opacity: .55; transform: rotate(-.25deg);
+  background: linear-gradient(90deg, transparent, #8ad4dc, #bfdde277, transparent);
+  box-shadow: 0 0 18px #68c8dd99;
+}
+#water-overlay.submerged {
+  opacity: 1;
+  background:
+    radial-gradient(circle at 50% 22%, #1b668066, #05283fd9 64%, #02121feF),
+    repeating-linear-gradient(118deg, transparent 0 36px, #8bd4d907 38px 40px);
+  box-shadow: inset 0 0 140px #00101d;
+  backdrop-filter: blur(1.2px) saturate(.72);
+}
 #damage-direction {
   position: fixed; z-index: 13; pointer-events: none; left: 50%; top: 50%;
   width: 190px; height: 190px; margin: -95px; opacity: 0;
@@ -185,6 +210,30 @@ button { font: inherit; }
 .moon-panel.dappled { border-left-color: #8cb0daaa; background: #10192aaa; }
 .moon-panel.exposed { border-left-color: #b9d5ff; background: #14233dcc; }
 .moon-panel.exposed .moon-icon, .moon-panel.exposed #moon-state { color: #d8e7ff; }
+.breath-panel {
+  display: flex; align-items: center; gap: 11px; width: 260px;
+  padding: 5px 8px; color: #70aeba; background: #061923c7;
+  border-left: 1px solid #71d9e2aa;
+}
+.breath-icon {
+  width: 26px; color: #8be1e7; font: 700 25px Georgia, serif;
+  text-align: center; text-shadow: 0 0 12px #73dce0aa;
+}
+.breath-panel .meter-copy { font-size: 8px; }
+.breath-meter { background: #173d4baa; }
+#breath-bar {
+  width: 100%; background: #83e4df; box-shadow: 0 0 12px #79e9e1;
+  transition: width .12s linear, background .2s;
+}
+#breath-state {
+  min-width: 79px; color: #a8dadd; font-size: 10px;
+  letter-spacing: .11em; text-align: right;
+}
+.breath-panel.warning { border-left-color: var(--accent); }
+.breath-panel.warning #breath-bar { background: var(--accent); }
+.breath-panel.gasping { border-left-color: var(--danger); background: #211014d9; }
+.breath-panel.gasping #breath-bar { background: var(--danger); box-shadow: 0 0 12px var(--danger); }
+.breath-panel.gasping #breath-state { color: #ff8a7f; }
 #combat-feed { top: 112px; right: 32px; width: 260px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 #combat-feed span { animation: feed 3.4s forwards; padding: 5px 8px; border-right: 2px solid var(--accent); background: #07100fcc; font-size: 11px; letter-spacing: .08em; }
 @keyframes feed { 0% {opacity:0; transform:translateX(15px)} 10%,75% {opacity:1; transform:none} 100% {opacity:0; transform:translateX(8px)} }

@@ -77,8 +77,8 @@ export function buildArena(THREE, scene) {
       shortName: "WESTERN ROPE",
       method: "ROPE CLIMB",
       description: "Close to the western wards · watched from above",
-      spawn: new THREE.Vector3(-104.2, 2.08, -11),
-      exterior: new THREE.Vector3(-103.2, 0.36, -11),
+      spawn: new THREE.Vector3(-107, 0.18, -11),
+      exterior: new THREE.Vector3(-103.2, 0.02, -11),
       arrival: new THREE.Vector3(-96.6, 1.72, -11),
       yaw: -Math.PI / 2,
     },
@@ -88,8 +88,8 @@ export function buildArena(THREE, scene) {
       shortName: "TEMPLAR ROPE",
       method: "ROPE CLIMB",
       description: "Near the tunnel · little cover on the landing",
-      spawn: new THREE.Vector3(-70, 2.08, 85.2),
-      exterior: new THREE.Vector3(-70, 0.36, 84),
+      spawn: new THREE.Vector3(-70, 0.18, 87.8),
+      exterior: new THREE.Vector3(-70, 0.02, 84),
       arrival: new THREE.Vector3(-70, 1.72, 77.6),
       yaw: 0,
     },
@@ -99,8 +99,8 @@ export function buildArena(THREE, scene) {
       shortName: "PISAN BREACH",
       method: "MASONRY CLIMB",
       description: "Fast harbour access · brightest patrol sector",
-      spawn: new THREE.Vector3(-9, 2.08, 85.2),
-      exterior: new THREE.Vector3(-9, 0.36, 84),
+      spawn: new THREE.Vector3(-9, 0.18, 87.8),
+      exterior: new THREE.Vector3(-9, 0.02, 84),
       arrival: new THREE.Vector3(-9, 1.72, 77.6),
       yaw: 0,
     },
@@ -704,11 +704,11 @@ export function buildArena(THREE, scene) {
     }
   };
 
-  addInsertionBoat({ x: -104.2, z: -11, orientation: "west" });
+  addInsertionBoat({ x: -106.1, z: -5, orientation: "west" });
   addRope(-101.82, -10.45);
-  addInsertionBoat({ x: -70, z: 85.2 });
+  addInsertionBoat({ x: -64, z: 87.3 });
   addRope(-69.45, 82.82);
-  addInsertionBoat({ x: -9, z: 85.2 });
+  addInsertionBoat({ x: -3, z: 87.3 });
   // The Pisan approach uses eroded kurkar blocks as handholds instead of rope.
   for (let step = 0; step < 5; step += 1) {
     addBox({

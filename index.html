@@ -24,6 +24,7 @@
       <div id="damage-vignette"></div>
       <div id="damage-direction" aria-hidden="true"><i></i></div>
       <div id="letterbox" aria-hidden="true"></div>
+      <div id="water-overlay" aria-hidden="true"></div>
 
       <header id="top-hud" class="hud hidden">
         <section class="mission-block">
@@ -98,6 +99,14 @@
             </div>
             <b id="moon-state">SHELTERED</b>
           </section>
+          <section id="breath-panel" class="breath-panel hidden">
+            <span class="breath-icon">≈</span>
+            <div class="meter-copy">
+              <span>BREATH</span>
+              <div class="meter breath-meter"><i id="breath-bar"></i></div>
+            </div>
+            <b id="breath-state">SURFACED</b>
+          </section>
         </div>
       </footer>
 
@@ -143,7 +152,7 @@
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>
             <span><kbd>LMB</kbd><kbd>SHIFT</kbd> RUN / NOISY</span>
-            <span><kbd>RMB</kbd><kbd>CTRL</kbd> CROUCH</span>
+            <span><kbd>RMB</kbd><kbd>CTRL</kbd> CROUCH / DIVE</span>
             <span><kbd>E</kbd> HOLD TO INTERACT</span>
             <span><kbd>M</kbd> HOLD CITY MAP</span>
             <span><kbd>V</kbd> MUTE AUDIO</span>

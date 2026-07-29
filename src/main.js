@@ -21,6 +21,12 @@ const devFastInteractions =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-fast");
 const devAutoWalk =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-walk");
+const devAutoDive =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("qa-dive");
+const devFastBreath =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("qa-breath");
+const waterSurfaceY = 0.02;
+const waterFloorY = -1.54;
 mapParchment.addEventListener("load", () => {
   mapStaticKey = "";
 });
@@ -52,10 +58,12 @@ renderer.toneMappingExposure = 0.88;
 const scene = new THREE.Scene();
 const surfaceBackgroundColor = new THREE.Color(0x030815);
 const tunnelBackgroundColor = new THREE.Color(0x070706);
+const waterBackgroundColor = new THREE.Color(0x021521);
 scene.background = surfaceBackgroundColor.clone();
 scene.fog = new THREE.Fog(0x13243a, 68, 240);
 const surfaceFogColor = new THREE.Color(0x13243a);
 const tunnelFogColor = new THREE.Color(0x12110e);
+const waterFogColor = new THREE.Color(0x0a3548);
 
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.04, 280);
 camera.rotation.order = "YXZ";
@@ -296,6 +304,11 @@ const player = {
   floorY: 0,
   radius: 0.46,
   crouched: false,
+  inWater: false,
+  submerged: false,
+  breath: 100,
+  needsBreath: false,
+  wasSubmerged: false,
   noise: 0,
   bob: 0,
   roll: 0,
@@ -701,7 +714,7 @@ let moonCheckElapsed = Infinity;
 function updateMoonExposure(dt) {
   moonCheckElapsed += dt;
   if (moonCheckElapsed >= 0.18) {
-    if (player.floorY < -1) {
+    if (game.inTunnel || player.submerged) {
       game.targetMoonExposure = 0;
     } else {
       moonProbeOrigin.copy(player.position);
@@ -778,11 +791,53 @@ function movePlayerWithCollisions(deltaX, deltaZ) {
 }
 
 function updatePlayer(dt) {
-  player.crouched =
+  const crouchRequested =
     mouseButtons.has(2) ||
     keys.has("ControlLeft") ||
     keys.has("ControlRight") ||
     keys.has("KeyC");
+  if (
+    player.inWater &&
+    player.needsBreath &&
+    !crouchRequested &&
+    player.breath >= 35
+  ) {
+    player.needsBreath = false;
+  }
+  player.crouched = player.inWater
+    ? crouchRequested && !player.needsBreath
+    : crouchRequested;
+  player.submerged = player.inWater && player.crouched;
+
+  if (player.inWater) {
+    if (player.submerged) {
+      player.breath = Math.max(
+        0,
+        player.breath - dt * (devFastBreath ? 85 : 14),
+      );
+      if (player.breath <= 0 && !player.needsBreath) {
+        player.needsBreath = true;
+        player.submerged = false;
+        player.crouched = false;
+        player.noise = Math.max(player.noise, 76);
+        addFeed("BREATH EXHAUSTED // FORCED TO SURFACE");
+        audio.gasp();
+      }
+    } else {
+      player.breath = Math.min(100, player.breath + dt * 30);
+    }
+    if (player.submerged !== player.wasSubmerged) {
+      audio.splash(player.submerged ? 0.35 : 0.58);
+      if (player.submerged) addFeed("SUBMERGED // INVISIBLE // WATCH BREATH");
+      player.wasSubmerged = player.submerged;
+    }
+  } else {
+    player.breath = 100;
+    player.needsBreath = false;
+    player.submerged = false;
+    player.wasSubmerged = false;
+  }
+
   const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new THREE.Vector3(-forward.z, 0, forward.x);
   const move = new THREE.Vector3();
@@ -794,8 +849,21 @@ function updatePlayer(dt) {
   if (moving) move.normalize();
 
   const sprintHeld = mouseButtons.has(0) || keys.has("ShiftLeft");
-  const sprinting = !player.crouched && sprintHeld && keys.has("KeyW") && moving;
-  const speed = player.crouched ? 2.05 : sprinting ? 7.25 : 4.15;
+  const sprinting =
+    !player.inWater &&
+    !player.crouched &&
+    sprintHeld &&
+    keys.has("KeyW") &&
+    moving;
+  const speed = player.inWater
+    ? player.submerged
+      ? 1.18
+      : 1.72
+    : player.crouched
+      ? 2.05
+      : sprinting
+        ? 7.25
+        : 4.15;
   player.velocity.x = THREE.MathUtils.damp(player.velocity.x, move.x * speed, 13, dt);
   player.velocity.z = THREE.MathUtils.damp(player.velocity.z, move.z * speed, 13, dt);
 
@@ -806,14 +874,33 @@ function updatePlayer(dt) {
   player.position.y = player.floorY + player.height;
 
   const horizontalSpeed = Math.hypot(player.velocity.x, player.velocity.z);
-  const targetNoise = !moving ? 2 : player.crouched ? 12 : sprinting ? 92 : 34;
+  const targetNoise = player.inWater
+    ? player.submerged
+      ? moving
+        ? 5
+        : 1
+      : moving
+        ? 22
+        : player.needsBreath
+          ? 38
+          : 7
+    : !moving
+      ? 2
+      : player.crouched
+        ? 12
+        : sprinting
+          ? 92
+          : 34;
   player.noise = THREE.MathUtils.damp(player.noise, targetNoise, 9, dt);
   if (moving) {
-    player.bob += dt * (player.crouched ? 5 : sprinting ? 12 : 8);
-    if (Math.sin(player.bob) > 0.965) audio.footstep(sprinting ? 1.1 : player.crouched ? 0.25 : 0.55);
+    player.bob += dt * (player.inWater ? 3.2 : player.crouched ? 5 : sprinting ? 12 : 8);
+    if (Math.sin(player.bob) > 0.965) {
+      if (player.inWater) audio.splash(player.submerged ? 0.18 : 0.32);
+      else audio.footstep(sprinting ? 1.1 : player.crouched ? 0.25 : 0.55);
+    }
   }
 
-  const bobScale = player.crouched ? 0.25 : sprinting ? 1.1 : 0.55;
+  const bobScale = player.inWater ? 0.18 : player.crouched ? 0.25 : sprinting ? 1.1 : 0.55;
   const bobX = Math.sin(player.bob) * 0.011 * bobScale;
   const bobY = Math.abs(Math.cos(player.bob)) * 0.015 * bobScale;
   player.roll = THREE.MathUtils.damp(player.roll, move.x * -0.007, 8, dt);
@@ -839,7 +926,7 @@ function guardCanSee(guard, point, range = 15, fov = 66) {
 }
 
 function updateGuards(dt) {
-  if (player.floorY < -1) {
+  if (game.inTunnel) {
     guards.forEach((guard) => {
       guard.root.visible = false;
     });
@@ -859,21 +946,36 @@ function updateGuards(dt) {
     guard.farBody.visible = !fullDetail;
     guard.visionCone.visible = distance < 34;
     const moonVisibility = 0.62 + game.moonExposure * 0.38;
+    const sightRange = player.inWater
+      ? 9
+      : player.crouched
+        ? 12.5
+        : 15;
     const seesPlayer =
+      !player.submerged &&
       game.elapsed >= game.insertionUntil &&
       guardCanSee(
         guard,
         player.position,
-        (player.crouched ? 12.5 : 15) * moonVisibility,
+        sightRange * moonVisibility,
         66,
       );
     const hearingRadius = 2.2 + player.noise * 0.115;
-    const hearsPlayer = distance < hearingRadius && player.noise > 20;
+    const hearsPlayer =
+      !player.submerged &&
+      distance < hearingRadius &&
+      player.noise > 20;
 
     if (seesPlayer) {
       guard.lastSeen.copy(player.position);
       const proximity = THREE.MathUtils.clamp(1.35 - distance / 22, 0.5, 1.2);
-      const posture = player.crouched ? 0.52 : player.noise > 70 ? 1.35 : 1;
+      const posture = player.inWater
+        ? 0.38
+        : player.crouched
+          ? 0.52
+          : player.noise > 70
+            ? 1.35
+            : 1;
       const illumination = 0.48 + game.moonExposure * 0.62;
       guard.awareness += dt * 48 * proximity * posture * illumination;
       guard.state = "suspicious";
@@ -1009,6 +1111,14 @@ function updateSeaWallTraversal(dt, prompt) {
     return false;
   }
 
+  if (player.submerged) {
+    game.seaWallInteraction = Math.max(0, game.seaWallInteraction - dt * 2);
+    prompt.innerHTML =
+      `RELEASE <strong>[ RMB / CTRL ]</strong> TO SURFACE // CLIMB`;
+    prompt.classList.remove("hidden");
+    return true;
+  }
+
   // Continuing to press forward at a marked climb should never feel like
   // walking into an unexplained invisible wall. E remains available for
   // deliberate interaction, while W naturally commits to the ascent.
@@ -1036,6 +1146,11 @@ function updateSeaWallTraversal(dt, prompt) {
     player.velocity.set(0, 0, 0);
     player.yaw = route.yaw;
     player.pitch = -0.03;
+    player.inWater = false;
+    player.submerged = false;
+    player.breath = 100;
+    player.needsBreath = false;
+    player.wasSubmerged = false;
     game.enteredCity = true;
     game.seaWallInteraction = 0;
     game.interaction = 0;
@@ -1049,7 +1164,7 @@ function updateSeaWallTraversal(dt, prompt) {
 
 function updateTunnelTraversal(dt, prompt) {
   game.tunnelCooldown = Math.max(0, game.tunnelCooldown - dt);
-  const underground = player.floorY < -1;
+  const underground = game.inTunnel;
   const portal = arena.tunnel.portals.find((item) => {
     const point = underground ? item.underground : item.surface;
     return Math.hypot(player.position.x - point.x, player.position.z - point.z) < 2.35;
@@ -1153,47 +1268,65 @@ function updateArena(dt) {
 }
 
 function updateTunnelAtmosphere(dt) {
-  const underground = player.floorY < -1;
+  const underground = game.inTunnel;
+  const submerged = player.submerged;
   const blend = 1 - Math.exp(-dt * 4.5);
   ambient.intensity = THREE.MathUtils.damp(
     ambient.intensity,
-    underground ? 0.12 : 0.38,
+    underground ? 0.12 : submerged ? 0.2 : 0.38,
     4.5,
     dt,
   );
   moonLight.intensity = THREE.MathUtils.damp(
     moonLight.intensity,
-    underground ? 0.03 : 1.16,
+    underground ? 0.03 : submerged ? 0.12 : 1.16,
     4.5,
     dt,
   );
   viewLight.intensity = THREE.MathUtils.damp(
     viewLight.intensity,
-    underground ? 0.2 : 0.14,
+    underground ? 0.2 : submerged ? 0.1 : 0.14,
     4.5,
     dt,
   );
   scene.environmentIntensity = THREE.MathUtils.damp(
     scene.environmentIntensity,
-    underground ? 0.12 : 0.24,
+    underground ? 0.12 : submerged ? 0.08 : 0.24,
     4.5,
     dt,
   );
-  scene.fog.color.lerp(underground ? tunnelFogColor : surfaceFogColor, blend);
-  scene.background.lerp(
-    underground ? tunnelBackgroundColor : surfaceBackgroundColor,
+  scene.fog.color.lerp(
+    underground ? tunnelFogColor : submerged ? waterFogColor : surfaceFogColor,
     blend,
   );
-  scene.fog.near = THREE.MathUtils.damp(scene.fog.near, underground ? 7 : 68, 4.5, dt);
-  scene.fog.far = THREE.MathUtils.damp(scene.fog.far, underground ? 43 : 240, 4.5, dt);
-  const targetCameraFar = underground ? 68 : 280;
+  scene.background.lerp(
+    underground
+      ? tunnelBackgroundColor
+      : submerged
+        ? waterBackgroundColor
+        : surfaceBackgroundColor,
+    blend,
+  );
+  scene.fog.near = THREE.MathUtils.damp(
+    scene.fog.near,
+    underground ? 7 : submerged ? 1.2 : 68,
+    4.5,
+    dt,
+  );
+  scene.fog.far = THREE.MathUtils.damp(
+    scene.fog.far,
+    underground ? 43 : submerged ? 24 : 240,
+    4.5,
+    dt,
+  );
+  const targetCameraFar = underground ? 68 : submerged ? 42 : 280;
   const nextCameraFar = THREE.MathUtils.damp(camera.far, targetCameraFar, 5, dt);
   if (Math.abs(nextCameraFar - camera.far) > 0.05) {
     camera.far = nextCameraFar;
     camera.updateProjectionMatrix();
   }
-  sky.visible = !underground;
-  nightSky.visible = !underground;
+  sky.visible = !underground && !submerged;
+  nightSky.visible = !underground && !submerged;
 }
 
 function updateHUD() {
@@ -1202,7 +1335,12 @@ function updateHUD() {
     document.documentElement.dataset.mouseCrouch = String(mouseButtons.has(2));
     document.documentElement.dataset.posture = player.crouched ? "crouched" : "upright";
     document.documentElement.dataset.playerX = player.position.x.toFixed(3);
+    document.documentElement.dataset.playerY = player.position.y.toFixed(3);
     document.documentElement.dataset.playerZ = player.position.z.toFixed(3);
+    document.documentElement.dataset.inWater = String(player.inWater);
+    document.documentElement.dataset.submerged = String(player.submerged);
+    document.documentElement.dataset.breath = player.breath.toFixed(2);
+    document.documentElement.dataset.needsBreath = String(player.needsBreath);
     document.documentElement.dataset.entryRoute = game.entryRoute?.id || "";
     document.documentElement.dataset.enteredCity = String(game.enteredCity);
     document.documentElement.dataset.wallGuardsValid = String(
@@ -1241,6 +1379,25 @@ function updateHUD() {
     player.noise > 65 ? "var(--danger)" : player.noise > 25 ? "var(--accent)" : "var(--cyan)";
   $("noise-state").textContent =
     player.noise > 65 ? "LOUD" : player.noise > 25 ? "AUDIBLE" : "SILENT";
+
+  const waterOverlay = $("water-overlay");
+  waterOverlay.classList.toggle("surface", player.inWater && !player.submerged);
+  waterOverlay.classList.toggle("submerged", player.submerged);
+  const breathPanel = $("breath-panel");
+  breathPanel.classList.toggle("hidden", !player.inWater);
+  breathPanel.classList.toggle(
+    "warning",
+    player.submerged && player.breath <= 32 && !player.needsBreath,
+  );
+  breathPanel.classList.toggle("gasping", player.needsBreath);
+  $("breath-bar").style.width = `${THREE.MathUtils.clamp(player.breath, 0, 100)}%`;
+  $("breath-state").textContent = player.needsBreath
+    ? "GASPING"
+    : player.submerged
+      ? player.breath <= 32
+        ? "LOW AIR"
+        : "SUBMERGED"
+      : "HEAD VISIBLE";
   const moonExposure = THREE.MathUtils.clamp(game.moonExposure, 0, 1);
   $("moon-bar").style.width = `${Math.max(2, moonExposure * 100)}%`;
   $("moon-bar").style.background =
@@ -1285,7 +1442,9 @@ function updateHUD() {
   $("waypoint").classList.toggle("close", waypointDistance < 4);
 
   const currentZone = arena.zones.find((zone) => zone.box.containsPoint(player.position));
-  $("location").textContent = currentZone?.name || "OLD ACRE";
+  $("location").textContent = player.inWater
+    ? "MEDITERRANEAN SEA"
+    : currentZone?.name || "OLD ACRE";
 }
 
 function drawCityMap() {
@@ -1872,17 +2031,24 @@ function deploy() {
   const route =
     arena.entryRoutes.find((candidate) => candidate.id === selectedRouteId) ||
     arena.entryRoutes[0];
+  const seaInsertion = route.id !== "gate";
   audio.unlock();
   audio.ambientStart();
   player.height = 1.72;
-  player.floorY = route.spawn.y - player.height;
+  player.floorY = seaInsertion ? waterFloorY : route.spawn.y - player.height;
   player.position.copy(route.spawn);
+  if (seaInsertion) player.position.y = waterSurfaceY + 0.16;
   player.velocity.set(0, 0, 0);
   player.yaw = route.yaw;
   player.pitch = -0.03;
+  player.inWater = seaInsertion;
+  player.submerged = false;
+  player.breath = 100;
+  player.needsBreath = false;
+  player.wasSubmerged = false;
   game.phase = "running";
   game.entryRoute = route;
-  game.enteredCity = route.id === "gate";
+  game.enteredCity = !seaInsertion;
   game.seaWallInteraction = 0;
   game.insertionUntil = game.elapsed + (game.enteredCity ? 2.5 : 1.25);
   if (devFastInteractions && !game.enteredCity) {
@@ -1892,6 +2058,13 @@ function deploy() {
   if (devAutoWalk) {
     keys.add("KeyW");
     setTimeout(() => keys.delete("KeyW"), 3000);
+  }
+  if (devAutoDive && seaInsertion) {
+    keys.add("ControlLeft");
+    setTimeout(
+      () => keys.delete("ControlLeft"),
+      devFastBreath ? 3000 : 9000,
+    );
   }
   $("objective").textContent = game.enteredCity
     ? "INFILTRATE // RECOVER THE SEALED DISPATCH"
@@ -1907,6 +2080,7 @@ function deploy() {
   }
   requestGamePointerLock();
   addFeed(`${route.shortName} // INSERTION BEGUN`);
+  if (seaInsertion) addFeed("WATERLINE // CROUCH TO SUBMERGE");
   addFeed("UNARMED // LEAVE NO TRACE");
 }
 
@@ -1920,6 +2094,7 @@ function endGame(success) {
   }
   showHUD(false);
   hideCityMap();
+  $("water-overlay").classList.remove("surface", "submerged");
   $("interact-prompt").classList.add("hidden");
   $("damage-direction").classList.remove("show", "suspicion");
   $("end-screen").classList.remove("hidden");

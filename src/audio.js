@@ -76,6 +76,26 @@ export class StealthAudio {
     } catch {}
   }
 
+  splash(intensity = 0.55) {
+    if (!this._canPlay()) return;
+    try {
+      const t = this.context.currentTime;
+      const strength = Math.min(1, Math.max(0.2, intensity));
+      this._noise(t, 0.12, 0.18 * strength, 1150, "bandpass", 0.72, 0);
+      this._noise(t + 0.035, 0.24, 0.13 * strength, 420, "lowpass", 0.8, 0);
+      this._tone(t, 0.18, 125, 62, 0.07 * strength, "sine", 0);
+    } catch {}
+  }
+
+  gasp() {
+    if (!this._canPlay()) return;
+    try {
+      const t = this.context.currentTime;
+      this._noise(t, 0.28, 0.2, 820, "bandpass", 1.2, 0);
+      this._tone(t + 0.03, 0.32, 155, 78, 0.09, "sine", 0);
+    } catch {}
+  }
+
   footstep(intensity = 1) {
     if (!this._canPlay()) return;
 
