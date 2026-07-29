@@ -333,7 +333,20 @@ button { border:0; cursor:pointer; color:#08100e; background:var(--accent); padd
 button:hover { transform:translateY(-2px); filter:brightness(1.15); }
 .briefing-card button { width:100%; margin-top:6px; text-align:left; display:flex; justify-content:space-between; }
 .briefing-card small { display:block; color:#576b67; margin-top:10px; font-size:9px; letter-spacing:.09em; text-align:center; }
-.build-id { position:absolute; left:8vw; bottom:4vh; color:#4d625f; font-size:9px; letter-spacing:.2em; }
+.build-id {
+  position:absolute; left:8vw; bottom:4vh; display:flex; align-items:center;
+  gap:12px; color:#4d625f; font-size:9px; letter-spacing:.2em;
+}
+.source-link {
+  position:relative; z-index:3; display:inline-flex; align-items:center; gap:6px;
+  padding-left:12px; color:#617b75; border-left:1px solid #59756f55;
+  font-weight:700; text-decoration:none; transition:color .16s, text-shadow .16s;
+  pointer-events:auto;
+}
+.source-link svg { width:14px; height:14px; fill:currentColor; }
+.source-link:hover, .source-link:focus-visible {
+  color:var(--cyan); text-shadow:0 0 12px #75d7cb77; outline:none;
+}
 
 .modal { background:#020506bb; backdrop-filter:blur(8px); align-items:center; justify-content:center; text-align:center; }
 .modal > div { position:relative; z-index:2; width:min(540px,90vw); padding:45px; background:#07100ff2; border:1px solid #73908844; box-shadow:0 30px 100px #000; }
