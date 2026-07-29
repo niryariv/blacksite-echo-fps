@@ -1964,6 +1964,117 @@ export function buildArena(THREE, scene) {
     return geometry;
   };
 
+  const mergeVesselParts = (parts) => mergeGeometries(
+    parts.map(({ geometry, position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1] }) => {
+      const transformed = geometry.clone();
+      transformed.applyMatrix4(
+        new THREE.Matrix4().compose(
+          new THREE.Vector3(...position),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation)),
+          new THREE.Vector3(...scale),
+        ),
+      );
+      return transformed;
+    }),
+    false,
+  );
+
+  const merchantTimberGeometry = mergeVesselParts([
+    {
+      geometry: createHullGeometry(),
+      position: [0, 0.52, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.1, 0.14, 8, 8),
+      position: [0, 4, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.07, 0.09, 5, 8),
+      position: [0, 5.7, 0],
+      rotation: [0, 0, Math.PI / 2 - 0.32],
+    },
+    ...[-1, 1].map((side) => ({
+      geometry: new THREE.BoxGeometry(0.12, 0.17, 5.9),
+      position: [side * 1.44, 0.74, 0.35],
+    })),
+    ...[-1.7, 0.25, 2.25].map((z) => ({
+      geometry: new THREE.BoxGeometry(2.82, 0.11, 0.22),
+      position: [0, 0.67, z],
+    })),
+    {
+      geometry: new THREE.CylinderGeometry(0.08, 0.11, 1.28, 7),
+      position: [0, 1.05, -3.72],
+      rotation: [0.16, 0, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.08, 0.11, 1.2, 7),
+      position: [0, 1.02, 3.7],
+      rotation: [-0.14, 0, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.04, 0.055, 3.15, 7),
+      position: [1.43, 1.18, 1.75],
+      rotation: [1.03, 0, 0.14],
+    },
+  ]);
+  const merchantDeckGeometry = mergeVesselParts([
+    {
+      geometry: new THREE.BoxGeometry(2.45, 0.16, 5.2),
+      position: [0, 0.48, 0.7],
+    },
+    {
+      geometry: new THREE.BoxGeometry(1.08, 0.16, 0.88),
+      position: [0, 0.64, 1.28],
+    },
+    {
+      geometry: new THREE.BoxGeometry(2.18, 0.13, 1.1),
+      position: [0, 0.62, 2.72],
+    },
+  ]);
+  const extractionSkiffGeometry = mergeVesselParts([
+    {
+      geometry: createHullGeometry(4.4, 1.8, 0.7),
+      position: [0, 0.3, 0],
+    },
+    ...[-0.9, 0.2, 1.2].map((z) => ({
+      geometry: new THREE.BoxGeometry(1.45, 0.12, 0.24),
+      position: [0, 0.46, z],
+    })),
+    ...[-1, 1].map((side) => ({
+      geometry: new THREE.BoxGeometry(0.08, 0.13, 3.55),
+      position: [side * 0.72, 0.53, 0.12],
+    })),
+    {
+      geometry: new THREE.CylinderGeometry(0.03, 0.045, 2.65, 6),
+      position: [-0.77, 0.7, 0.78],
+      rotation: [1.04, 0, 0.16],
+    },
+  ]);
+  const riggingMaterial = new THREE.LineBasicMaterial({
+    color: 0x34261a,
+    transparent: true,
+    opacity: 0.82,
+  });
+  const merchantSailGeometry = createLateenSailGeometry();
+  const merchantRiggingGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 7.8, 0),
+    new THREE.Vector3(-1.4, 0.7, 3.3),
+    new THREE.Vector3(0, 7.8, 0),
+    new THREE.Vector3(1.4, 0.7, 3.3),
+    new THREE.Vector3(0, 7.8, 0),
+    new THREE.Vector3(-1.4, 0.7, -3.25),
+    new THREE.Vector3(0, 7.8, 0),
+    new THREE.Vector3(1.4, 0.7, -3.25),
+    new THREE.Vector3(0, 7.8, 0),
+    new THREE.Vector3(0, 0.7, -3.82),
+    new THREE.Vector3(0, 7.8, 0),
+    new THREE.Vector3(0, 0.7, 3.72),
+    new THREE.Vector3(-2.34, 6.48, 0),
+    new THREE.Vector3(0, 0.78, -3.45),
+    new THREE.Vector3(2.34, 4.92, 0),
+    new THREE.Vector3(0, 0.78, 3.38),
+  ]);
+
   const addBoat = (x, z, scale = 1, rotation = 0) => {
     const boat = new THREE.Group();
     boat.position.set(x, 0.15, z);
@@ -1971,37 +2082,21 @@ export function buildArena(THREE, scene) {
     boat.scale.setScalar(scale);
     boat.name = "Mediterranean merchant vessel";
     root.add(boat);
-    const hull = new THREE.Mesh(createHullGeometry(), timber);
-    hull.position.y = 0.52;
-    hull.castShadow = hull.receiveShadow = true;
-    boat.add(hull);
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.45, 0.16, 5.2), darkRecess);
-    deck.position.set(0, 0.48, 0.7);
+    const timberStructure = new THREE.Mesh(merchantTimberGeometry, timber);
+    timberStructure.castShadow = timberStructure.receiveShadow = true;
+    timberStructure.name = "Merged hull, spars, rails, beams, and steering oar";
+    boat.add(timberStructure);
+    const deck = new THREE.Mesh(merchantDeckGeometry, darkTimber);
     deck.castShadow = true;
+    deck.name = "Merged vessel deck, hatch, and stern platform";
     boat.add(deck);
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 8, 8), timber);
-    mast.position.y = 4;
-    boat.add(mast);
-    const yard = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 5, 8), timber);
-    yard.position.y = 5.7;
-    yard.rotation.z = Math.PI / 2 - 0.32;
-    boat.add(yard);
-    const sailGeometry = createLateenSailGeometry();
-    const canvas = new THREE.Mesh(sailGeometry, sail);
+    const canvas = new THREE.Mesh(merchantSailGeometry, sail);
     canvas.position.set(0, 4.35, 0);
+    canvas.castShadow = true;
+    canvas.name = "Billowed stitched lateen sail";
     boat.add(canvas);
-    const riggingGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, 7.8, 0),
-      new THREE.Vector3(-1.4, 0.7, 3.3),
-      new THREE.Vector3(0, 7.8, 0),
-      new THREE.Vector3(0, 0.7, -3.7),
-      new THREE.Vector3(0, 7.8, 0),
-      new THREE.Vector3(1.4, 0.7, 3.3),
-    ]);
-    const rigging = new THREE.LineSegments(
-      riggingGeometry,
-      new THREE.LineBasicMaterial({ color: 0x34261a, transparent: true, opacity: 0.8 }),
-    );
+    const rigging = new THREE.LineSegments(merchantRiggingGeometry, riggingMaterial);
+    rigging.name = "Standing and running rigging";
     boat.add(rigging);
     boat.userData.animate = (time) => {
       boat.rotation.z = Math.sin(time * 0.65 + x) * 0.018;
@@ -2010,10 +2105,12 @@ export function buildArena(THREE, scene) {
     animated.push(boat);
     return boat;
   };
-  addBoat(70, 64, 1.2, 0.08);
-  addBoat(79, 48, 0.72, Math.PI / 2);
-  addBoat(57, 73, 0.58, -0.25);
-  addBoat(54, 55, 0.7, 0.42);
+  const merchantBoats = [
+    addBoat(70, 64, 1.2, 0.08),
+    addBoat(79, 48, 0.72, Math.PI / 2),
+    addBoat(57, 73, 0.58, -0.25),
+    addBoat(54, 55, 0.7, 0.42),
+  ];
 
   // Extraction skiff, reachable from the wooden jetty.
   const skiff = new THREE.Group();
@@ -2021,20 +2118,35 @@ export function buildArena(THREE, scene) {
   skiff.rotation.y = Math.PI / 2;
   skiff.name = "Waiting skiff";
   root.add(skiff);
-  const skiffHull = new THREE.Mesh(createHullGeometry(4.4, 1.8, 0.7), timber);
-  skiffHull.position.y = 0.3;
+  const skiffHull = new THREE.Mesh(extractionSkiffGeometry, timber);
   skiffHull.castShadow = true;
+  skiffHull.name = "Merged extraction skiff with thwarts, rails, and oar";
   skiff.add(skiffHull);
-  for (const z of [-0.9, 0.2, 1.2]) {
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.12, 0.24), timber);
-    seat.position.set(0, 0.42, z);
-    skiff.add(seat);
-  }
   skiff.userData.animate = (time) => {
     skiff.position.y = 0.18 + Math.sin(time * 1.1) * 0.05;
     skiff.rotation.z = Math.sin(time * 0.75) * 0.022;
   };
   animated.push(skiff);
+  const measureMovingModel = (model) => {
+    const budget = { draws: 0, triangles: 0, lineSegments: 0 };
+    model.traverse((object) => {
+      if (object.isMesh) {
+        budget.draws += 1;
+        budget.triangles += object.geometry.index
+          ? object.geometry.index.count / 3
+          : object.geometry.attributes.position.count / 3;
+      } else if (object.isLineSegments) {
+        budget.draws += 1;
+        budget.lineSegments += object.geometry.attributes.position.count / 2;
+      }
+    });
+    return budget;
+  };
+  const vesselRenderBudget = {
+    merchantVessel: measureMovingModel(merchantBoats[0]),
+    merchantInstances: merchantBoats.length,
+    extractionSkiff: measureMovingModel(skiff),
+  };
 
   // Market props, amphorae, olive trees, and linen awnings.
   const pottery = new THREE.MeshStandardMaterial({
@@ -2954,5 +3066,6 @@ export function buildArena(THREE, scene) {
     streetCover,
     streetStories,
     renderBudget,
+    vesselRenderBudget,
   };
 }

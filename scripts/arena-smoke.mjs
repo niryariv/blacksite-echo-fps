@@ -77,6 +77,14 @@ try {
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
     throw new Error("Arena navigation metadata is incomplete");
   }
+  if (
+    arena.vesselRenderBudget.merchantVessel.draws > 4 ||
+    arena.vesselRenderBudget.extractionSkiff.draws > 1
+  ) {
+    throw new Error(
+      `Animated vessel draw budget regressed: ${JSON.stringify(arena.vesselRenderBudget)}`,
+    );
+  }
 
   const playerHeight = 1.72;
   const playerRadius = 0.46;
@@ -123,6 +131,7 @@ try {
     entryRoutes: arena.entryRoutes.length,
     blockedEntryAnchors,
     zones: arena.zones.length,
+    vesselRenderBudget: arena.vesselRenderBudget,
   }, null, 2));
 } finally {
   await vite.close();
