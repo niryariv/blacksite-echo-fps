@@ -285,6 +285,7 @@ const guards = [];
 let feedIndex = 0;
 let mapVisible = false;
 let selectedRouteId = "gate";
+let selectedModeId = "stealth";
 const discoveredStreetStories = new Set();
 let activeStreetStoryId = "";
 let streetStoryVisibleUntil = 0;
@@ -307,6 +308,9 @@ const game = {
   targetMoonExposure: 1,
   moonlit: true,
   compromised: false,
+  mode: "stealth",
+  explorationAlerts: 0,
+  alarmCooldown: 0,
   insertionUntil: Infinity,
 };
 
@@ -1014,6 +1018,7 @@ function getGuardAudioSpatial(guard, distance) {
 }
 
 function updateGuards(dt) {
+  game.alarmCooldown = Math.max(0, game.alarmCooldown - dt);
   if (game.inTunnel) {
     guards.forEach((guard) => {
       guard.root.visible = false;
@@ -1082,8 +1087,11 @@ function updateGuards(dt) {
     }
 
     if (guard.awareness >= 100) {
-      triggerAlarm("VISUAL CONFIRMATION // IDENTITY EXPOSED");
-      return;
+      const missionFailed = triggerAlarm("VISUAL CONFIRMATION // IDENTITY EXPOSED");
+      if (missionFailed) return;
+      guard.awareness = 75;
+      guard.state = "investigate";
+      guard.lastSeen.copy(player.position);
     }
 
     let desired = new THREE.Vector3();
@@ -1212,7 +1220,20 @@ function updateDetectionDirection(guard) {
 }
 
 function triggerAlarm(reason) {
-  if (game.phase !== "running" || game.compromised) return;
+  if (game.phase !== "running") return false;
+  if (game.mode === "explore") {
+    game.maxDetection = 100;
+    if (game.alarmCooldown <= 0) {
+      game.explorationAlerts += 1;
+      game.alarmCooldown = 3.5;
+      audio.alarm();
+      $("damage-vignette").classList.add("flash");
+      setTimeout(() => $("damage-vignette").classList.remove("flash"), 320);
+      addFeed(`${reason} // EXPLORATION CONTINUES`);
+    }
+    return false;
+  }
+  if (game.compromised) return true;
   game.compromised = true;
   game.detection = 100;
   game.maxDetection = 100;
@@ -1220,6 +1241,7 @@ function triggerAlarm(reason) {
   $("damage-vignette").classList.add("flash");
   addFeed(reason);
   setTimeout(() => endGame(false), 480);
+  return true;
 }
 
 function updateSeaWallTraversal(dt, prompt) {
@@ -1505,15 +1527,18 @@ function updateHUD() {
       discoveredStreetStories.size,
     );
     document.documentElement.dataset.activeStreetStory = activeStreetStoryId;
+    document.documentElement.dataset.gameMode = game.mode;
+    document.documentElement.dataset.invulnerable = String(game.mode === "explore");
+    document.documentElement.dataset.explorationAlerts = String(game.explorationAlerts);
   }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
   $("detection").classList.toggle("caution", detection >= 20 && detection < 65);
   $("detection").classList.toggle("danger", detection >= 65);
 
-  let profile = "GHOST";
-  if (game.maxDetection >= 55) profile = "EXPOSED";
-  else if (game.maxDetection >= 15) profile = "SHADOW";
+  let profile = game.mode === "explore" ? "EXPLORER" : "GHOST";
+  if (game.mode !== "explore" && game.maxDetection >= 55) profile = "EXPOSED";
+  else if (game.mode !== "explore" && game.maxDetection >= 15) profile = "SHADOW";
   $("profile").textContent = profile;
   $("profile").classList.toggle("compromised", profile === "EXPOSED");
 
@@ -2219,6 +2244,22 @@ function selectEntryRoute(routeId) {
   $("route-description").textContent = route.description;
 }
 
+function selectGameMode(modeId) {
+  if (modeId !== "stealth" && modeId !== "explore") return;
+  selectedModeId = modeId;
+  const exploring = modeId === "explore";
+  document.querySelectorAll(".mode-option").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === modeId);
+  });
+  $("mode-method").textContent = exploring ? "INVULNERABLE" : "STEALTH MISSION";
+  $("mode-description").textContent = exploring
+    ? "No death or detection failure · explore the city freely"
+    : "Detection ends the mission · intended stealth challenge";
+  $("deploy-button").innerHTML = exploring
+    ? "BEGIN EXPLORATION <i>→</i>"
+    : "BEGIN INFILTRATION <i>→</i>";
+}
+
 function deploy() {
   const route =
     arena.entryRoutes.find((candidate) => candidate.id === selectedRouteId) ||
@@ -2265,6 +2306,10 @@ function deploy() {
   player.needsBreath = false;
   player.wasSubmerged = false;
   game.phase = "running";
+  game.mode = selectedModeId;
+  game.compromised = false;
+  game.explorationAlerts = 0;
+  game.alarmCooldown = 0;
   game.entryRoute = route;
   game.enteredCity = !seaInsertion;
   game.seaWallInteraction = 0;
@@ -2287,6 +2332,9 @@ function deploy() {
   $("objective").textContent = game.enteredCity
     ? "INFILTRATE // RECOVER THE SEALED DISPATCH"
     : `INFILTRATE // ${route.method} AT ${route.shortName}`;
+  $("mode-status").textContent =
+    game.mode === "explore" ? "EXPLORATION // INVULNERABLE" : "STEALTH MISSION";
+  $("mode-status").classList.toggle("exploration", game.mode === "explore");
   $("start-screen").classList.remove("visible");
   $("start-screen").classList.add("hidden");
   $("pause-screen").classList.add("hidden");
@@ -2299,7 +2347,11 @@ function deploy() {
   requestGamePointerLock();
   addFeed(`${route.shortName} // INSERTION BEGUN`);
   if (seaInsertion) addFeed("WATERLINE // CROUCH TO SUBMERGE");
-  addFeed("UNARMED // LEAVE NO TRACE");
+  addFeed(
+    game.mode === "explore"
+      ? "EXPLORATION MODE // NO FAILURE"
+      : "UNARMED // LEAVE NO TRACE",
+  );
 }
 
 function endGame(success) {
@@ -2318,16 +2370,21 @@ function endGame(success) {
   $("end-screen").classList.remove("hidden");
   $("end-screen").classList.add("visible");
 
+  const exploring = game.mode === "explore";
   const immaculate = success && game.maxDetection < 12;
   $("end-title").textContent = success
-    ? immaculate
-      ? "UNSEEN PASSAGE"
-      : "THE SEA ROAD"
+    ? exploring
+      ? "EXPLORATION COMPLETE"
+      : immaculate
+        ? "UNSEEN PASSAGE"
+        : "THE SEA ROAD"
     : "COMPROMISED";
   $("end-copy").textContent = success
-    ? immaculate
-      ? "The dispatch is aboard. No witnesses, no injuries, no trace."
-      : "The dispatch is aboard. The watch grew suspicious, but no alarm was raised."
+    ? exploring
+      ? "The city remains open to memory. The dispatch is aboard whenever you are ready to leave."
+      : immaculate
+        ? "The dispatch is aboard. No witnesses, no injuries, no trace."
+        : "The dispatch is aboard. The watch grew suspicious, but no alarm was raised."
     : "The city watch confirmed an intruder. The mission has failed.";
 
   $("final-detection").textContent = `${Math.round(game.maxDetection)}%`;
@@ -2398,6 +2455,9 @@ addEventListener("blur", () => mouseButtons.clear());
 $("deploy-button").addEventListener("click", deploy);
 document.querySelectorAll(".route-option").forEach((button) => {
   button.addEventListener("click", () => selectEntryRoute(button.dataset.route));
+});
+document.querySelectorAll(".mode-option").forEach((button) => {
+  button.addEventListener("click", () => selectGameMode(button.dataset.mode));
 });
 $("resume-button").addEventListener("click", requestGamePointerLock);
 $("restart-button").addEventListener("click", () => location.reload());

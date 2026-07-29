@@ -30,6 +30,7 @@
         <section class="mission-block">
           <span id="location" class="eyebrow">ST ANTHONY'S GATE</span>
           <strong>SHADOWS OF ACRE // 1250 CE</strong>
+          <span id="mode-status" class="mode-status">STEALTH MISSION</span>
           <span id="objective">INFILTRATE // ENTER THE HOSPITALLER COURT</span>
         </section>
         <section class="score-block">
@@ -135,8 +136,9 @@
             Enter Frankish Acre beneath a bright Mediterranean moon. Keep to
             roof shadow, cross the merchant quarters, and take the sealed
             dispatch from the Hospitaller court. Reach the skiff unseen and
-            unharmed. You enter unarmed: if the watch confirms you, the mission
-            is lost. Listen carefully: iron-shod steps grow sharper as guards
+            unharmed. You enter unarmed. In Mission mode, confirmation by the
+            watch ends the run; Exploration mode keeps the city open without
+            failure. Listen carefully: iron-shod steps grow sharper as guards
             approach and dull behind stone.
           </p>
           <div class="route-heading">
@@ -159,6 +161,21 @@
           </div>
           <p id="route-description" class="route-description">
             Longest approach · broad sightlines · no climb
+          </p>
+          <div class="mode-heading">
+            <span>CHOOSE EXPERIENCE</span>
+            <strong id="mode-method">STEALTH MISSION</strong>
+          </div>
+          <div id="mode-selector" class="mode-selector">
+            <button type="button" class="mode-option active" data-mode="stealth">
+              MISSION
+            </button>
+            <button type="button" class="mode-option" data-mode="explore">
+              EXPLORATION
+            </button>
+          </div>
+          <p id="mode-description" class="mode-description">
+            Detection ends the mission · intended stealth challenge
           </p>
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>

@@ -38,6 +38,10 @@ Open the local URL printed by Vite, click **Enter Acre**, and allow mouse captur
 The player enters unarmed. Success depends entirely on completing the mission
 without being confirmed by the watch. Guards can see, hear, and investigate
 disturbances, so route choice, quiet movement, and darkness are the only tools.
+The start screen also offers **Exploration mode**. It keeps guard perception,
+objectives, discoveries, swimming, and traversal active, but visual
+confirmation cannot end the session; alarms become warnings so the city can be
+explored without failure.
 The mission unfolds beneath a bright Mediterranean moon: open ground makes the
 player easier to see, while buildings, walls, and the underground Templar tunnel
 provide shelter. The live **Moon Exposure** meter shows when moonlight is raising
