@@ -6,6 +6,7 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { buildArena } from "./arena.js";
 import { StealthAudio } from "./audio.js";
 
@@ -365,6 +366,7 @@ if (import.meta.env.DEV) {
         textures: renderer.info.memory.textures,
         geometries: renderer.info.memory.geometries,
         staticCity: arena.renderBudget,
+        guardModel: guards[0]?.modelBudget || null,
       };
     },
     blockedAt(x, z, floorY = 0) {
@@ -470,18 +472,118 @@ guardVisionGeometry.setAttribute(
 );
 guardVisionGeometry.setIndex([0, 1, 2]);
 guardVisionGeometry.computeVertexNormals();
+const transformedGuardGeometry = (
+  geometry,
+  position = [0, 0, 0],
+  rotation = [0, 0, 0],
+  scale = [1, 1, 1],
+) => {
+  const transformed = geometry.clone();
+  const matrix = new THREE.Matrix4().compose(
+    new THREE.Vector3(...position),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation)),
+    new THREE.Vector3(...scale),
+  );
+  transformed.applyMatrix4(matrix);
+  return transformed;
+};
+const mergeGuardParts = (parts) => mergeGeometries(
+  parts.map(({ geometry, position, rotation, scale }) =>
+    transformedGuardGeometry(geometry, position, rotation, scale)),
+  false,
+);
+const eyeParts = [-1, 1].flatMap((side) => [
+  {
+    geometry: new THREE.SphereGeometry(0.018, 6, 4),
+    position: [side * 0.065, 0.02, 0.279],
+  },
+  {
+    geometry: new THREE.BoxGeometry(0.065, 0.012, 0.012),
+    position: [side * 0.065, 0.071, 0.273],
+    rotation: [0, 0, side * -0.08],
+  },
+]);
 const guardGeometries = {
-  body: new THREE.CapsuleGeometry(0.29, 0.42, 6, 12),
-  mailSkirt: new THREE.CylinderGeometry(0.31, 0.39, 0.58, 12),
+  torsoArmor: mergeGuardParts([
+    {
+      geometry: new THREE.CapsuleGeometry(0.29, 0.42, 6, 12),
+      position: [0, 0.16, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.31, 0.39, 0.58, 12),
+      position: [0, -0.19, 0],
+    },
+  ]),
   surcoat: new THREE.CylinderGeometry(0.3, 0.4, 1.02, 12),
   belt: new THREE.BoxGeometry(0.71, 0.085, 0.48),
-  heraldryVertical: new THREE.BoxGeometry(0.09, 0.48, 0.035),
-  heraldryHorizontal: new THREE.BoxGeometry(0.34, 0.085, 0.04),
-  head: new THREE.SphereGeometry(0.19, 18, 12),
-  coif: new THREE.SphereGeometry(0.235, 18, 12),
-  helmet: new THREE.ConeGeometry(0.255, 0.32, 18),
-  helmetBrim: new THREE.CylinderGeometry(0.29, 0.29, 0.05, 18),
-  noseGuard: new THREE.BoxGeometry(0.038, 0.25, 0.045),
+  beltBuckle: new THREE.BoxGeometry(0.11, 0.13, 0.035),
+  surcoatHeraldry: mergeGuardParts([
+    {
+      geometry: new THREE.BoxGeometry(0.09, 0.48, 0.035),
+      position: [0, 0.18, 0.335],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.34, 0.085, 0.04),
+      position: [0, 0.26, 0.337],
+    },
+  ]),
+  headSkin: mergeGuardParts([
+    {
+      geometry: new THREE.SphereGeometry(0.19, 16, 10),
+      position: [0, -0.02, 0.105],
+      scale: [0.9, 1.08, 0.9],
+    },
+    {
+      geometry: new THREE.ConeGeometry(0.043, 0.13, 7),
+      position: [0, -0.035, 0.277],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      geometry: new THREE.SphereGeometry(0.043, 6, 4),
+      position: [-0.18, -0.02, 0.09],
+      scale: [0.55, 1, 0.55],
+    },
+    {
+      geometry: new THREE.SphereGeometry(0.043, 6, 4),
+      position: [0.18, -0.02, 0.09],
+      scale: [0.55, 1, 0.55],
+    },
+  ]),
+  faceBare: mergeGuardParts(eyeParts),
+  faceBearded: mergeGuardParts([
+    ...eyeParts,
+    {
+      geometry: new THREE.ConeGeometry(0.17, 0.23, 9),
+      position: [0, -0.14, 0.225],
+      rotation: [0, 0, Math.PI],
+      scale: [1, 1, 0.42],
+    },
+  ]),
+  coif: new THREE.SphereGeometry(0.235, 16, 10),
+  helmetIron: mergeGuardParts([
+    {
+      geometry: new THREE.ConeGeometry(0.255, 0.32, 16),
+      position: [0, 0.205, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.29, 0.29, 0.05, 16),
+      position: [0, 0.09, 0],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.038, 0.25, 0.045),
+      position: [0, -0.03, 0.245],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.05, 0.2, 0.035),
+      position: [-0.19, -0.015, 0.15],
+      rotation: [0, 0, -0.12],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.05, 0.2, 0.035),
+      position: [0.19, -0.015, 0.15],
+      rotation: [0, 0, 0.12],
+    },
+  ]),
   leg: new THREE.CapsuleGeometry(0.105, 0.5, 5, 10),
   boot: new THREE.BoxGeometry(0.22, 0.2, 0.34),
   arm: new THREE.CapsuleGeometry(0.085, 0.46, 5, 10),
@@ -494,9 +596,54 @@ const guardGeometries = {
     bevelThickness: 0.018,
     bevelSegments: 2,
   }),
-  shieldCrossVertical: new THREE.BoxGeometry(0.075, 0.64, 0.025),
-  shieldCrossHorizontal: new THREE.BoxGeometry(0.34, 0.07, 0.025),
-  farBody: new THREE.CapsuleGeometry(0.34, 1.12, 4, 8),
+  shieldHeraldry: mergeGuardParts([
+    {
+      geometry: new THREE.BoxGeometry(0.075, 0.64, 0.025),
+      position: [0, 0.09, 0.085],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.34, 0.07, 0.025),
+      position: [0, 0.17, 0.087],
+    },
+  ]),
+  shieldBoss: new THREE.SphereGeometry(0.105, 8, 5),
+  farBody: mergeGuardParts([
+    {
+      geometry: new THREE.CapsuleGeometry(0.3, 0.58, 3, 6),
+      position: [0, 1.2, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.3, 0.39, 0.55, 7),
+      position: [0, 0.86, 0],
+    },
+    {
+      geometry: new THREE.IcosahedronGeometry(0.205, 1),
+      position: [0, 1.83, 0.07],
+      scale: [0.9, 1.08, 0.9],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.18, 0.62, 0.2),
+      position: [-0.16, 0.38, 0],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.18, 0.62, 0.2),
+      position: [0.16, 0.38, 0],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.045, 2.5, 0.045),
+      position: [0.47, 1.2, 0.15],
+      rotation: [0, 0, -0.16],
+    },
+    {
+      geometry: new THREE.ExtrudeGeometry(guardShieldShape, {
+        depth: 0.035,
+        bevelEnabled: false,
+        curveSegments: 1,
+      }),
+      position: [-0.4, 1.2, 0.22],
+      scale: [0.88, 0.88, 0.88],
+    },
+  ]),
   vision: guardVisionGeometry,
 };
 const createGuardSurface = (size, painter, repeatX = 1, repeatY = 1) => {
@@ -593,6 +740,15 @@ const guardMaterials = {
     roughness: 0.88,
   }),
   skin: new THREE.MeshStandardMaterial({ color: 0x9b6f50, roughness: 0.92 }),
+  hair: new THREE.MeshStandardMaterial({
+    color: 0x26170f,
+    roughness: 1,
+  }),
+  iron: new THREE.MeshStandardMaterial({
+    color: 0x747a78,
+    metalness: 0.78,
+    roughness: 0.48,
+  }),
   heraldry: new THREE.MeshStandardMaterial({
     color: 0xd9d0b9,
     map: clothTexture,
@@ -607,65 +763,93 @@ function createGuard(index, position, options = {}) {
   const chainmail = guardMaterials.chainmail;
   const cloth = guardMaterials.cloth[index % guardMaterials.cloth.length];
   const leggings = guardMaterials.leggings[index % guardMaterials.leggings.length];
-  const { leather, skin, heraldry } = guardMaterials;
+  const { leather, skin, hair, iron, heraldry } = guardMaterials;
 
-  const body = new THREE.Mesh(guardGeometries.body, chainmail);
-  body.position.y = 1.26;
-  const mailSkirt = new THREE.Mesh(guardGeometries.mailSkirt, chainmail);
-  mailSkirt.position.y = 0.91;
+  const torso = new THREE.Group();
+  torso.position.y = 1.1;
+  torso.name = "Guard torso pivot";
+  const body = new THREE.Mesh(guardGeometries.torsoArmor, chainmail);
+  body.name = "Merged mail hauberk and skirt";
   const surcoat = new THREE.Mesh(guardGeometries.surcoat, cloth);
-  surcoat.position.set(0, 1.12, 0.015);
+  surcoat.position.set(0, 0.02, 0.015);
+  surcoat.name = "Wool guard surcoat";
   const belt = new THREE.Mesh(guardGeometries.belt, leather);
-  belt.position.set(0, 1.03, 0);
-  const heraldryVertical = new THREE.Mesh(guardGeometries.heraldryVertical, heraldry);
-  heraldryVertical.position.set(0, 1.28, 0.335);
-  const heraldryHorizontal = new THREE.Mesh(guardGeometries.heraldryHorizontal, heraldry);
-  heraldryHorizontal.position.set(0, 1.36, 0.337);
-  const head = new THREE.Mesh(guardGeometries.head, skin);
-  head.scale.set(0.9, 1.08, 0.9);
-  head.position.set(0, 1.82, 0.105);
+  belt.position.set(0, -0.07, 0);
+  belt.name = "Guard leather belt";
+  const beltBuckle = new THREE.Mesh(guardGeometries.beltBuckle, iron);
+  beltBuckle.position.set(0, -0.07, 0.255);
+  beltBuckle.name = "Guard belt buckle";
+  const surcoatHeraldry = new THREE.Mesh(guardGeometries.surcoatHeraldry, heraldry);
+  surcoatHeraldry.name = "Merged surcoat cross";
+  torso.add(body, surcoat, belt, beltBuckle, surcoatHeraldry);
+
+  const headGroup = new THREE.Group();
+  headGroup.position.y = 1.84;
+  headGroup.name = "Guard head pivot";
+  const head = new THREE.Mesh(guardGeometries.headSkin, skin);
+  head.name = "Guard face with ears and nose";
   const coif = new THREE.Mesh(guardGeometries.coif, chainmail);
   coif.scale.set(1, 1.16, 0.94);
-  coif.position.set(0, 1.84, -0.025);
-  const helmet = new THREE.Mesh(guardGeometries.helmet, chainmail);
-  helmet.position.y = 2.045;
-  const helmetBrim = new THREE.Mesh(guardGeometries.helmetBrim, chainmail);
-  helmetBrim.position.y = 1.93;
-  const noseGuard = new THREE.Mesh(guardGeometries.noseGuard, chainmail);
-  noseGuard.position.set(0, 1.81, 0.245);
+  coif.position.z = -0.025;
+  coif.name = "Chainmail coif";
+  const helmet = new THREE.Mesh(guardGeometries.helmetIron, iron);
+  helmet.name = "Merged nasal helmet";
+  const faceDetails = new THREE.Mesh(
+    index % 3 === 1 ? guardGeometries.faceBare : guardGeometries.faceBearded,
+    hair,
+  );
+  faceDetails.name = index % 3 === 1
+    ? "Guard eyes and brows"
+    : "Guard eyes, brows, and beard";
+  headGroup.add(head, coif, helmet, faceDetails);
 
-  const legs = [-0.19, 0.19].map((x) => {
+  const legs = [-1, 1].map((side) => {
+    const legPivot = new THREE.Group();
+    legPivot.position.set(side * 0.19, 0.82, 0);
+    legPivot.name = "Guard hip pivot";
     const leg = new THREE.Mesh(guardGeometries.leg, leggings);
-    leg.position.set(x, 0.53, 0);
-    return leg;
-  });
-  const boots = [-0.19, 0.19].map((x) => {
+    leg.position.y = -0.29;
     const boot = new THREE.Mesh(guardGeometries.boot, leather);
-    boot.position.set(x, 0.13, 0.08);
-    return boot;
+    boot.position.set(0, -0.69, 0.08);
+    boot.name = "Guard leather boot";
+    legPivot.add(leg, boot);
+    return legPivot;
   });
   const arms = [-1, 1].map((side) => {
+    const armPivot = new THREE.Group();
+    armPivot.position.set(side * 0.39, 1.48, 0.03);
+    armPivot.rotation.z = side * -0.1;
+    armPivot.name = "Guard shoulder pivot";
     const arm = new THREE.Mesh(guardGeometries.arm, cloth);
-    arm.position.set(side * 0.39, 1.23, 0.03);
-    arm.rotation.z = side * -0.1;
-    return arm;
+    arm.position.y = -0.25;
+    armPivot.add(arm);
+    return armPivot;
   });
   const spear = new THREE.Group();
   const shaft = new THREE.Mesh(guardGeometries.spearShaft, leather);
-  const point = new THREE.Mesh(guardGeometries.spearPoint, chainmail);
+  shaft.name = "Ash spear shaft";
+  const point = new THREE.Mesh(guardGeometries.spearPoint, iron);
   point.position.y = 1.45;
+  point.name = "Forged spear point";
   spear.add(shaft, point);
-  spear.position.set(0.48, 1.15, 0.2);
+  spear.position.set(0.09, -0.33, 0.17);
   spear.rotation.z = -0.16;
-  const shield = new THREE.Mesh(
-    guardGeometries.shield,
-    cloth,
-  );
-  shield.position.set(-0.42, 1.22, 0.27);
-  const shieldCrossVertical = new THREE.Mesh(guardGeometries.shieldCrossVertical, heraldry);
-  shieldCrossVertical.position.set(-0.42, 1.31, 0.355);
-  const shieldCrossHorizontal = new THREE.Mesh(guardGeometries.shieldCrossHorizontal, heraldry);
-  shieldCrossHorizontal.position.set(-0.42, 1.39, 0.357);
+  spear.name = "Guard spear";
+  arms[1].add(spear);
+
+  const shieldAssembly = new THREE.Group();
+  shieldAssembly.position.set(-0.03, -0.26, 0.24);
+  shieldAssembly.name = "Guard shield assembly";
+  const shield = new THREE.Mesh(guardGeometries.shield, cloth);
+  shield.name = "Kite shield";
+  const shieldHeraldry = new THREE.Mesh(guardGeometries.shieldHeraldry, heraldry);
+  shieldHeraldry.name = "Merged shield cross";
+  const shieldBoss = new THREE.Mesh(guardGeometries.shieldBoss, iron);
+  shieldBoss.position.set(0, 0.02, 0.115);
+  shieldBoss.scale.z = 0.45;
+  shieldBoss.name = "Forged shield boss";
+  shieldAssembly.add(shield, shieldHeraldry, shieldBoss);
+  arms[0].add(shieldAssembly);
 
   const coneMaterial = new THREE.MeshBasicMaterial({
     color: 0xff3d25,
@@ -680,37 +864,22 @@ function createGuard(index, position, options = {}) {
   const detailRoot = new THREE.Group();
   detailRoot.name = "Guard full-detail model";
   detailRoot.add(
-    body,
-    mailSkirt,
-    surcoat,
-    belt,
-    heraldryVertical,
-    heraldryHorizontal,
-    coif,
-    head,
-    helmet,
-    helmetBrim,
-    noseGuard,
+    torso,
+    headGroup,
     ...legs,
-    ...boots,
     ...arms,
-    spear,
-    shield,
-    shieldCrossVertical,
-    shieldCrossHorizontal,
   );
   const farBody = new THREE.Mesh(
     guardGeometries.farBody,
     cloth,
   );
   farBody.name = "Guard distance silhouette";
-  farBody.position.y = 1.05;
+  farBody.position.y = 0;
   farBody.visible = false;
   farBody.castShadow = true;
   farBody.receiveShadow = true;
   const principalShadowCasters = new Set([
     body,
-    mailSkirt,
     surcoat,
     head,
     coif,
@@ -723,20 +892,29 @@ function createGuard(index, position, options = {}) {
       object.receiveShadow = true;
     }
   });
+  const modelBudget = { meshDraws: 0, triangles: 0 };
+  detailRoot.traverse((object) => {
+    if (!object.isMesh) return;
+    modelBudget.meshDraws += 1;
+    modelBudget.triangles += object.geometry.index
+      ? object.geometry.index.count / 3
+      : object.geometry.attributes.position.count / 3;
+  });
   root.add(visionCone, detailRoot, farBody);
   scene.add(root);
 
   const guard = {
     index,
     root,
-    body,
-    head,
+    body: torso,
+    head: headGroup,
     legs,
     arms,
     detailRoot,
     farBody,
     visionCone,
     coneMaterial,
+    modelBudget,
     home: root.position.clone(),
     target: root.position.clone(),
     lastSeen: root.position.clone(),
@@ -782,6 +960,11 @@ arena.mission.wallGuardSpawns.forEach((wallGuard, wallIndex) => {
     }),
   );
 });
+if (import.meta.env.DEV) {
+  document.documentElement.dataset.guardModelBudget = JSON.stringify(
+    guards[0]?.modelBudget || null,
+  );
+}
 
 function createMissionObjects() {
   const terminal = new THREE.Group();
@@ -1302,13 +1485,21 @@ function updateGuards(dt) {
       guard.root.rotation.y += Math.PI * 0.35;
     }
 
-    const gait = Math.sin(guard.phase * 7.5) * Math.min(desired.length(), 1);
+    const movement = Math.min(desired.length(), 1);
+    const gait = Math.sin(guard.phase * 7.5) * movement;
+    guard.detailRoot.position.y =
+      Math.abs(gait) * 0.022 + Math.sin(guard.phase * 1.15) * 0.004;
     guard.body.rotation.z = gait * 0.018;
-    guard.legs[0].rotation.x = gait * 0.32;
-    guard.legs[1].rotation.x = -gait * 0.32;
-    guard.arms[0].rotation.x = -gait * 0.18;
-    guard.arms[1].rotation.x = gait * 0.18;
-    guard.head.rotation.y = Math.sin(guard.phase * 1.1) * 0.06;
+    guard.body.rotation.x = guard.state === "patrol" ? 0 : -0.025;
+    guard.legs[0].rotation.x = gait * 0.34;
+    guard.legs[1].rotation.x = -gait * 0.34;
+    // The equipment-bearing arms move less than a free walking swing, keeping
+    // the kite shield braced and the spear upright while still feeling alive.
+    guard.arms[0].rotation.x = -gait * 0.075;
+    guard.arms[1].rotation.x = gait * 0.065;
+    guard.head.rotation.y =
+      Math.sin(guard.phase * 1.1) * (guard.state === "patrol" ? 0.085 : 0.035);
+    guard.head.rotation.z = Math.sin(guard.phase * 0.74) * 0.012;
     guard.coneMaterial.opacity = 0.035 + (guard.awareness / 100) * 0.13;
     guard.coneMaterial.color.setHex(guard.awareness > 55 ? 0xff281b : 0xff8a25);
 
