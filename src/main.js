@@ -19,6 +19,8 @@ const mapStaticCanvas = document.createElement("canvas");
 let mapStaticKey = "";
 const devFastInteractions =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-fast");
+const devAutoWalk =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("qa-walk");
 mapParchment.addEventListener("load", () => {
   mapStaticKey = "";
 });
@@ -1007,7 +1009,11 @@ function updateSeaWallTraversal(dt, prompt) {
     return false;
   }
 
-  if (keys.has("KeyE")) {
+  // Continuing to press forward at a marked climb should never feel like
+  // walking into an unexplained invisible wall. E remains available for
+  // deliberate interaction, while W naturally commits to the ascent.
+  const climbHeld = keys.has("KeyE") || keys.has("KeyW");
+  if (climbHeld) {
     game.seaWallInteraction += dt;
     player.noise = Math.max(player.noise, 24);
   } else {
@@ -1019,7 +1025,7 @@ function updateSeaWallTraversal(dt, prompt) {
       ? 1.65
       : 1.35;
   const progress = THREE.MathUtils.clamp(game.seaWallInteraction / duration, 0, 1);
-  prompt.innerHTML = `HOLD <strong>[ E ]</strong> ${route.method}
+  prompt.innerHTML = `HOLD <strong>[ W ]</strong> TO CLIMB <small>${route.method} · [ E ] ALSO</small>
     <span class="progress"><i style="width:${progress * 100}%"></i></span>`;
   prompt.classList.remove("hidden");
 
@@ -1250,8 +1256,8 @@ function updateHUD() {
   $("bearing").textContent = `${cardinal}  ${String(Math.round(degrees)).padStart(3, "0")}`;
 
   const waypointTarget =
-    !game.enteredCity && game.entryRoute?.exterior
-      ? game.entryRoute.exterior
+    !game.enteredCity && game.entryRoute?.arrival
+      ? game.entryRoute.arrival
       : game.stage === "infiltrate"
         ? missionObjects.terminal.position
         : missionObjects.exfil.position;
@@ -1882,6 +1888,10 @@ function deploy() {
   if (devFastInteractions && !game.enteredCity) {
     keys.add("KeyE");
     setTimeout(() => keys.delete("KeyE"), 180);
+  }
+  if (devAutoWalk) {
+    keys.add("KeyW");
+    setTimeout(() => keys.delete("KeyW"), 3000);
   }
   $("objective").textContent = game.enteredCity
     ? "INFILTRATE // RECOVER THE SEALED DISPATCH"

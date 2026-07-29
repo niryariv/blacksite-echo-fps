@@ -705,9 +705,9 @@ export function buildArena(THREE, scene) {
   };
 
   addInsertionBoat({ x: -104.2, z: -11, orientation: "west" });
-  addRope(-101.82, -11);
+  addRope(-101.82, -10.45);
   addInsertionBoat({ x: -70, z: 85.2 });
-  addRope(-70, 82.82);
+  addRope(-69.45, 82.82);
   addInsertionBoat({ x: -9, z: 85.2 });
   // The Pisan approach uses eroded kurkar blocks as handholds instead of rope.
   for (let step = 0; step < 5; step += 1) {
