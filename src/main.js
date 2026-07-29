@@ -695,6 +695,35 @@ function guardBlocked(position) {
   );
 }
 
+const collisionCandidate = new THREE.Vector3();
+function movePlayerWithCollisions(deltaX, deltaZ) {
+  // Substep the capsule so a sprinting player cannot cross a thin wall between
+  // two rendered frames. Axis-separated checks preserve natural wall sliding.
+  const distance = Math.hypot(deltaX, deltaZ);
+  const maxStep = player.radius * 0.4;
+  const steps = Math.max(1, Math.ceil(distance / maxStep));
+  const stepX = deltaX / steps;
+  const stepZ = deltaZ / steps;
+
+  for (let step = 0; step < steps; step += 1) {
+    collisionCandidate.copy(player.position);
+    collisionCandidate.x += stepX;
+    if (!boxCollides(collisionCandidate)) {
+      player.position.x = collisionCandidate.x;
+    } else {
+      player.velocity.x = 0;
+    }
+
+    collisionCandidate.copy(player.position);
+    collisionCandidate.z += stepZ;
+    if (!boxCollides(collisionCandidate)) {
+      player.position.z = collisionCandidate.z;
+    } else {
+      player.velocity.z = 0;
+    }
+  }
+}
+
 function updatePlayer(dt) {
   player.crouched =
     mouseButtons.has(2) ||
@@ -717,14 +746,7 @@ function updatePlayer(dt) {
   player.velocity.x = THREE.MathUtils.damp(player.velocity.x, move.x * speed, 13, dt);
   player.velocity.z = THREE.MathUtils.damp(player.velocity.z, move.z * speed, 13, dt);
 
-  const nextX = player.position.clone();
-  nextX.x += player.velocity.x * dt;
-  if (!boxCollides(nextX)) player.position.x = nextX.x;
-  else player.velocity.x = 0;
-  const nextZ = player.position.clone();
-  nextZ.z += player.velocity.z * dt;
-  if (!boxCollides(nextZ)) player.position.z = nextZ.z;
-  else player.velocity.z = 0;
+  movePlayerWithCollisions(player.velocity.x * dt, player.velocity.z * dt);
 
   const targetHeight = player.crouched ? 1.12 : 1.72;
   player.height = THREE.MathUtils.damp(player.height, targetHeight, 14, dt);
@@ -1044,6 +1066,8 @@ function updateHUD() {
     document.documentElement.dataset.mouseRun = String(mouseButtons.has(0));
     document.documentElement.dataset.mouseCrouch = String(mouseButtons.has(2));
     document.documentElement.dataset.posture = player.crouched ? "crouched" : "upright";
+    document.documentElement.dataset.playerX = player.position.x.toFixed(3);
+    document.documentElement.dataset.playerZ = player.position.z.toFixed(3);
   }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
@@ -1924,6 +1948,76 @@ function animate() {
   renderer.info.reset();
   frameWorkSamples.push(performance.now() - frameWorkStarted);
   updateAdaptiveQuality(performance.now());
+}
+
+if (import.meta.env.DEV) {
+  const savedPosition = player.position.clone();
+  const savedVelocity = player.velocity.clone();
+  const savedHeight = player.height;
+  const savedFloorY = player.floorY;
+
+  player.height = 1.72;
+  player.floorY = 0;
+  player.position.set(99, 1.72, -50);
+  movePlayerWithCollisions(-10, 0);
+  const eastWallStop = player.position.x;
+
+  player.position.set(-31, 1.72, -48);
+  movePlayerWithCollisions(0, -20);
+  const hospitallerWallStop = player.position.z;
+
+  player.floorY = -5.25;
+  player.position.set(-10, -3.53, 50);
+  movePlayerWithCollisions(0, -10);
+  const tunnelWallStop = player.position.z;
+
+  document.documentElement.dataset.collisionSelfTest = String(
+    eastWallStop >= 96.05 &&
+      hospitallerWallStop >= -51.55 &&
+      tunnelWallStop >= 48.48,
+  );
+  document.documentElement.dataset.collisionStops = [
+    eastWallStop,
+    hospitallerWallStop,
+    tunnelWallStop,
+  ]
+    .map((value) => value.toFixed(3))
+    .join(",");
+  document.documentElement.dataset.missionAnchorsClear = String(
+    !boxCollides(
+      new THREE.Vector3(
+        arena.mission.target.x,
+        1.72,
+        arena.mission.target.z,
+      ),
+    ) &&
+      !boxCollides(
+        new THREE.Vector3(
+          arena.mission.exfil.x,
+          1.72,
+          arena.mission.exfil.z,
+        ),
+      ) &&
+      !boxCollides(
+        new THREE.Vector3(
+          arena.tunnel.portals[0].underground.x,
+          arena.tunnel.floorY + 1.72,
+          arena.tunnel.portals[0].underground.z,
+        ),
+      ) &&
+      !boxCollides(
+        new THREE.Vector3(
+          arena.tunnel.portals[1].underground.x,
+          arena.tunnel.floorY + 1.72,
+          arena.tunnel.portals[1].underground.z,
+        ),
+      ),
+  );
+
+  player.position.copy(savedPosition);
+  player.velocity.copy(savedVelocity);
+  player.height = savedHeight;
+  player.floorY = savedFloorY;
 }
 
 animate();

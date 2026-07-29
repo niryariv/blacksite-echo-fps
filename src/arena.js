@@ -332,7 +332,9 @@ export function buildArena(THREE, scene) {
     mesh.castShadow = mesh.receiveShadow = true;
     mesh.name = name;
     parent.add(mesh);
-    if (collider) addCollider([radius * 1.6, height, radius * 1.6], position);
+    // A near-diameter footprint prevents the player capsule from clipping
+    // through the visible outer masonry of towers, apses, and columns.
+    if (collider) addCollider([radius * 1.9, height, radius * 1.9], position);
     return mesh;
   };
 
@@ -595,6 +597,7 @@ export function buildArena(THREE, scene) {
           ? [p, size[1] * 0.38, position[2] + size[2] / 2 + 1.1]
           : [position[0] - size[0] / 2 - 1.1, size[1] * 0.38, p],
         material: oldStone,
+        collider: true,
         shadows: true,
         name: "Wall buttress",
       });
@@ -633,6 +636,7 @@ export function buildArena(THREE, scene) {
         size: [0.62, 4.25, 0.86],
         position: [faceX, 2.12, -22 + side * 3.15],
         material: paleStone,
+        collider: true,
         parent: gate,
         shadows: false,
         name: "Gate jamb",
@@ -644,6 +648,7 @@ export function buildArena(THREE, scene) {
       size: [5.2, 6.2, 2.2],
       position: [88.7, 3.1, z],
       material: oldStone,
+      collider: true,
       parent: gate,
       name: "Gate buttress",
     });
@@ -923,7 +928,7 @@ export function buildArena(THREE, scene) {
   for (const z of [-51.2, -30.8]) {
     const arcadeColumns = [-44, -37.5, -31, -24.5, -18];
     for (const x of arcadeColumns) {
-      addCylinder({ radius: 0.48, height: 3.5, position: [x, 1.75, z], material: paleStone, segments: 10, parent: hospital, name: "Courtyard column" });
+      addCylinder({ radius: 0.48, height: 3.5, position: [x, 1.75, z], material: paleStone, segments: 10, parent: hospital, name: "Courtyard column", collider: true });
       addCylinder({ radius: 0.66, height: 0.22, position: [x, 0.11, z], material: oldStone, segments: 10, parent: hospital, name: "Column base" });
       addCylinder({ radius: 0.66, height: 0.24, position: [x, 3.46, z], material: oldStone, segments: 10, parent: hospital, name: "Column capital" });
     }
@@ -961,7 +966,7 @@ export function buildArena(THREE, scene) {
       name: "Banner rail",
     });
   }
-  const well = addCylinder({ radius: 1.35, height: 0.9, position: [-37, 0.45, -42], material: paleStone, segments: 18, parent: hospital, name: "Hospitaller well" });
+  const well = addCylinder({ radius: 1.35, height: 0.9, position: [-37, 0.45, -42], material: paleStone, segments: 18, parent: hospital, name: "Hospitaller well", collider: true });
   well.geometry = new THREE.CylinderGeometry(1.35, 1.35, 0.9, 18, 1, true);
   for (const side of [-1, 1]) {
     addBox({
@@ -1048,7 +1053,7 @@ export function buildArena(THREE, scene) {
   const apse = addCylinder({ radius: 6, height: 9, position: [-20, 4.5, 10], material: paleStone, segments: 20, parent: cathedral, name: "Cathedral apse", collider: true });
   apse.scale.z = 0.62;
   for (const x of [-27, -13]) {
-    addCylinder({ radius: 0.65, height: 5.2, position: [x, 2.6, 13], material: oldStone, segments: 12, parent: cathedral, name: "Reused Byzantine column" });
+    addCylinder({ radius: 0.65, height: 5.2, position: [x, 2.6, 13], material: oldStone, segments: 12, parent: cathedral, name: "Reused Byzantine column", collider: true });
   }
   const dome = new THREE.Mesh(
     new THREE.SphereGeometry(5.2, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2),
@@ -1084,7 +1089,7 @@ export function buildArena(THREE, scene) {
   // Covered Genoese market street.
   for (let z = -19; z <= 18; z += 6.5) {
     for (const x of [5, 13]) {
-      addCylinder({ radius: 0.48, height: 3.6, position: [x, 1.8, z], material: paleStone, segments: 10, name: "Market arcade column" });
+      addCylinder({ radius: 0.48, height: 3.6, position: [x, 1.8, z], material: paleStone, segments: 10, name: "Market arcade column", collider: true });
     }
     addArch({
       radius: 3.45,
@@ -1297,8 +1302,8 @@ export function buildArena(THREE, scene) {
   addCollider([52, 2.3, 16], [68, 0.8, 50]);
   addCollider([52, 2.3, 13], [68, 0.8, 75.5]);
   addCollider([28, 2.3, 12], [80, 0.8, 64]);
-  addBox({ size: [48, 1.65, 3], position: [67, 0.3, 42], material: oldStone, name: "Northern harbour quay" });
-  addBox({ size: [3, 1.65, 37], position: [42, 0.3, 61], material: oldStone, name: "Western harbour quay" });
+  addBox({ size: [48, 1.65, 3], position: [67, 0.3, 42], material: oldStone, collider: true, name: "Northern harbour quay" });
+  addBox({ size: [3, 1.65, 37], position: [42, 0.3, 61], material: oldStone, collider: true, name: "Western harbour quay" });
   addBox({ size: [24, 0.8, 6], position: [42, 0.4, 64], material: timber, name: "Harbour jetty" });
   addBox({ size: [5, 2.2, 58], position: [91, 0.7, 50], material: oldStone, collider: true, name: "Harbour mole" });
   addBox({ size: [41, 2.2, 4], position: [71, 0.7, 80], material: oldStone, collider: true, name: "Southern harbour mole" });
