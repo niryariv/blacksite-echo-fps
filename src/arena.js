@@ -1532,14 +1532,47 @@ export function buildArena(THREE, scene) {
     });
   }
   addBox({ size: [2.7, 0.18, 0.18], position: [-37, 2.95, -42], material: timber, parent: hospital, name: "Well crossbar" });
-  const wellRope = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-37, 2.95, -42),
-      new THREE.Vector3(-37, 0.62, -42),
-    ]),
-    new THREE.LineBasicMaterial({ color: 0x45321e }),
+  const wellWindlass = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.19, 0.22, 2.3, 10),
+    darkTimber,
   );
+  wellWindlass.position.set(-37, 2.68, -42);
+  wellWindlass.rotation.z = Math.PI / 2;
+  wellWindlass.castShadow = true;
+  wellWindlass.name = "Well windlass drum";
+  hospital.add(wellWindlass);
+  const wellAxle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.052, 0.052, 2.72, 7),
+    agedIron,
+  );
+  wellAxle.position.set(-37, 2.68, -42);
+  wellAxle.rotation.z = Math.PI / 2;
+  wellAxle.name = "Well windlass axle";
+  hospital.add(wellAxle);
+  const wellRope = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.032, 0.037, 2.08, 7),
+    ropeMaterial,
+  );
+  wellRope.position.set(-37, 1.6, -42.18);
+  wellRope.castShadow = true;
+  wellRope.name = "Coiled well rope";
   hospital.add(wellRope);
+  addBox({
+    size: [0.08, 0.68, 0.08],
+    position: [-38.48, 2.4, -42],
+    material: agedIron,
+    parent: hospital,
+    shadows: false,
+    name: "Well crank arm",
+  });
+  const wellCrankGrip = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.065, 0.075, 0.38, 7),
+    timber,
+  );
+  wellCrankGrip.position.set(-38.48, 2.07, -41.84);
+  wellCrankGrip.rotation.x = Math.PI / 2;
+  wellCrankGrip.name = "Well crank grip";
+  hospital.add(wellCrankGrip);
   addBox({ size: [4.5, 0.22, 2.3], position: [-23, 0.11, -45], material: new THREE.MeshStandardMaterial({ color: 0x315f67, roughness: 0.45 }), parent: hospital, shadows: false });
   for (const [x, z, rotation] of [[-42, -37, 0], [-27, -35, Math.PI / 2]]) {
     const bench = new THREE.Group();
@@ -1549,7 +1582,31 @@ export function buildArena(THREE, scene) {
     addBox({ size: [3.2, 0.18, 0.52], position: [0, 0.68, 0], material: timber, parent: bench, name: "Courtyard bench" });
     for (const bx of [-1.25, 1.25]) {
       addBox({ size: [0.18, 0.65, 0.18], position: [bx, 0.33, 0], material: timber, parent: bench, shadows: false });
+      addBox({
+        size: [0.14, 1.12, 0.14],
+        position: [bx, 0.72, -0.24],
+        material: darkTimber,
+        parent: bench,
+        shadows: false,
+        name: "Bench back post",
+      });
+      const brace = addBox({
+        size: [0.12, 0.78, 0.12],
+        position: [bx * 0.82, 0.46, -0.22],
+        material: darkTimber,
+        parent: bench,
+        shadows: false,
+        name: "Bench diagonal brace",
+      });
+      brace.rotation.z = bx < 0 ? -0.42 : 0.42;
     }
+    addBox({
+      size: [3.2, 0.18, 0.18],
+      position: [0, 1.17, -0.24],
+      material: timber,
+      parent: bench,
+      name: "Courtyard bench backrest",
+    });
   }
 
   // Cathedral and Byzantine-layered chapel: reused column drums and a low dome.
@@ -2526,6 +2583,14 @@ export function buildArena(THREE, scene) {
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.32, 0.38, 14, 1, true), wicker);
     bowl.position.y = 0.23;
     basket.add(bowl);
+    const handle = new THREE.Mesh(
+      new THREE.TorusGeometry(0.42, 0.035, 5, 14, Math.PI),
+      wicker,
+    );
+    handle.position.y = 0.43;
+    handle.rotation.y = basketIndex % 2 ? 0.08 : -0.08;
+    handle.name = "Bent wicker basket handle";
+    basket.add(handle);
     for (let i = 0; i < 7; i += 1) {
       const produce = new THREE.Mesh(
         new THREE.IcosahedronGeometry(0.13 + (i % 2) * 0.025, 1),
@@ -2577,9 +2642,27 @@ export function buildArena(THREE, scene) {
   // conservative collision volumes so it blocks both the player and a
   // guard's line of sight.
   const dyedCloth = [
-    new THREE.MeshStandardMaterial({ color: 0x8b493e, roughness: 1 }),
-    new THREE.MeshStandardMaterial({ color: 0x445e67, roughness: 1 }),
-    new THREE.MeshStandardMaterial({ color: 0x9a7a43, roughness: 1 }),
+    new THREE.MeshStandardMaterial({
+      color: 0x8b493e,
+      map: sackTexture,
+      bumpMap: sackTexture,
+      bumpScale: 0.026,
+      roughness: 1,
+    }),
+    new THREE.MeshStandardMaterial({
+      color: 0x445e67,
+      map: sackTexture,
+      bumpMap: sackTexture,
+      bumpScale: 0.026,
+      roughness: 1,
+    }),
+    new THREE.MeshStandardMaterial({
+      color: 0x9a7a43,
+      map: sackTexture,
+      bumpMap: sackTexture,
+      bumpScale: 0.026,
+      roughness: 1,
+    }),
   ];
   const fishNetMaterial = new THREE.LineBasicMaterial({
     color: 0x8a7555,
@@ -2652,6 +2735,21 @@ export function buildArena(THREE, scene) {
         name: "Amphora rack upright",
       });
     }
+    addBox({
+      size: [rackWidth, 0.14, 0.14],
+      position: [x, 1.58, z - 0.5],
+      material: darkTimber,
+      shadows: false,
+      name: "Amphora rack top rail",
+    });
+    const rackBrace = addBox({
+      size: [0.11, Math.hypot(rackWidth - 0.3, 1.28), 0.11],
+      position: [x, 0.83, z - 0.51],
+      material: darkTimber,
+      shadows: false,
+      name: "Amphora rack diagonal brace",
+    });
+    rackBrace.rotation.z = Math.atan2(rackWidth - 0.3, 1.28);
     for (let column = 0; column < columns; column += 1) {
       addAmphora({
         x: x + (column - (columns - 1) / 2) * 0.72,
@@ -2779,9 +2877,38 @@ export function buildArena(THREE, scene) {
     material: timber,
     name: "Porter's two-wheel handcart",
   });
+  for (const side of [-1, 1]) {
+    addBox({
+      size: [0.16, 0.62, 1.82],
+      position: [-46 + side * 1.78, 1.0, 39.6],
+      material: darkTimber,
+      name: "Handcart side rail",
+    });
+    const handle = addBox({
+      size: [0.14, 0.14, 3.15],
+      position: [-46 + side * 1.42, 0.72, 37.15],
+      material: timber,
+      name: "Handcart carrying shaft",
+    });
+    handle.rotation.x = side * 0.018;
+  }
+  addBox({
+    size: [3.78, 0.62, 0.16],
+    position: [-46, 1.0, 40.42],
+    material: darkTimber,
+    name: "Handcart headboard",
+  });
+  const cartAxle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.09, 0.09, 3.22, 8),
+    agedIron,
+  );
+  cartAxle.position.set(-46, 0.78, 39.6);
+  cartAxle.rotation.z = Math.PI / 2;
+  cartAxle.name = "Handcart iron axle";
+  root.add(cartAxle);
   for (const x of [-47.35, -44.65]) {
     const wheel = new THREE.Mesh(
-      new THREE.TorusGeometry(0.78, 0.12, 8, 18),
+      new THREE.TorusGeometry(0.78, 0.12, 6, 14),
       timber,
     );
     wheel.position.set(x, 0.78, 39.6);
@@ -2789,6 +2916,24 @@ export function buildArena(THREE, scene) {
     wheel.castShadow = true;
     wheel.name = "Timber cart wheel";
     root.add(wheel);
+    for (const rotation of [0, Math.PI / 4, Math.PI / 2, -Math.PI / 4]) {
+      const spoke = addBox({
+        size: [0.105, 1.34, 0.085],
+        position: [x, 0.78, 39.6],
+        material: darkTimber,
+        shadows: false,
+        name: "Handcart wheel spokes",
+      });
+      spoke.rotation.x = rotation;
+    }
+    const hub = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.17, 0.17, 0.24, 8),
+      darkTimber,
+    );
+    hub.position.set(x, 0.78, 39.6);
+    hub.rotation.z = Math.PI / 2;
+    hub.name = "Handcart wheel hub";
+    root.add(hub);
   }
   addClothBale(templarFreight, -46.35, 39.6, 2.45, 1.72, 2);
   addStreetCoverCollider(templarFreight, [3.8, 1.75, 1.85], [-46, 0.88, 39.6]);
@@ -2811,12 +2956,26 @@ export function buildArena(THREE, scene) {
   }
   const netPoints = [];
   for (let row = 0; row <= 5; row += 1) {
-    const y = 0.35 + row * 0.35;
-    netPoints.push(new THREE.Vector3(37.8, y, 49.2), new THREE.Vector3(40.6, y, 49.2));
+    for (let column = 0; column < 8; column += 1) {
+      const t0 = column / 8;
+      const t1 = (column + 1) / 8;
+      const baseY = 0.35 + row * 0.35;
+      netPoints.push(
+        new THREE.Vector3(37.8 + t0 * 2.8, baseY - Math.sin(t0 * Math.PI) * 0.16, 49.2),
+        new THREE.Vector3(37.8 + t1 * 2.8, baseY - Math.sin(t1 * Math.PI) * 0.16, 49.2),
+      );
+    }
   }
   for (let column = 0; column <= 8; column += 1) {
+    const t = column / 8;
     const x = 37.8 + column * 0.35;
-    netPoints.push(new THREE.Vector3(x, 0.35, 49.2), new THREE.Vector3(x, 2.1, 49.2));
+    const sag = Math.sin(t * Math.PI) * 0.16;
+    for (let row = 0; row < 5; row += 1) {
+      netPoints.push(
+        new THREE.Vector3(x, 0.35 + row * 0.35 - sag, 49.2),
+        new THREE.Vector3(x, 0.35 + (row + 1) * 0.35 - sag, 49.2),
+      );
+    }
   }
   const dryingNet = new THREE.LineSegments(
     new THREE.BufferGeometry().setFromPoints(netPoints),
