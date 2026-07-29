@@ -13,6 +13,9 @@ export class StealthAudio {
     this.noiseBuffer = null;
     this.nextFootstepAt = 0;
     this.stepSide = 1;
+    this.guardCueCount = 0;
+    this.guardAlertCount = 0;
+    this.lastGuardCue = null;
     this.ambientRequested = false;
     this.ambientNodes = null;
   }
@@ -121,6 +124,112 @@ export class StealthAudio {
         pan,
       );
     } catch {}
+  }
+
+  guardFootstep({
+    distance = 12,
+    pan = 0,
+    approach = 0,
+    alerted = false,
+    muffled = false,
+    submerged = false,
+    armor = false,
+  } = {}) {
+    const audibleRange = submerged ? 13 : muffled ? 16 : 24;
+    const proximity = Math.max(0, Math.min(1, 1 - distance / audibleRange));
+    if (proximity <= 0) return false;
+
+    const direction = approach > 0.22 ? "approaching" : approach < -0.22 ? "receding" : "crossing";
+    this.guardCueCount += 1;
+    this.lastGuardCue = {
+      distance: Number(distance.toFixed(2)),
+      pan: Number(Math.max(-1, Math.min(1, pan)).toFixed(2)),
+      direction,
+      muffled: Boolean(muffled),
+      submerged: Boolean(submerged),
+      alerted: Boolean(alerted),
+    };
+    if (!this._canPlay()) return true;
+
+    try {
+      const t = this.context.currentTime;
+      const strength =
+        Math.pow(proximity, 0.78) *
+        (alerted ? 1.2 : 1) *
+        (approach > 0.22 ? 1.08 : approach < -0.22 ? 0.86 : 0.96);
+      const stereo = Math.max(-0.92, Math.min(0.92, pan));
+      const highFrequency = submerged ? 120 : muffled ? 240 : approach > 0.22 ? 1180 : 820;
+      const lowFrequency = submerged ? 62 : muffled ? 105 : 185;
+
+      // A hard sole striking kurkar: a short grit transient followed by a
+      // lower body thump. Brighter transients read as approaching footsteps.
+      this._noise(
+        t,
+        submerged ? 0.075 : 0.045,
+        0.17 * strength,
+        highFrequency,
+        submerged || muffled ? "lowpass" : "bandpass",
+        muffled ? 0.62 : 0.9,
+        stereo,
+        0.002,
+      );
+      this._noise(
+        t + 0.012,
+        muffled ? 0.16 : 0.105,
+        0.19 * strength,
+        lowFrequency,
+        "lowpass",
+        0.72,
+        stereo,
+      );
+      this._tone(
+        t,
+        0.09,
+        alerted ? 102 : 88,
+        46,
+        0.1 * strength,
+        "sine",
+        stereo,
+      );
+
+      if (armor && !submerged && proximity > 0.22) {
+        const metalStrength = strength * (muffled ? 0.28 : 0.48);
+        this._tone(t + 0.045, 0.075, 1450, 910, 0.026 * metalStrength, "triangle", stereo);
+        this._tone(t + 0.07, 0.055, 2130, 1320, 0.016 * metalStrength, "sine", stereo);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  guardSuspicion({ distance = 12, pan = 0, muffled = false } = {}) {
+    const proximity = Math.max(0, Math.min(1, 1 - distance / 23));
+    if (proximity <= 0) return false;
+    this.guardAlertCount += 1;
+    if (!this._canPlay()) return true;
+
+    try {
+      const t = this.context.currentTime;
+      const stereo = Math.max(-0.9, Math.min(0.9, pan));
+      const strength = Math.pow(proximity, 0.7) * (muffled ? 0.42 : 0.78);
+      // A restrained breath/grunt and sudden mail movement communicates that
+      // a patrol has heard or glimpsed something without turning into dialogue.
+      this._noise(t, 0.24, 0.12 * strength, muffled ? 310 : 690, "bandpass", 1.2, stereo);
+      this._tone(t + 0.025, 0.22, 132, 82, 0.075 * strength, "triangle", stereo);
+      this._tone(t + 0.09, 0.06, 1720, 1080, 0.018 * strength, "sine", stereo);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  guardDiagnostics() {
+    return {
+      footsteps: this.guardCueCount,
+      alerts: this.guardAlertCount,
+      last: this.lastGuardCue,
+    };
   }
 
   ambientStart() {

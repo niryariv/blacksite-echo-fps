@@ -25,6 +25,10 @@ const devAutoDive =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-dive");
 const devFastBreath =
   import.meta.env.DEV && new URLSearchParams(location.search).has("qa-breath");
+const devGuardAudioTest =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("qa-audio");
+const devGuardAlertTest =
+  import.meta.env.DEV && new URLSearchParams(location.search).has("qa-alert-audio");
 const waterSurfaceY = 0.02;
 const waterFloorY = -1.54;
 mapParchment.addEventListener("load", () => {
@@ -613,6 +617,12 @@ function createGuard(index, position, options = {}) {
         }
       : null,
   };
+  guard.lastFootstepIndex = Math.floor((guard.phase * 7.5) / Math.PI);
+  guard.lastAudioDistance = Math.hypot(
+    root.position.x - player.position.x,
+    root.position.z - player.position.z,
+  );
+  guard.approachRate = 0;
   if (guard.wallPatrol) {
     guard.target.copy(guard.home);
     guard.target[guard.wallPatrol.axis] = guard.wallPatrol.next;
@@ -931,6 +941,24 @@ function guardCanSee(guard, point, range = 15, fov = 66) {
   return clearLineOfSight(eye, point);
 }
 
+const guardAudioPoint = new THREE.Vector3();
+const guardAudioDirection = new THREE.Vector3();
+const guardAudioRight = new THREE.Vector3();
+function getGuardAudioSpatial(guard, distance) {
+  guardAudioPoint.copy(guard.root.position);
+  guardAudioPoint.y += 0.24;
+  guardAudioDirection.copy(guard.root.position).sub(player.position).setY(0);
+  if (guardAudioDirection.lengthSq() > 0.0001) guardAudioDirection.normalize();
+  const forwardX = -Math.sin(player.yaw);
+  const forwardZ = -Math.cos(player.yaw);
+  guardAudioRight.set(-forwardZ, 0, forwardX);
+  return {
+    distance,
+    pan: THREE.MathUtils.clamp(guardAudioDirection.dot(guardAudioRight), -1, 1),
+    muffled: !clearLineOfSight(player.position, guardAudioPoint),
+  };
+}
+
 function updateGuards(dt) {
   if (game.inTunnel) {
     guards.forEach((guard) => {
@@ -945,6 +973,7 @@ function updateGuards(dt) {
   for (const guard of guards) {
     guard.root.visible = true;
     guard.phase += dt;
+    const stateBeforeSense = guard.state;
 
     const distance = guard.root.position.distanceTo(player.position);
     const fullDetail = distance < 22;
@@ -959,6 +988,7 @@ function updateGuards(dt) {
         : 15;
     const seesPlayer =
       !player.submerged &&
+      !devGuardAudioTest &&
       game.elapsed >= game.insertionUntil &&
       guardCanSee(
         guard,
@@ -969,6 +999,7 @@ function updateGuards(dt) {
     const hearingRadius = 2.2 + player.noise * 0.115;
     const hearsPlayer =
       !player.submerged &&
+      !devGuardAudioTest &&
       distance < hearingRadius &&
       player.noise > 20;
 
@@ -1068,6 +1099,42 @@ function updateGuards(dt) {
     guard.head.rotation.y = Math.sin(guard.phase * 1.1) * 0.06;
     guard.coneMaterial.opacity = 0.035 + (guard.awareness / 100) * 0.13;
     guard.coneMaterial.color.setHex(guard.awareness > 55 ? 0xff281b : 0xff8a25);
+
+    const horizontalDistance = Math.hypot(
+      guard.root.position.x - player.position.x,
+      guard.root.position.z - player.position.z,
+    );
+    const rawApproach =
+      (guard.lastAudioDistance - horizontalDistance) / Math.max(dt, 0.001);
+    guard.approachRate = THREE.MathUtils.damp(
+      guard.approachRate,
+      THREE.MathUtils.clamp(rawApproach, -3, 3),
+      5,
+      dt,
+    );
+    guard.lastAudioDistance = horizontalDistance;
+    const audioSpatial = getGuardAudioSpatial(guard, horizontalDistance);
+    const footstepIndex = Math.floor((guard.phase * 7.5) / Math.PI);
+    if (
+      footstepIndex !== guard.lastFootstepIndex &&
+      desired.lengthSq() > 0.2
+    ) {
+      guard.lastFootstepIndex = footstepIndex;
+      audio.guardFootstep({
+        ...audioSpatial,
+        approach: guard.approachRate,
+        alerted: guard.state !== "patrol",
+        muffled: audioSpatial.muffled,
+        submerged: player.submerged,
+        armor: (footstepIndex + guard.index) % 4 === 0,
+      });
+    }
+    if (
+      stateBeforeSense === "patrol" &&
+      (guard.state === "suspicious" || guard.state === "investigate")
+    ) {
+      audio.guardSuspicion(audioSpatial);
+    }
 
     if (!mostAware || guard.awareness > mostAware.awareness) mostAware = guard;
   }
@@ -1377,6 +1444,9 @@ function updateHUD() {
       .toArray()
       .map((value) => value.toFixed(3))
       .join(",");
+    document.documentElement.dataset.guardAudio = JSON.stringify(
+      audio.guardDiagnostics(),
+    );
   }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
@@ -2057,9 +2127,23 @@ function deploy() {
   player.floorY = seaInsertion ? waterFloorY : route.spawn.y - player.height;
   player.position.copy(route.spawn);
   if (seaInsertion) player.position.y = waterSurfaceY + 0.16;
+  if (devGuardAudioTest && route.id === "gate") {
+    player.position.set(90, 1.72, -22);
+  }
+  if (devGuardAlertTest && route.id === "gate") {
+    player.position.set(80, 1.72, -22);
+  }
   player.velocity.set(0, 0, 0);
   player.yaw = route.yaw;
   player.pitch = -0.03;
+  guards.forEach((guard) => {
+    guard.lastAudioDistance = Math.hypot(
+      guard.root.position.x - player.position.x,
+      guard.root.position.z - player.position.z,
+    );
+    guard.approachRate = 0;
+    guard.lastFootstepIndex = Math.floor((guard.phase * 7.5) / Math.PI);
+  });
   player.inWater = seaInsertion;
   player.submerged = false;
   player.breath = 100;
