@@ -1,10 +1,10 @@
 /**
- * Lightweight procedural sound design for the combat loop.
+ * Lightweight procedural sound design for the stealth mission.
  *
  * The AudioContext is deliberately created lazily: call unlock() from a click,
  * keydown, or pointer event before expecting sound on mobile browsers.
  */
-export class CombatAudio {
+export class StealthAudio {
   constructor() {
     this.context = null;
     this.master = null;
@@ -56,76 +56,7 @@ export class CombatAudio {
     }
   }
 
-  shot() {
-    if (!this._canPlay()) return;
-    try {
-      const t = this.context.currentTime;
-      const pan = (Math.random() - 0.5) * 0.12;
-
-      // Muzzle crack, propellant blast, and a short mechanical tail.
-      this._noise(t, 0.075, 0.52, 1700, "bandpass", 1.9, pan, 0.001);
-      this._noise(t + 0.012, 0.19, 0.25, 430, "lowpass", 0.8, pan);
-      this._tone(t, 0.09, 155, 48, 0.42, "triangle", pan, 0.001);
-      this._tone(t + 0.002, 0.025, 1250, 310, 0.15, "square", pan);
-      this._click(t + 0.072, 0.12, pan + 0.08);
-    } catch {
-      // Audio is cosmetic; unsupported nodes should fail silently.
-    }
-  }
-
-  dryFire() {
-    if (!this._canPlay()) return;
-    try {
-      const t = this.context.currentTime;
-      this._click(t, 0.18, 0);
-      this._tone(t + 0.008, 0.028, 190, 115, 0.055, "square", 0);
-      this._click(t + 0.045, 0.07, 0.03);
-    } catch {}
-  }
-
-  reload() {
-    if (!this._canPlay()) return;
-    try {
-      const t = this.context.currentTime;
-
-      // Magazine release, removal/insertion, then bolt/slide return.
-      this._click(t, 0.13, -0.16);
-      this._tone(t + 0.035, 0.08, 115, 82, 0.08, "triangle", -0.14);
-      this._noise(t + 0.22, 0.085, 0.11, 1050, "bandpass", 1.2, -0.08);
-      this._click(t + 0.46, 0.23, 0.13);
-      this._tone(t + 0.465, 0.075, 260, 92, 0.12, "square", 0.12);
-      this._noise(t + 0.69, 0.075, 0.17, 1800, "highpass", 0.8, 0.07);
-      this._click(t + 0.73, 0.2, 0.02);
-      this._tone(t + 0.735, 0.055, 410, 125, 0.1, "triangle", 0.02);
-    } catch {}
-  }
-
-  hit() {
-    if (!this._canPlay()) return;
-    try {
-      const t = this.context.currentTime;
-      // Clear hit-marker tick that cuts through gunfire without being harsh.
-      this._tone(t, 0.055, 1180, 780, 0.12, "sine", 0, 0.001);
-      this._tone(t + 0.014, 0.07, 1760, 1120, 0.075, "triangle", 0);
-      this._noise(t, 0.026, 0.07, 2200, "highpass", 1, 0);
-    } catch {}
-  }
-
-  enemyShot() {
-    if (!this._canPlay()) return;
-    try {
-      const t = this.context.currentTime;
-      const pan = (Math.random() * 1.4) - 0.7;
-
-      // More distant and mid-heavy than the player's weapon.
-      this._noise(t, 0.06, 0.3, 1250, "bandpass", 1.1, pan, 0.002);
-      this._noise(t + 0.014, 0.22, 0.14, 700, "lowpass", 0.65, pan);
-      this._tone(t, 0.11, 105, 44, 0.24, "triangle", pan);
-      this._tone(t + 0.004, 0.024, 720, 210, 0.08, "sawtooth", pan);
-    } catch {}
-  }
-
-  playerHit() {
+  alarm() {
     if (!this._canPlay()) return;
     try {
       const t = this.context.currentTime;
@@ -351,5 +282,3 @@ export class CombatAudio {
     this.ambientNodes = { noise, lowpass, highpass, bedGain, lfo, lfoDepth };
   }
 }
-
-export default CombatAudio;

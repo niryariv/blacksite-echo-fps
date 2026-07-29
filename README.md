@@ -30,15 +30,14 @@ Open the local URL printed by Vite, click **Enter Acre**, and allow mouse captur
 - `Ctrl` or `C` — crouch and move quietly
 - `Shift` — sprint (fast, but loud)
 - Mouse — look
-- Left mouse — emergency knife takedown from behind
 - Hold `E` — interact, enter/leave the Templar tunnel, take the dispatch, or board the skiff
 - Hold `M` — open the live city map
 - `V` — mute/unmute procedural audio
 - `Esc` — release the mouse and pause
 
-The cleanest result is earned by completing the mission with zero takedowns and
-almost no watch suspicion. Guards can see, hear, investigate disturbances, and
-discover incapacitated colleagues, so the dagger should remain a last resort.
+The player enters unarmed. Success depends entirely on completing the mission
+without being confirmed by the watch. Guards can see, hear, and investigate
+disturbances, so route choice, quiet movement, and darkness are the only tools.
 The mission unfolds beneath a bright Mediterranean moon: open ground makes the
 player easier to see, while buildings, walls, and the underground Templar tunnel
 provide shelter. The live **Moon Exposure** meter shows when moonlight is raising

@@ -151,7 +151,7 @@ button { font: inherit; }
 
 #bottom-hud {
   bottom: 0; left: 0; right: 0; padding: 24px 34px 30px;
-  display: flex; align-items: flex-end; justify-content: space-between;
+  display: flex; align-items: flex-end; justify-content: flex-start;
   background: linear-gradient(transparent, #03060899);
 }
 .stealth-panels { display: flex; flex-direction: column; gap: 8px; }
@@ -185,13 +185,6 @@ button { font: inherit; }
 .moon-panel.dappled { border-left-color: #8cb0daaa; background: #10192aaa; }
 .moon-panel.exposed { border-left-color: #b9d5ff; background: #14233dcc; }
 .moon-panel.exposed .moon-icon, .moon-panel.exposed #moon-state { color: #d8e7ff; }
-.ammo-panel { text-align: right; border-right: 3px solid var(--accent); padding-right: 13px; min-width: 180px; }
-.ammo-panel > span { color: var(--dim); letter-spacing: .18em; font-size: 11px; }
-.ammo-panel div { line-height: .85; }
-.ammo-panel b { font: 800 53px "Arial Narrow", sans-serif; }
-.ammo-panel i { color: var(--accent); margin: 0 8px; font-style: normal; font-size: 23px; }
-.ammo-panel strong { color: #879795; font: 600 25px "Arial Narrow", sans-serif; }
-
 #crosshair { position: fixed; z-index: 11; width: 44px; height: 44px; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; }
 #crosshair i { position: absolute; background: #fff; box-shadow: 0 0 3px #000; transition: transform .08s; }
 #crosshair i:nth-child(1), #crosshair i:nth-child(2) { width: 8px; height: 1px; top: 21px; }
@@ -201,14 +194,6 @@ button { font: inherit; }
 #crosshair b { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: var(--accent); left: 21px; top: 21px; }
 #crosshair.kick i:nth-child(1) { transform: translateX(-5px); } #crosshair.kick i:nth-child(2) { transform: translateX(5px); }
 #crosshair.kick i:nth-child(3) { transform: translateY(-5px); } #crosshair.kick i:nth-child(4) { transform: translateY(5px); }
-#hitmarker { position: fixed; z-index: 12; width: 34px; height: 34px; left: 50%; top: 50%; transform: translate(-50%,-50%) rotate(45deg) scale(.5); opacity: 0; }
-#hitmarker i { position: absolute; background: #fff; box-shadow: 0 0 5px #000; }
-#hitmarker i:first-child { left: 0; right: 0; top: 16px; height: 2px; }
-#hitmarker i:last-child { top: 0; bottom: 0; left: 16px; width: 2px; }
-#hitmarker.show { animation: hit .16s ease-out; }
-#hitmarker.kill i { background: var(--danger); }
-@keyframes hit { 0% {opacity:1; transform:translate(-50%,-50%) rotate(45deg) scale(1.25)} 100% {opacity:0; transform:translate(-50%,-50%) rotate(45deg) scale(.75)} }
-
 #combat-feed { top: 112px; right: 32px; width: 260px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
 #combat-feed span { animation: feed 3.4s forwards; padding: 5px 8px; border-right: 2px solid var(--accent); background: #07100fcc; font-size: 11px; letter-spacing: .08em; }
 @keyframes feed { 0% {opacity:0; transform:translateX(15px)} 10%,75% {opacity:1; transform:none} 100% {opacity:0; transform:translateX(8px)} }
@@ -277,7 +262,6 @@ button:hover { transform:translateY(-2px); filter:brightness(1.15); }
   .health-panel { min-width:150px; } .health-panel .icon { display:none; }
   .stealth-panels { max-width: 56vw; }
   .moon-panel { width: min(220px, 56vw); }
-  .ammo-panel { min-width:130px; } .ammo-panel b { font-size:42px; }
   .brand { left:7vw; top:9vh; } .brand h1 { font-size:67px; }
   .briefing-card { left:7vw; right:7vw; bottom:5vh; width:auto; }
   .tagline { margin-top:20px; } .controls { gap:6px; }

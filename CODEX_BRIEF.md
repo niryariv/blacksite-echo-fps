@@ -14,11 +14,11 @@ browser stealth experience realistic for this repository and execution window.
 - Build the city from original procedural geometry, textures, lighting, and
   audio. Do not copy proprietary game assets, maps, UI, or branding.
 - Desktop-first controls: WASD movement, mouse look, sprint, crouch, interact,
-  knife, and pause. The page must explain controls before pointer lock.
-- A knife-only player loadout. Takedowns work only at close range and from
-  behind, leave discoverable bodies, and have sharply limited edge integrity.
+  map, audio, and pause. The page must explain controls before pointer lock.
+- The player is completely unarmed. There are no combat mechanics; route
+  planning, patience, shadows, and quiet movement are the only tools.
 - Guards that patrol, see, hear, grow suspicious, investigate disturbances,
-  discover bodies, and communicate awareness through readable sight cones.
+  and communicate awareness through readable sight cones.
 - A complete loop: enter through the eastern gate, cross the city, take a
   sealed dispatch from the Hospitaller court, reach a harbour skiff, receive a
   stealth rating, fail on confirmed detection, and restart.
@@ -45,8 +45,8 @@ browser stealth experience realistic for this repository and execution window.
 
 1. Run the production build and fix all errors.
 2. Launch the game and inspect it at desktop and narrow viewport sizes.
-3. Exercise start, movement, crouch, sprint/noise, guard suspicion, a rear
-   takedown, dispatch recovery, extraction, alarm failure, pause, and restart.
+3. Exercise start, movement, crouch, sprint/noise, guard suspicion, dispatch
+   recovery, extraction, alarm failure, pause, and restart.
 4. Critique visuals harshly for hierarchy, readability, clipping, flat
    lighting, inconsistent materials, weak feedback, and UI overlap.
 5. Iterate on every material defect found, then rerun build and smoke checks.

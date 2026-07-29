@@ -7,7 +7,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildArena } from "./arena.js";
-import { CombatAudio } from "./audio.js";
+import { StealthAudio } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("game");
@@ -253,7 +253,7 @@ arena.pickups.forEach((pickup) => {
   pickup.mesh.visible = false;
 });
 
-const audio = new CombatAudio();
+const audio = new StealthAudio();
 const clock = new THREE.Clock();
 const keys = new Set();
 const guards = [];
@@ -267,8 +267,6 @@ const game = {
   missionTime: 0,
   detection: 0,
   maxDetection: 0,
-  takedowns: 0,
-  knifeIntegrity: 2,
   interaction: 0,
   tunnelInteraction: 0,
   tunnelCooldown: 0,
@@ -337,98 +335,6 @@ if (import.meta.env.DEV) {
     ),
   );
 }
-
-function createKnife() {
-  const root = new THREE.Group();
-  root.name = "Levantine dagger";
-
-  const grip = new THREE.Mesh(
-    new THREE.BoxGeometry(0.13, 0.12, 0.38),
-    new THREE.MeshStandardMaterial({
-      color: 0x382313,
-      roughness: 0.78,
-      metalness: 0.15,
-    }),
-  );
-  grip.position.z = 0.13;
-
-  const guard = new THREE.Mesh(
-    new THREE.BoxGeometry(0.24, 0.045, 0.08),
-    new THREE.MeshStandardMaterial({
-      color: 0x75521e,
-      metalness: 0.7,
-      roughness: 0.3,
-    }),
-  );
-  guard.position.z = -0.1;
-
-  const bladeGeometry = new THREE.BufferGeometry();
-  bladeGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(
-      [
-        -0.072, -0.016, -0.12,
-        0.072, -0.016, -0.12,
-        0.045, -0.016, -0.74,
-        0, -0.016, -0.91,
-        -0.072, 0.016, -0.12,
-        0.072, 0.016, -0.12,
-        0.045, 0.016, -0.74,
-        0, 0.016, -0.91,
-      ],
-      3,
-    ),
-  );
-  bladeGeometry.setIndex([
-    0, 1, 2, 0, 2, 3,
-    4, 6, 5, 4, 7, 6,
-    0, 4, 5, 0, 5, 1,
-    1, 5, 6, 1, 6, 2,
-    2, 6, 7, 2, 7, 3,
-    3, 7, 4, 3, 4, 0,
-  ]);
-  bladeGeometry.computeVertexNormals();
-  const blade = new THREE.Mesh(
-    bladeGeometry,
-    new THREE.MeshStandardMaterial({
-      color: 0xbcc5c4,
-      metalness: 0.82,
-      roughness: 0.28,
-    }),
-  );
-  const edge = new THREE.LineSegments(
-    new THREE.EdgesGeometry(bladeGeometry),
-    new THREE.LineBasicMaterial({ color: 0xe7d7ae, transparent: true, opacity: 0.55 }),
-  );
-
-  const handMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8f6247,
-    roughness: 0.9,
-  });
-  const sleeveMaterial = new THREE.MeshStandardMaterial({
-    color: 0x292c25,
-    roughness: 0.96,
-  });
-  const hand = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.22, 5, 10), handMaterial);
-  hand.rotation.x = Math.PI / 2;
-  hand.position.set(0.015, -0.015, 0.18);
-  const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.38, 5, 10), sleeveMaterial);
-  forearm.rotation.x = Math.PI / 2;
-  forearm.position.set(0.055, -0.04, 0.5);
-  forearm.rotation.z = -0.1;
-
-  root.add(grip, guard, blade, edge, hand, forearm);
-  root.traverse((object) => {
-    if (object.isMesh) object.castShadow = true;
-  });
-  root.position.set(0.42, -0.42, -0.66);
-  root.rotation.set(0.16, -0.15, -0.22);
-  root.scale.setScalar(0.58);
-  camera.add(root);
-  return { root, swing: 0, cooldown: 0 };
-}
-
-const knife = createKnife();
 
 const guardShieldShape = new THREE.Shape();
 guardShieldShape.moveTo(-0.36, 0.48);
@@ -646,8 +552,6 @@ function createGuard(index, position) {
     lastSeen: root.position.clone(),
     awareness: 0,
     state: "patrol",
-    active: true,
-    down: false,
     phase: Math.random() * Math.PI * 2,
     speed: 1.25 + Math.random() * 0.18,
     idle: Math.random(),
@@ -840,18 +744,6 @@ function updatePlayer(dt) {
   camera.rotation.set(player.pitch, player.yaw, player.roll);
   camera.fov = THREE.MathUtils.damp(camera.fov, sprinting ? 76 : 72, 9, dt);
   camera.updateProjectionMatrix();
-
-  knife.cooldown = Math.max(0, knife.cooldown - dt);
-  knife.swing = THREE.MathUtils.damp(knife.swing, 0, 16, dt);
-  const base = player.crouched
-    ? new THREE.Vector3(0.34, -0.28, -0.58)
-    : sprinting
-      ? new THREE.Vector3(0.49, -0.43, -0.5)
-      : new THREE.Vector3(0.38, -0.35, -0.55);
-  knife.root.position.lerp(base, 1 - Math.exp(-dt * 13));
-  knife.root.rotation.x = 0.16 - knife.swing * 1.35 + bobY * 1.5;
-  knife.root.rotation.y = -0.15 + knife.swing * 0.65;
-  knife.root.rotation.z = -0.22 - knife.swing * 0.7 + bobX;
 }
 
 function guardCanSee(guard, point, range = 15, fov = 66) {
@@ -864,17 +756,6 @@ function guardCanSee(guard, point, range = 15, fov = 66) {
   const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(guard.root.quaternion);
   if (forward.dot(toPoint) < Math.cos(THREE.MathUtils.degToRad(fov / 2))) return false;
   return clearLineOfSight(eye, point);
-}
-
-function bodyDiscovered(observer) {
-  for (const guard of guards) {
-    if (!guard.down) continue;
-    const bodyPoint = guard.root.position.clone().add(new THREE.Vector3(0, 0.4, 0));
-    if (observer.root.position.distanceTo(bodyPoint) < 10 && guardCanSee(observer, bodyPoint, 10, 78)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 function updateGuards(dt) {
@@ -890,7 +771,6 @@ function updateGuards(dt) {
   let mostAware = null;
   for (const guard of guards) {
     guard.root.visible = true;
-    if (!guard.active || guard.down) continue;
     guard.phase += dt;
 
     const distance = guard.root.position.distanceTo(player.position);
@@ -909,12 +789,6 @@ function updateGuards(dt) {
       );
     const hearingRadius = 2.2 + player.noise * 0.115;
     const hearsPlayer = distance < hearingRadius && player.noise > 20;
-
-    if (bodyDiscovered(guard)) {
-      guard.awareness = 100;
-      triggerAlarm("A GUARD FOUND A BODY");
-      return;
-    }
 
     if (seesPlayer) {
       guard.lastSeen.copy(player.position);
@@ -1006,71 +880,10 @@ function triggerAlarm(reason) {
   game.compromised = true;
   game.detection = 100;
   game.maxDetection = 100;
-  audio.playerHit();
+  audio.alarm();
   $("damage-vignette").classList.add("flash");
   addFeed(reason);
   setTimeout(() => endGame(false), 480);
-}
-
-function useKnife() {
-  if (game.phase !== "running" || knife.cooldown > 0) return;
-  knife.cooldown = 0.65;
-  knife.swing = 1;
-  player.noise = Math.max(player.noise, 26);
-
-  if (game.knifeIntegrity <= 0) {
-    audio.dryFire();
-    addFeed("KNIFE EDGE COMPROMISED");
-    return;
-  }
-
-  let target = null;
-  let targetDistance = 1.75;
-  for (const guard of guards) {
-    if (!guard.active || guard.down) continue;
-    const distance = guard.root.position.distanceTo(player.position);
-    if (distance < targetDistance) {
-      target = guard;
-      targetDistance = distance;
-    }
-  }
-
-  if (!target) {
-    audio.dryFire();
-    return;
-  }
-
-  const guardForward = new THREE.Vector3(0, 0, 1).applyQuaternion(target.root.quaternion);
-  const guardToPlayer = player.position.clone().sub(target.root.position).setY(0).normalize();
-  const behind = guardForward.dot(guardToPlayer) < -0.25;
-  if (!behind) {
-    target.awareness = 100;
-    triggerAlarm("FAILED TAKEDOWN // GUARD ALERTED");
-    return;
-  }
-
-  target.down = true;
-  target.active = false;
-  target.awareness = 0;
-  target.visionCone.visible = false;
-  target.root.rotation.z = Math.PI / 2;
-  target.root.position.y = 0.28;
-  game.knifeIntegrity--;
-  game.takedowns++;
-  audio.hit();
-  addFeed("SILENT TAKEDOWN // BODY EXPOSED");
-
-  guards.forEach((guard) => {
-    if (
-      guard.active &&
-      guard.root.position.distanceTo(target.root.position) < 6 &&
-      clearLineOfSight(guard.root.position, target.root.position)
-    ) {
-      guard.lastSeen.copy(target.root.position);
-      guard.awareness = Math.max(guard.awareness, 28);
-      guard.state = "investigate";
-    }
-  });
 }
 
 function updateTunnelTraversal(dt, prompt) {
@@ -1228,11 +1041,10 @@ function updateHUD() {
   $("detection").classList.toggle("danger", detection >= 65);
 
   let profile = "GHOST";
-  if (game.takedowns > 0) profile = "TRACE";
-  else if (game.maxDetection >= 55) profile = "EXPOSED";
+  if (game.maxDetection >= 55) profile = "EXPOSED";
   else if (game.maxDetection >= 15) profile = "SHADOW";
   $("profile").textContent = profile;
-  $("profile").classList.toggle("compromised", profile === "EXPOSED" || profile === "TRACE");
+  $("profile").classList.toggle("compromised", profile === "EXPOSED");
 
   const minutes = Math.floor(game.missionTime / 60);
   const seconds = Math.floor(game.missionTime % 60);
@@ -1251,7 +1063,6 @@ function updateHUD() {
   $("moon-state").textContent = moonState;
   $("moon-panel").classList.toggle("exposed", moonExposure > 0.7);
   $("moon-panel").classList.toggle("dappled", moonExposure > 0.3 && moonExposure <= 0.7);
-  $("knife-integrity").textContent = ["—", "I", "II"][game.knifeIntegrity] || "—";
 
   const degrees = THREE.MathUtils.euclideanModulo(THREE.MathUtils.radToDeg(player.yaw), 360);
   const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -1828,7 +1639,6 @@ function deploy() {
   audio.ambientStart();
   game.phase = "running";
   game.insertionUntil = game.elapsed + 2.5;
-  knife.root.visible = true;
   $("start-screen").classList.remove("visible");
   $("start-screen").classList.add("hidden");
   $("pause-screen").classList.add("hidden");
@@ -1840,7 +1650,7 @@ function deploy() {
   }
   requestGamePointerLock();
   addFeed("NIGHT PASSAGE BEGUN");
-  addFeed("NO ALARM // NO BLOODSHED");
+  addFeed("UNARMED // LEAVE NO TRACE");
 }
 
 function endGame(success) {
@@ -1858,7 +1668,7 @@ function endGame(success) {
   $("end-screen").classList.remove("hidden");
   $("end-screen").classList.add("visible");
 
-  const immaculate = success && game.maxDetection < 12 && game.takedowns === 0;
+  const immaculate = success && game.maxDetection < 12;
   $("end-title").textContent = success
     ? immaculate
       ? "UNSEEN PASSAGE"
@@ -1867,13 +1677,11 @@ function endGame(success) {
   $("end-copy").textContent = success
     ? immaculate
       ? "The dispatch is aboard. No witnesses, no injuries, no trace."
-      : game.takedowns > 0
-        ? "The dispatch is aboard, but Acre bears evidence of your passage."
-        : "The dispatch is aboard. The watch grew suspicious, but no alarm was raised."
+      : "The dispatch is aboard. The watch grew suspicious, but no alarm was raised."
     : "The city watch confirmed an intruder. The mission has failed.";
 
   $("final-detection").textContent = `${Math.round(game.maxDetection)}%`;
-  $("final-takedowns").textContent = String(game.takedowns);
+  $("final-alarm").textContent = game.compromised ? "YES" : "NO";
   const minutes = Math.floor(game.missionTime / 60);
   const seconds = Math.floor(game.missionTime % 60);
   $("final-time").textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -1903,9 +1711,6 @@ document.addEventListener("mousemove", (event) => {
   player.yaw -= event.movementX * 0.00175;
   player.pitch -= event.movementY * 0.00175;
   player.pitch = THREE.MathUtils.clamp(player.pitch, -1.42, 1.42);
-});
-document.addEventListener("mousedown", (event) => {
-  if (event.button === 0 && game.phase === "running") useKnife();
 });
 document.addEventListener("contextmenu", (event) => event.preventDefault());
 document.addEventListener("pointerlockchange", () => {
@@ -2079,9 +1884,6 @@ function animate() {
     camera.position.y = 25 + Math.sin(game.elapsed * 0.2) * 0.5;
     camera.position.z = 105;
     camera.lookAt(-18, 5, -18);
-    knife.root.visible = false;
-  } else {
-    knife.root.visible = true;
   }
   nightSky.position.copy(camera.position);
   if (!mapVisible && (game.phase === "running" || game.phase === "briefing")) {

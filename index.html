@@ -80,7 +80,6 @@
         <i></i><i></i><i></i><i></i>
         <b></b>
       </div>
-      <div id="hitmarker" aria-hidden="true"><i></i><i></i></div>
 
       <section id="combat-feed" class="hud hidden" aria-live="polite"></section>
 
@@ -103,10 +102,6 @@
             <b id="moon-state">SHELTERED</b>
           </section>
         </div>
-        <section class="ammo-panel">
-          <span id="weapon-state">LEVANTINE DAGGER // LAST RESORT</span>
-          <div><b id="knife-integrity">II</b><i>/</i><strong>EDGE</strong></div>
-        </section>
       </footer>
 
       <section id="interact-prompt" class="hidden"></section>
@@ -124,14 +119,14 @@
             Enter Frankish Acre beneath a bright Mediterranean moon. Keep to
             roof shadow, cross the merchant quarters, and take the sealed
             dispatch from the Hospitaller court. Reach the skiff unseen and
-            unharmed. Your dagger is a last resort.
+            unharmed. You enter unarmed: if the watch confirms you, the mission
+            is lost.
           </p>
           <div class="controls">
             <span><kbd>WASD</kbd> MOVE</span>
             <span><kbd>CTRL</kbd> CROUCH</span>
             <span><kbd>SHIFT</kbd> SPRINT / NOISY</span>
             <span><kbd>E</kbd> HOLD TO INTERACT</span>
-            <span><kbd>MOUSE 1</kbd> KNIFE</span>
             <span><kbd>M</kbd> HOLD CITY MAP</span>
             <span><kbd>V</kbd> MUTE AUDIO</span>
             <span><kbd>ESC</kbd> PAUSE</span>
@@ -158,7 +153,7 @@
           <p id="end-copy">The dispatch is aboard. No trace left behind.</p>
           <div class="results">
             <span><small>MAX DETECTION</small><b id="final-detection">0%</b></span>
-            <span><small>TAKEDOWNS</small><b id="final-takedowns">0</b></span>
+            <span><small>ALARM</small><b id="final-alarm">NO</b></span>
             <span><small>TIME</small><b id="final-time">0:00</b></span>
           </div>
           <button id="restart-button">RUN AGAIN</button>
