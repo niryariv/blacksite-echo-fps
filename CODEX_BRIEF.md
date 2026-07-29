@@ -13,8 +13,9 @@ browser stealth experience realistic for this repository and execution window.
   merchant quarters, dense lanes, and layered Byzantine/earlier fabric.
 - Build the city from original procedural geometry, textures, lighting, and
   audio. Do not copy proprietary game assets, maps, UI, or branding.
-- Desktop-first controls: WASD movement, mouse look, sprint, crouch, interact,
-  map, audio, and pause. The page must explain controls before pointer lock.
+- Desktop-first controls: WASD movement, mouse look, left-button sprint,
+  right-button crouch, keyboard alternatives, interact, map, audio, and pause.
+  The page must explain controls before pointer lock.
 - The player is completely unarmed. There are no combat mechanics; route
   planning, patience, shadows, and quiet movement are the only tools.
 - Guards that patrol, see, hear, grow suspicious, investigate disturbances,

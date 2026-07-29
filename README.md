@@ -27,8 +27,8 @@ Open the local URL printed by Vite, click **Enter Acre**, and allow mouse captur
 ## Controls
 
 - `WASD` — move
-- `Ctrl` or `C` — crouch and move quietly
-- `Shift` — sprint (fast, but loud)
+- Hold right mouse, `Ctrl`, or `C` — crouch and move quietly
+- Hold left mouse or `Shift` while moving forward — run (fast, but loud)
 - Mouse — look
 - Hold `E` — interact, enter/leave the Templar tunnel, take the dispatch, or board the skiff
 - Hold `M` — open the live city map

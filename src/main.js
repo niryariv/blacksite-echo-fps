@@ -256,6 +256,7 @@ arena.pickups.forEach((pickup) => {
 const audio = new StealthAudio();
 const clock = new THREE.Clock();
 const keys = new Set();
+const mouseButtons = new Set();
 const guards = [];
 let feedIndex = 0;
 let mapVisible = false;
@@ -695,7 +696,11 @@ function guardBlocked(position) {
 }
 
 function updatePlayer(dt) {
-  player.crouched = keys.has("ControlLeft") || keys.has("ControlRight") || keys.has("KeyC");
+  player.crouched =
+    mouseButtons.has(2) ||
+    keys.has("ControlLeft") ||
+    keys.has("ControlRight") ||
+    keys.has("KeyC");
   const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new THREE.Vector3(-forward.z, 0, forward.x);
   const move = new THREE.Vector3();
@@ -706,8 +711,8 @@ function updatePlayer(dt) {
   const moving = move.lengthSq() > 0;
   if (moving) move.normalize();
 
-  const sprinting =
-    !player.crouched && keys.has("ShiftLeft") && keys.has("KeyW") && moving;
+  const sprintHeld = mouseButtons.has(0) || keys.has("ShiftLeft");
+  const sprinting = !player.crouched && sprintHeld && keys.has("KeyW") && moving;
   const speed = player.crouched ? 2.05 : sprinting ? 7.25 : 4.15;
   player.velocity.x = THREE.MathUtils.damp(player.velocity.x, move.x * speed, 13, dt);
   player.velocity.z = THREE.MathUtils.damp(player.velocity.z, move.z * speed, 13, dt);
@@ -1035,6 +1040,11 @@ function updateTunnelAtmosphere(dt) {
 }
 
 function updateHUD() {
+  if (import.meta.env.DEV) {
+    document.documentElement.dataset.mouseRun = String(mouseButtons.has(0));
+    document.documentElement.dataset.mouseCrouch = String(mouseButtons.has(2));
+    document.documentElement.dataset.posture = player.crouched ? "crouched" : "upright";
+  }
   const detection = Math.round(game.detection);
   $("detection").textContent = `${String(detection).padStart(2, "0")}%`;
   $("detection").classList.toggle("caution", detection >= 20 && detection < 65);
@@ -1712,10 +1722,25 @@ document.addEventListener("mousemove", (event) => {
   player.pitch -= event.movementY * 0.00175;
   player.pitch = THREE.MathUtils.clamp(player.pitch, -1.42, 1.42);
 });
+document.addEventListener("mousedown", (event) => {
+  if (import.meta.env.DEV) {
+    document.documentElement.dataset.lastMouseDown = String(event.button);
+  }
+  if (
+    game.phase === "running" &&
+    (event.button === 0 || event.button === 2)
+  ) {
+    mouseButtons.add(event.button);
+  }
+});
+document.addEventListener("mouseup", (event) => {
+  mouseButtons.delete(event.button);
+});
 document.addEventListener("contextmenu", (event) => event.preventDefault());
 document.addEventListener("pointerlockchange", () => {
   if (game.phase === "ended" || game.phase === "briefing") return;
   if (document.pointerLockElement !== canvas) {
+    mouseButtons.clear();
     game.phase = "paused";
     hideCityMap();
     $("pause-screen").classList.remove("hidden");
@@ -1728,6 +1753,7 @@ document.addEventListener("pointerlockchange", () => {
     showHUD(true);
   }
 });
+addEventListener("blur", () => mouseButtons.clear());
 
 $("deploy-button").addEventListener("click", deploy);
 $("resume-button").addEventListener("click", requestGamePointerLock);
