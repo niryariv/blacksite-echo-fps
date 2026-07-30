@@ -408,6 +408,27 @@ try {
     );
   }
   if (
+    objectBudget.courtyardBenches.instances !== 2 ||
+    objectBudget.courtyardBenches.seatPlanks !== 6 ||
+    objectBudget.courtyardBenches.legs !== 4 ||
+    objectBudget.courtyardBenches.backPosts !== 4 ||
+    objectBudget.courtyardBenches.diagonalBraces !== 4 ||
+    objectBudget.courtyardBenches.backrestPlanks !== 4
+  ) {
+    throw new Error(
+      `Courtyard-bench construction regressed: ${
+        JSON.stringify(objectBudget?.courtyardBenches)
+      }`,
+    );
+  }
+  if (objectBudget.courtyardBenches.staticTriangles > 224) {
+    throw new Error(
+      `Courtyard-bench triangle budget regressed: ${
+        objectBudget.courtyardBenches.staticTriangles
+      }`,
+    );
+  }
+  if (
     objectBudget.harbourCranes.instances !== 2 ||
     objectBudget.harbourCranes.trestleLegs !== 4 ||
     objectBudget.harbourCranes.booms !== 2 ||

@@ -194,6 +194,15 @@ export function buildArena(THREE, scene) {
       crankGrips: 0,
       staticTriangles: 0,
     },
+    courtyardBenches: {
+      instances: 0,
+      seatPlanks: 0,
+      legs: 0,
+      backPosts: 0,
+      diagonalBraces: 0,
+      backrestPlanks: 0,
+      staticTriangles: 0,
+    },
     harbourCranes: {
       instances: 0,
       trestleLegs: 0,
@@ -2177,15 +2186,51 @@ export function buildArena(THREE, scene) {
   objectRenderBudget.well.crankGrips += 1;
   objectRenderBudget.well.staticTriangles += geometryTriangles(wellCrankGripGeometry);
   addBox({ size: [4.5, 0.22, 2.3], position: [-23, 0.11, -45], material: new THREE.MeshStandardMaterial({ color: 0x315f67, roughness: 0.45 }), parent: hospital, shadows: false });
+
+  const benchSeatParts = [-0.18, 0, 0.18].map((plankZ) => {
+    const plank = new THREE.BoxGeometry(3.2, 0.18, 0.16);
+    plank.translate(0, 0, plankZ);
+    return plank;
+  });
+  const benchSeatGeometry = mergeGeometries(benchSeatParts, false);
+  benchSeatParts.forEach((plank) => plank.dispose());
+  const benchBackParts = [-0.1, 0.1].map((plankY) => {
+    const plank = new THREE.BoxGeometry(3.2, 0.14, 0.16);
+    plank.translate(0, plankY, 0);
+    return plank;
+  });
+  const benchBackGeometry = mergeGeometries(benchBackParts, false);
+  benchBackParts.forEach((plank) => plank.dispose());
+  const benchBraceGeometry = new THREE.PlaneGeometry(0.12, 0.78);
+
   for (const [x, z, rotation] of [[-42, -37, 0], [-27, -35, Math.PI / 2]]) {
     const bench = new THREE.Group();
     bench.position.set(x, 0, z);
     bench.rotation.y = rotation;
+    bench.name = "Plank-built Hospitaller courtyard bench";
     hospital.add(bench);
-    addBox({ size: [3.2, 0.18, 0.52], position: [0, 0.68, 0], material: timber, parent: bench, name: "Courtyard bench" });
+    objectRenderBudget.courtyardBenches.instances += 1;
+
+    const seat = new THREE.Mesh(benchSeatGeometry, timber);
+    seat.position.y = 0.68;
+    seat.name = "Three separated courtyard-bench seat planks";
+    bench.add(seat);
+    objectRenderBudget.courtyardBenches.seatPlanks += 3;
+    objectRenderBudget.courtyardBenches.staticTriangles += geometryTriangles(benchSeatGeometry);
+
     for (const bx of [-1.25, 1.25]) {
-      addBox({ size: [0.18, 0.65, 0.18], position: [bx, 0.33, 0], material: timber, parent: bench, shadows: false });
-      addBox({
+      const leg = addBox({
+        size: [0.18, 0.65, 0.18],
+        position: [bx, 0.33, 0],
+        material: timber,
+        parent: bench,
+        shadows: false,
+        name: "Squared courtyard-bench leg",
+      });
+      objectRenderBudget.courtyardBenches.legs += 1;
+      objectRenderBudget.courtyardBenches.staticTriangles += geometryTriangles(leg.geometry);
+
+      const backPost = addBox({
         size: [0.14, 1.12, 0.14],
         position: [bx, 0.72, -0.24],
         material: darkTimber,
@@ -2193,23 +2238,30 @@ export function buildArena(THREE, scene) {
         shadows: false,
         name: "Bench back post",
       });
-      const brace = addBox({
-        size: [0.12, 0.78, 0.12],
-        position: [bx * 0.82, 0.46, -0.22],
-        material: darkTimber,
-        parent: bench,
-        shadows: false,
-        name: "Bench diagonal brace",
-      });
+      objectRenderBudget.courtyardBenches.backPosts += 1;
+      objectRenderBudget.courtyardBenches.staticTriangles += geometryTriangles(
+        backPost.geometry,
+      );
+
+      const brace = new THREE.Mesh(benchBraceGeometry, darkTimber);
+      brace.position.set(bx * 0.82, 0.46, -0.22);
       brace.rotation.z = bx < 0 ? -0.42 : 0.42;
+      brace.name = "Flush courtyard-bench diagonal brace";
+      bench.add(brace);
+      objectRenderBudget.courtyardBenches.diagonalBraces += 1;
+      objectRenderBudget.courtyardBenches.staticTriangles += geometryTriangles(
+        benchBraceGeometry,
+      );
     }
-    addBox({
-      size: [3.2, 0.18, 0.18],
-      position: [0, 1.17, -0.24],
-      material: timber,
-      parent: bench,
-      name: "Courtyard bench backrest",
-    });
+
+    const backrest = new THREE.Mesh(benchBackGeometry, timber);
+    backrest.position.set(0, 1.17, -0.24);
+    backrest.name = "Two separated courtyard-bench backrest planks";
+    bench.add(backrest);
+    objectRenderBudget.courtyardBenches.backrestPlanks += 2;
+    objectRenderBudget.courtyardBenches.staticTriangles += geometryTriangles(
+      benchBackGeometry,
+    );
   }
 
   // Cathedral and Byzantine-layered chapel: reused column drums and a low dome.
