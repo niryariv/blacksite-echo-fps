@@ -2088,26 +2088,32 @@ export function buildArena(THREE, scene) {
     const levels = h > 7.1 ? [3.6, 6.15] : [Math.min(h - 1.35, 3.7)];
     for (const level of levels) {
       for (let i = 0; i < windows; i += 1) {
-        const wx = x + (i - (windows - 1) / 2) * Math.min(3.6, (w - 2.2) / windows);
+        const windowPhase = detailCode * 0.031 + level * 0.71 + i * 1.37;
+        const wx = (
+          x +
+          (i - (windows - 1) / 2) * Math.min(3.6, (w - 2.2) / windows) +
+          Math.sin(windowPhase) * 0.08
+        );
+        const windowY = level + Math.cos(windowPhase * 0.83) * 0.055;
         addBox({
           size: [0.92, 1.18, 0.16],
-          position: [wx, level, facadeZ + 0.02],
+          position: [wx, windowY, facadeZ + 0.02],
           material: darkRecess,
           parent: house,
           shadows: false,
-          name: "Deep window recess",
+          name: "Irregular deep window recess",
         });
         addBox({
           size: [1.24, 0.2, 0.28],
-          position: [wx, level + 0.69, facadeZ],
+          position: [wx, windowY + 0.69, facadeZ],
           material: paleStone,
           parent: house,
           shadows: false,
-          name: "Window lintel",
+          name: "Hand-set window lintel",
         });
         addBox({
           size: [1.18, 0.12, 0.34],
-          position: [wx, level - 0.66, facadeZ + 0.08],
+          position: [wx, windowY - 0.66, facadeZ + 0.08],
           material: paleStone,
           parent: house,
           shadows: false,
@@ -2116,19 +2122,22 @@ export function buildArena(THREE, scene) {
         for (const side of [-1, 1]) {
           const shutter = addBox({
             size: [0.38, 1.14, 0.11],
-            position: [wx + side * 0.67, level, facadeZ + 0.08],
+            position: [wx + side * 0.67, windowY, facadeZ + 0.08],
             material: shutterMaterial,
             parent: house,
             shadows: false,
             name: "Worn painted plank street shutter",
           });
-          shutter.rotation.y = side * -0.12;
+          const shutterWear = Math.sin(windowPhase + side * 2.19);
+          shutter.rotation.y = side * (-0.1 - (shutterWear + 1) * 0.035);
+          shutter.rotation.z = shutterWear * 0.014;
           objectRenderBudget.shutters.frontLeaves += 1;
           objectRenderBudget.shutters.staticTriangles += geometryTriangles(shutter.geometry);
         }
         const windowGrille = new THREE.Mesh(windowGrilleGeometry, agedIron);
-        windowGrille.position.set(wx, level, facadeZ + 0.14);
-        windowGrille.name = "Five-bar forged street-window grille";
+        windowGrille.position.set(wx, windowY, facadeZ + 0.14);
+        windowGrille.rotation.z = Math.sin(windowPhase * 1.43) * 0.009;
+        windowGrille.name = "Slightly irregular five-bar forged street-window grille";
         house.add(windowGrille);
         objectRenderBudget.windowGrilles.instances += 1;
         objectRenderBudget.windowGrilles.verticalBars += 3;
@@ -2144,27 +2153,34 @@ export function buildArena(THREE, scene) {
     for (const side of [-1, 1]) {
       const facadeX = x + side * (w / 2 + 0.09);
       for (const level of levels) {
-        for (const offset of [-d * 0.22, d * 0.22]) {
-          const wz = z + offset;
+        for (const [openingIndex, offset] of [-d * 0.22, d * 0.22].entries()) {
+          const openingPhase = (
+            detailCode * 0.023 +
+            level * 0.67 +
+            openingIndex * 1.91 +
+            side * 0.83
+          );
+          const wz = z + offset + Math.sin(openingPhase) * 0.075;
+          const openingY = level + Math.cos(openingPhase * 0.79) * 0.05;
           addBox({
             size: [0.16, 1.02, 0.82],
-            position: [facadeX, level, wz],
+            position: [facadeX, openingY, wz],
             material: darkRecess,
             parent: house,
             shadows: false,
-            name: "Side window recess",
+            name: "Irregular side window recess",
           });
           addBox({
             size: [0.29, 0.18, 1.12],
-            position: [facadeX, level + 0.61, wz],
+            position: [facadeX, openingY + 0.61, wz],
             material: paleStone,
             parent: house,
             shadows: false,
-            name: "Side window lintel",
+            name: "Hand-set side window lintel",
           });
           addBox({
             size: [0.31, 0.12, 1.08],
-            position: [facadeX + side * 0.05, level - 0.57, wz],
+            position: [facadeX + side * 0.05, openingY - 0.57, wz],
             material: paleStone,
             parent: house,
             shadows: false,
@@ -2173,13 +2189,19 @@ export function buildArena(THREE, scene) {
           for (const shutterSide of [-1, 1]) {
             const shutter = addBox({
               size: [0.1, 0.98, 0.3],
-              position: [facadeX + side * 0.07, level, wz + shutterSide * 0.56],
+              position: [
+                facadeX + side * 0.07,
+                openingY,
+                wz + shutterSide * 0.56,
+              ],
               material: shutterMaterial,
               parent: house,
               shadows: false,
               name: "Worn painted plank side shutter",
             });
-            shutter.rotation.x = shutterSide * 0.08;
+            const shutterWear = Math.cos(openingPhase + shutterSide * 1.57);
+            shutter.rotation.x = shutterSide * (0.06 + (shutterWear + 1) * 0.025);
+            shutter.rotation.z = shutterWear * 0.012;
             objectRenderBudget.shutters.sideLeaves += 1;
             objectRenderBudget.shutters.staticTriangles += geometryTriangles(shutter.geometry);
           }
