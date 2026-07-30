@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 101700) {
+  if (budget.staticTriangles > 101600) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -107,6 +107,20 @@ try {
   if (objectBudget.entryProps.renderedTriangles > 2250) {
     throw new Error(
       `Entry-prop triangle budget regressed: ${objectBudget.entryProps.renderedTriangles}`,
+    );
+  }
+  if (
+    objectBudget.mooringFixtures.posts !== 6 ||
+    objectBudget.mooringFixtures.ropeCoils !== 3 ||
+    objectBudget.mooringFixtures.looseTails !== 3
+  ) {
+    throw new Error(
+      `Mooring-fixture construction regressed: ${JSON.stringify(objectBudget?.mooringFixtures)}`,
+    );
+  }
+  if (objectBudget.mooringFixtures.staticTriangles > 564) {
+    throw new Error(
+      `Mooring-fixture triangle budget regressed: ${objectBudget.mooringFixtures.staticTriangles}`,
     );
   }
   if (

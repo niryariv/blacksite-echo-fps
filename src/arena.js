@@ -34,6 +34,12 @@ export function buildArena(THREE, scene) {
       breachStones: 0,
       renderedTriangles: 0,
     },
+    mooringFixtures: {
+      posts: 0,
+      ropeCoils: 0,
+      looseTails: 0,
+      staticTriangles: 0,
+    },
     landscape: {
       approachRocks: 0,
       shorelineRocks: 0,
@@ -2471,24 +2477,72 @@ export function buildArena(THREE, scene) {
     });
     deckPlank.rotation.y = (index % 3 - 1) * 0.002;
   }
+  const mooringPostGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.17, -0.75),
+      new THREE.Vector2(0.16, 0.45),
+      new THREE.Vector2(0.19, 0.53),
+      new THREE.Vector2(0.15, 0.65),
+      new THREE.Vector2(0.11, 0.78),
+      new THREE.Vector2(0, 0.88),
+    ],
+    7,
+  );
+  const mooringCoilGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.21, 0.68, 0),
+      new THREE.Vector3(0, 0.72, 0.21),
+      new THREE.Vector3(-0.21, 0.68, 0),
+      new THREE.Vector3(0, 0.64, -0.21),
+      new THREE.Vector3(0.21, 0.6, 0),
+    ]),
+    5,
+    0.026,
+    3,
+    false,
+  );
+  const mooringTailGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.21, 0.6, 0),
+      new THREE.Vector3(0.32, 0.54, 0.1),
+      new THREE.Vector3(0.46, 0.52, 0.23),
+    ]),
+    3,
+    0.026,
+    3,
+    false,
+  );
   for (const postX of [31.2, 42, 52.8]) {
     for (const postZ of [61.3, 66.7]) {
-      addCylinder({
-        radius: 0.14,
-        height: 1.5,
-        position: [postX, 0.12, postZ],
-        material: darkTimber,
-        segments: 8,
-        name: "Jetty mooring post",
-      });
-      const cap = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 8, 5),
-        darkTimber,
+      const post = new THREE.Mesh(mooringPostGeometry, darkTimber);
+      post.position.set(postX, 0.12, postZ);
+      post.castShadow = post.receiveShadow = true;
+      post.name = "Hewn mooring post with wear collar and chamfered cap";
+      root.add(post);
+      objectRenderBudget.mooringFixtures.posts += 1;
+      objectRenderBudget.mooringFixtures.staticTriangles += (
+        geometryTriangles(mooringPostGeometry)
       );
-      cap.position.set(postX, 0.89, postZ);
-      cap.scale.y = 0.55;
-      cap.name = "Mooring post cap";
-      root.add(cap);
+      if (postZ === 61.3) {
+        const coil = new THREE.Mesh(mooringCoilGeometry, ropeMaterial);
+        coil.position.set(postX, 0.12, postZ);
+        coil.rotation.y = (postX - 42) * 0.035;
+        coil.name = "Working rope coil around mooring post";
+        root.add(coil);
+        objectRenderBudget.mooringFixtures.ropeCoils += 1;
+        objectRenderBudget.mooringFixtures.staticTriangles += (
+          geometryTriangles(mooringCoilGeometry)
+        );
+        const tail = new THREE.Mesh(mooringTailGeometry, ropeMaterial);
+        tail.position.copy(coil.position);
+        tail.rotation.copy(coil.rotation);
+        tail.name = "Loose mooring-rope tail resting on jetty";
+        root.add(tail);
+        objectRenderBudget.mooringFixtures.looseTails += 1;
+        objectRenderBudget.mooringFixtures.staticTriangles += (
+          geometryTriangles(mooringTailGeometry)
+        );
+      }
     }
   }
   addBox({ size: [5, 2.2, 58], position: [91, 0.7, 50], material: oldStone, collider: true, name: "Harbour mole" });
