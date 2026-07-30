@@ -180,6 +180,11 @@ export function buildArena(THREE, scene) {
       slitSurfaces: 0,
       staticTriangles: 0,
     },
+    wallDetails: {
+      wallRuns: 0,
+      lancetSlits: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1465,7 +1470,45 @@ export function buildArena(THREE, scene) {
     }
   };
 
+  const wallArrowSlitGeometry = new THREE.BufferGeometry();
+  wallArrowSlitGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([
+      -0.08, -0.625, 0,
+      0.08, -0.625, 0,
+      0.08, 0.45, 0,
+      0, 0.625, 0,
+      -0.08, 0.45, 0,
+    ], 3),
+  );
+  wallArrowSlitGeometry.setAttribute(
+    "normal",
+    new THREE.Float32BufferAttribute([
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+      0, 0, 1,
+    ], 3),
+  );
+  wallArrowSlitGeometry.setAttribute(
+    "uv",
+    new THREE.Float32BufferAttribute([
+      0, 0,
+      1, 0,
+      1, 0.86,
+      0.5, 1,
+      0, 0.86,
+    ], 2),
+  );
+  wallArrowSlitGeometry.setIndex([
+    0, 1, 2,
+    0, 2, 4,
+    4, 2, 3,
+  ]);
+
   const addWall = (size, position, name) => {
+    objectRenderBudget.wallDetails.wallRuns += 1;
     addBox({ size, position, material: oldStone, collider: true, name });
     const alongX = size[0] > size[2];
     const length = alongX ? size[0] : size[2];
@@ -1479,15 +1522,19 @@ export function buildArena(THREE, scene) {
       position[1] + size[1] / 2 + 0.75,
     );
     for (let p = start; p <= end; p += 12) {
-      addBox({
-        size: alongX ? [0.24, 1.25, 0.1] : [0.1, 1.25, 0.24],
-        position: alongX
-          ? [p, position[1] + 0.25, position[2] + size[2] / 2 + 0.06]
-          : [position[0] - size[0] / 2 - 0.06, position[1] + 0.25, p],
-        material: darkRecess,
-        shadows: false,
-        name: "Arrow slit",
-      });
+      const slit = new THREE.Mesh(wallArrowSlitGeometry, darkRecess);
+      slit.position.set(
+        alongX ? p : position[0] - size[0] / 2 - 0.06,
+        position[1] + 0.25,
+        alongX ? position[2] + size[2] / 2 + 0.06 : p,
+      );
+      if (!alongX) slit.rotation.y = -Math.PI / 2;
+      slit.name = "Flush pointed-lancet defensive-wall slit";
+      root.add(slit);
+      objectRenderBudget.wallDetails.lancetSlits += 1;
+      objectRenderBudget.wallDetails.staticTriangles += geometryTriangles(
+        wallArrowSlitGeometry,
+      );
     }
     for (let p = start + 5; p <= end; p += 20) {
       addBox({

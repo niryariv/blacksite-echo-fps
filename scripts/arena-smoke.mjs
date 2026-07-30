@@ -76,7 +76,7 @@ try {
       `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
     );
   }
-  if (budget.staticTriangles > 100200) {
+  if (budget.staticTriangles > 99900) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -427,6 +427,23 @@ try {
     throw new Error(
       `Tower-detail triangle budget regressed: ${
         objectBudget.towerDetails.staticTriangles
+      }`,
+    );
+  }
+  if (
+    objectBudget.wallDetails.wallRuns !== 6 ||
+    objectBudget.wallDetails.lancetSlits !== 34
+  ) {
+    throw new Error(
+      `Defensive-wall-detail construction regressed: ${
+        JSON.stringify(objectBudget?.wallDetails)
+      }`,
+    );
+  }
+  if (objectBudget.wallDetails.staticTriangles > 102) {
+    throw new Error(
+      `Defensive-wall-detail triangle budget regressed: ${
+        objectBudget.wallDetails.staticTriangles
       }`,
     );
   }
