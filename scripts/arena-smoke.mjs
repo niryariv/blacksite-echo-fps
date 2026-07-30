@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 103000) {
+  if (budget.staticTriangles > 102500) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -198,6 +198,23 @@ try {
   ) {
     throw new Error(
       `Market-goods triangle budget regressed: ${JSON.stringify(objectBudget.marketGoods)}`,
+    );
+  }
+  if (
+    objectBudget.baskets.instances !== 4 ||
+    objectBudget.baskets.bodies !== 4 ||
+    objectBudget.baskets.rims !== 4 ||
+    objectBudget.baskets.baseRings !== 4 ||
+    objectBudget.baskets.handles !== 4 ||
+    objectBudget.baskets.ribs !== 32
+  ) {
+    throw new Error(
+      `Produce-basket construction regressed: ${JSON.stringify(objectBudget?.baskets)}`,
+    );
+  }
+  if (objectBudget.baskets.staticTriangles > 1408) {
+    throw new Error(
+      `Produce-basket triangle budget regressed: ${objectBudget.baskets.staticTriangles}`,
     );
   }
   if (

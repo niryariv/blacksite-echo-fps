@@ -83,6 +83,15 @@ export function buildArena(THREE, scene) {
       sugarOpenings: 0,
       sugarTriangles: 0,
     },
+    baskets: {
+      instances: 0,
+      bodies: 0,
+      rims: 0,
+      baseRings: 0,
+      handles: 0,
+      ribs: 0,
+      staticTriangles: 0,
+    },
     amphorae: {
       instances: 0,
       bodies: 0,
@@ -3088,28 +3097,117 @@ export function buildArena(THREE, scene) {
     [0.98, 1.08, 0.98],
   ];
   const produceNames = ["onion", "cucumber", "pomegranate"];
+  const basketBodyGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.31, 0.04),
+      new THREE.Vector2(0.41, 0.22),
+      new THREE.Vector2(0.46, 0.42),
+    ],
+    10,
+  );
+  const basketBodyPositions = basketBodyGeometry.attributes.position;
+  for (let vertex = 0; vertex < basketBodyPositions.count; vertex += 1) {
+    const x = basketBodyPositions.getX(vertex);
+    const y = basketBodyPositions.getY(vertex);
+    const z = basketBodyPositions.getZ(vertex);
+    const angle = Math.atan2(z, x);
+    const handwovenVariation = (
+      1
+      + Math.sin(angle * 5 + y * 7) * 0.014
+      + Math.cos(angle * 3 - y * 9) * 0.009
+    );
+    basketBodyPositions.setXYZ(
+      vertex,
+      x * handwovenVariation,
+      y,
+      z * handwovenVariation,
+    );
+  }
+  basketBodyGeometry.computeVertexNormals();
+  const basketRimGeometry = new THREE.TorusGeometry(0.46, 0.05, 3, 12);
+  const basketBaseGeometry = new THREE.TorusGeometry(0.31, 0.025, 3, 10);
+  const basketRibGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(
+      [
+        new THREE.Vector3(0.315, 0.05, 0),
+        new THREE.Vector3(0.4, 0.22, 0),
+        new THREE.Vector3(0.458, 0.42, 0),
+      ],
+      false,
+      "centripetal",
+    ),
+    3,
+    0.014,
+    3,
+    false,
+  );
+  const basketHandleGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(
+      [
+        new THREE.Vector3(-0.43, 0.42, 0),
+        new THREE.Vector3(-0.46, 0.61, 0.015),
+        new THREE.Vector3(-0.32, 0.82, -0.01),
+        new THREE.Vector3(0, 0.93, 0.02),
+        new THREE.Vector3(0.32, 0.82, -0.01),
+        new THREE.Vector3(0.46, 0.61, 0.015),
+        new THREE.Vector3(0.43, 0.42, 0),
+      ],
+      false,
+      "centripetal",
+    ),
+    6,
+    0.03,
+    3,
+    false,
+  );
   [
     [59, -18.3], [20.5, 18.4], [-3, 33], [39, 54.5],
   ].forEach(([x, z], basketIndex) => {
     const basket = new THREE.Group();
     basket.position.set(x, 0, z);
-    basket.name = "Wicker produce basket";
+    basket.rotation.y = basketIndex % 2 ? 0.08 : -0.08;
+    basket.name = "Handwoven produce basket";
     root.add(basket);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.065, 8, 20), wicker);
+    objectRenderBudget.baskets.instances += 1;
+
+    const bowl = new THREE.Mesh(basketBodyGeometry, wicker);
+    bowl.castShadow = bowl.receiveShadow = true;
+    bowl.name = "Irregular handwoven basket body";
+    basket.add(bowl);
+    objectRenderBudget.baskets.bodies += 1;
+    objectRenderBudget.baskets.staticTriangles += geometryTriangles(basketBodyGeometry);
+
+    const rim = new THREE.Mesh(basketRimGeometry, wicker);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = 0.43;
+    rim.name = "Bound wicker basket rim";
     basket.add(rim);
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.32, 0.38, 14, 1, true), wicker);
-    bowl.position.y = 0.23;
-    basket.add(bowl);
-    const handle = new THREE.Mesh(
-      new THREE.TorusGeometry(0.42, 0.035, 5, 14, Math.PI),
-      wicker,
-    );
-    handle.position.y = 0.43;
-    handle.rotation.y = basketIndex % 2 ? 0.08 : -0.08;
-    handle.name = "Bent wicker basket handle";
+    objectRenderBudget.baskets.rims += 1;
+    objectRenderBudget.baskets.staticTriangles += geometryTriangles(basketRimGeometry);
+
+    const baseRing = new THREE.Mesh(basketBaseGeometry, wicker);
+    baseRing.rotation.x = Math.PI / 2;
+    baseRing.position.y = 0.055;
+    baseRing.name = "Reinforced wicker basket foot";
+    basket.add(baseRing);
+    objectRenderBudget.baskets.baseRings += 1;
+    objectRenderBudget.baskets.staticTriangles += geometryTriangles(basketBaseGeometry);
+
+    for (let ribIndex = 0; ribIndex < 8; ribIndex += 1) {
+      const rib = new THREE.Mesh(basketRibGeometry, wicker);
+      rib.rotation.y = ribIndex * Math.PI / 4;
+      rib.name = "Curved structural basket rib";
+      basket.add(rib);
+      objectRenderBudget.baskets.ribs += 1;
+      objectRenderBudget.baskets.staticTriangles += geometryTriangles(basketRibGeometry);
+    }
+
+    const handle = new THREE.Mesh(basketHandleGeometry, wicker);
+    handle.name = "Bent neck-to-neck wicker handle";
     basket.add(handle);
+    objectRenderBudget.baskets.handles += 1;
+    objectRenderBudget.baskets.staticTriangles += geometryTriangles(basketHandleGeometry);
+
     for (let i = 0; i < 7; i += 1) {
       const produceType = (basketIndex + i) % marketProduce.length;
       const size = 0.92 + (i % 2) * 0.14;
