@@ -109,6 +109,21 @@ export function buildArena(THREE, scene) {
       openings: 0,
       staticTriangles: 0,
     },
+    handcart: {
+      instances: 0,
+      bedPlanks: 0,
+      sideRails: 0,
+      sideStakes: 0,
+      headboardSlats: 0,
+      carryingShafts: 0,
+      axles: 0,
+      wheelRims: 0,
+      ironTires: 0,
+      spokes: 0,
+      hubs: 0,
+      linchpins: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -3574,69 +3589,133 @@ export function buildArena(THREE, scene) {
     position: [-46, 39.6],
     approach: [-46, 37.2],
   });
-  addBox({
-    size: [3.8, 0.28, 1.85],
-    position: [-46, 0.68, 39.6],
-    material: timber,
-    name: "Porter's two-wheel handcart",
-  });
+  objectRenderBudget.handcart.instances = 1;
+  const addHandcartBox = (options, counter) => {
+    const mesh = addBox(options);
+    objectRenderBudget.handcart[counter] += 1;
+    objectRenderBudget.handcart.staticTriangles += geometryTriangles(mesh.geometry);
+    return mesh;
+  };
+  for (let plank = 0; plank < 5; plank += 1) {
+    const board = addHandcartBox({
+      size: [0.7, 0.18, 1.78],
+      position: [
+        -47.44 + plank * 0.72,
+        0.66 + Math.sin(plank * 2.1) * 0.012,
+        39.6,
+      ],
+      material: plank % 2 ? darkTimber : timber,
+      name: "Individually fitted handcart bed plank",
+    }, "bedPlanks");
+    board.rotation.y = (plank - 2) * 0.006;
+  }
   for (const side of [-1, 1]) {
-    addBox({
-      size: [0.16, 0.62, 1.82],
-      position: [-46 + side * 1.78, 1.0, 39.6],
+    addHandcartBox({
+      size: [0.14, 0.14, 1.84],
+      position: [-46 + side * 1.78, 1.25, 39.6],
       material: darkTimber,
-      name: "Handcart side rail",
-    });
-    const handle = addBox({
+      name: "Handcart upper side rail",
+    }, "sideRails");
+    for (const z of [38.86, 39.6, 40.34]) {
+      const stake = addHandcartBox({
+        size: [0.13, 0.76, 0.13],
+        position: [-46 + side * 1.78, 0.94, z],
+        material: darkTimber,
+        name: "Mortised handcart side stake",
+      }, "sideStakes");
+      stake.rotation.z = side * (z - 39.6) * 0.018;
+    }
+    const handle = addHandcartBox({
       size: [0.14, 0.14, 3.15],
       position: [-46 + side * 1.42, 0.72, 37.15],
       material: timber,
       name: "Handcart carrying shaft",
-    });
+    }, "carryingShafts");
     handle.rotation.x = side * 0.018;
   }
-  addBox({
-    size: [3.78, 0.62, 0.16],
-    position: [-46, 1.0, 40.42],
-    material: darkTimber,
-    name: "Handcart headboard",
-  });
+  for (const [slat, y] of [0.82, 1.08, 1.34].entries()) {
+    const headboard = addHandcartBox({
+      size: [3.7, 0.13, 0.14],
+      position: [-46, y, 40.42],
+      material: slat === 1 ? timber : darkTimber,
+      name: "Spaced handcart headboard slat",
+    }, "headboardSlats");
+    headboard.rotation.z = (slat - 1) * 0.004;
+  }
+  const cartAxleGeometry = new THREE.CylinderGeometry(0.09, 0.09, 3.22, 8);
   const cartAxle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.09, 0.09, 3.22, 8),
+    cartAxleGeometry,
     agedIron,
   );
   cartAxle.position.set(-46, 0.78, 39.6);
   cartAxle.rotation.z = Math.PI / 2;
   cartAxle.name = "Handcart iron axle";
   root.add(cartAxle);
-  for (const x of [-47.35, -44.65]) {
+  objectRenderBudget.handcart.axles += 1;
+  objectRenderBudget.handcart.staticTriangles += geometryTriangles(cartAxleGeometry);
+  const cartWheelGeometry = new THREE.TorusGeometry(0.74, 0.1, 3, 8);
+  const cartTireGeometry = new THREE.TorusGeometry(0.845, 0.035, 3, 10);
+  const cartHubGeometry = new THREE.CylinderGeometry(0.17, 0.19, 0.28, 6);
+  const cartLinchpinGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.32, 4);
+  const cartSpokeGeometry = mergeGeometries([
+    new THREE.PlaneGeometry(0.075, 0.62).rotateY(Math.PI / 2),
+    new THREE.PlaneGeometry(0.075, 0.62).rotateY(-Math.PI / 2),
+  ], false);
+  for (const side of [-1, 1]) {
+    const x = -46 + side * 1.35;
     const wheel = new THREE.Mesh(
-      new THREE.TorusGeometry(0.78, 0.12, 6, 14),
+      cartWheelGeometry,
       timber,
     );
     wheel.position.set(x, 0.78, 39.6);
     wheel.rotation.y = Math.PI / 2;
     wheel.castShadow = true;
-    wheel.name = "Timber cart wheel";
+    wheel.name = "Felloed timber handcart wheel";
     root.add(wheel);
-    for (const rotation of [0, Math.PI / 4, Math.PI / 2, -Math.PI / 4]) {
-      const spoke = addBox({
-        size: [0.105, 1.34, 0.085],
-        position: [x, 0.78, 39.6],
-        material: darkTimber,
-        shadows: false,
-        name: "Handcart wheel spokes",
-      });
+    objectRenderBudget.handcart.wheelRims += 1;
+    objectRenderBudget.handcart.staticTriangles += geometryTriangles(cartWheelGeometry);
+
+    const tire = new THREE.Mesh(cartTireGeometry, agedIron);
+    tire.position.copy(wheel.position);
+    tire.rotation.copy(wheel.rotation);
+    tire.castShadow = true;
+    tire.name = "Shrunk iron handcart tire";
+    root.add(tire);
+    objectRenderBudget.handcart.ironTires += 1;
+    objectRenderBudget.handcart.staticTriangles += geometryTriangles(cartTireGeometry);
+
+    for (let spokeIndex = 0; spokeIndex < 6; spokeIndex += 1) {
+      const rotation = spokeIndex * Math.PI / 3;
+      const spoke = new THREE.Mesh(cartSpokeGeometry, darkTimber);
+      spoke.position.set(
+        x,
+        0.78 + Math.cos(rotation) * 0.38,
+        39.6 + Math.sin(rotation) * 0.38,
+      );
       spoke.rotation.x = rotation;
+      spoke.name = "Thin mortised handcart wheel spoke";
+      root.add(spoke);
+      objectRenderBudget.handcart.spokes += 1;
+      objectRenderBudget.handcart.staticTriangles += geometryTriangles(cartSpokeGeometry);
     }
     const hub = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.17, 0.17, 0.24, 8),
+      cartHubGeometry,
       darkTimber,
     );
     hub.position.set(x, 0.78, 39.6);
     hub.rotation.z = Math.PI / 2;
-    hub.name = "Handcart wheel hub";
+    hub.name = "Heavy handcart wheel nave";
     root.add(hub);
+    objectRenderBudget.handcart.hubs += 1;
+    objectRenderBudget.handcart.staticTriangles += geometryTriangles(cartHubGeometry);
+
+    const linchpin = new THREE.Mesh(cartLinchpinGeometry, agedIron);
+    linchpin.position.set(x + side * 0.18, 0.78, 39.6);
+    linchpin.rotation.z = side * 0.06;
+    linchpin.name = "Forged axle linchpin";
+    root.add(linchpin);
+    objectRenderBudget.handcart.linchpins += 1;
+    objectRenderBudget.handcart.staticTriangles += geometryTriangles(cartLinchpinGeometry);
   }
   addClothBale(templarFreight, -46.35, 39.6, 2.45, 1.72, 2);
   addStreetCoverCollider(templarFreight, [3.8, 1.75, 1.85], [-46, 0.88, 39.6]);

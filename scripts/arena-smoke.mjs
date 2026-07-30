@@ -251,6 +251,29 @@ try {
     );
   }
   if (
+    objectBudget.handcart.instances !== 1 ||
+    objectBudget.handcart.bedPlanks !== 5 ||
+    objectBudget.handcart.sideRails !== 2 ||
+    objectBudget.handcart.sideStakes !== 6 ||
+    objectBudget.handcart.headboardSlats !== 3 ||
+    objectBudget.handcart.carryingShafts !== 2 ||
+    objectBudget.handcart.axles !== 1 ||
+    objectBudget.handcart.wheelRims !== 2 ||
+    objectBudget.handcart.ironTires !== 2 ||
+    objectBudget.handcart.spokes !== 12 ||
+    objectBudget.handcart.hubs !== 2 ||
+    objectBudget.handcart.linchpins !== 2
+  ) {
+    throw new Error(
+      `Handcart construction regressed: ${JSON.stringify(objectBudget?.handcart)}`,
+    );
+  }
+  if (objectBudget.handcart.staticTriangles > 592) {
+    throw new Error(
+      `Handcart triangle budget regressed: ${objectBudget.handcart.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||
