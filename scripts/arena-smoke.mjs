@@ -201,6 +201,23 @@ try {
     );
   }
   if (
+    objectBudget.cargoCover.chests !== 5 ||
+    objectBudget.cargoCover.chestLids !== 5 ||
+    objectBudget.cargoCover.chestBindings !== 10 ||
+    objectBudget.cargoCover.chestKnots !== 10 ||
+    objectBudget.cargoCover.clothBales !== 3 ||
+    objectBudget.cargoCover.baleBindings !== 6
+  ) {
+    throw new Error(
+      `Cargo-cover construction regressed: ${JSON.stringify(objectBudget.cargoCover)}`,
+    );
+  }
+  if (objectBudget.cargoCover.staticTriangles > 1476) {
+    throw new Error(
+      `Cargo-cover triangle budget regressed: ${objectBudget.cargoCover.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||

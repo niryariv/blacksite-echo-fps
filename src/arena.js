@@ -83,6 +83,15 @@ export function buildArena(THREE, scene) {
       sugarOpenings: 0,
       sugarTriangles: 0,
     },
+    cargoCover: {
+      chests: 0,
+      chestLids: 0,
+      chestBindings: 0,
+      chestKnots: 0,
+      clothBales: 0,
+      baleBindings: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -3090,21 +3099,84 @@ export function buildArena(THREE, scene) {
     cover.colliderIndexes.push(colliders.length);
     addCollider(size, position);
   };
+  const cargoKnotGeometry = new THREE.TorusGeometry(0.065, 0.016, 3, 5);
+  const addRoundCargoBinding = ({
+    x,
+    z,
+    offset,
+    height,
+    depth,
+    name,
+    knot = false,
+  }) => {
+    const verticalGeometry = new THREE.CylinderGeometry(
+      0.025,
+      0.029,
+      height + 0.06,
+      5,
+    );
+    for (const face of [-1, 1]) {
+      const vertical = new THREE.Mesh(verticalGeometry, ropeMaterial);
+      vertical.position.set(
+        x + offset,
+        height / 2,
+        z + face * (depth / 2 + 0.028),
+      );
+      vertical.name = `${name} vertical rope`;
+      root.add(vertical);
+      objectRenderBudget.cargoCover.staticTriangles += geometryTriangles(verticalGeometry);
+    }
+    const topGeometry = new THREE.CylinderGeometry(
+      0.025,
+      0.029,
+      depth + 0.08,
+      5,
+    );
+    const top = new THREE.Mesh(topGeometry, ropeMaterial);
+    top.position.set(x + offset, height + 0.03, z);
+    top.rotation.x = Math.PI / 2;
+    top.name = `${name} top rope`;
+    root.add(top);
+    objectRenderBudget.cargoCover.staticTriangles += geometryTriangles(topGeometry);
+    if (knot) {
+      const tie = new THREE.Mesh(cargoKnotGeometry, ropeMaterial);
+      tie.position.set(x + offset, height * 0.72, z + depth / 2 + 0.065);
+      tie.rotation.z = offset * 0.37;
+      tie.name = "Hand-tied cargo knot";
+      root.add(tie);
+      objectRenderBudget.cargoCover.chestKnots += 1;
+      objectRenderBudget.cargoCover.staticTriangles += geometryTriangles(cargoKnotGeometry);
+    }
+  };
   const addBoundCrate = (cover, x, z, size = [1.65, 1.45, 1.25]) => {
+    const bodyHeight = size[1] - 0.16;
     addBox({
-      size,
-      position: [x, size[1] / 2, z],
+      size: [size[0], bodyHeight, size[2]],
+      position: [x, bodyHeight / 2, z],
       material: timber,
-      name: "Rope-bound merchant chest",
+      name: "Merchant chest body",
     });
+    objectRenderBudget.cargoCover.chests += 1;
+    objectRenderBudget.cargoCover.staticTriangles += 12;
+    addBox({
+      size: [size[0] + 0.08, 0.16, size[2] + 0.08],
+      position: [x, size[1] - 0.08, z],
+      material: darkTimber,
+      name: "Raised merchant chest lid",
+    });
+    objectRenderBudget.cargoCover.chestLids += 1;
+    objectRenderBudget.cargoCover.staticTriangles += 12;
     for (const offset of [-size[0] * 0.28, size[0] * 0.28]) {
-      addBox({
-        size: [0.07, size[1] + 0.05, size[2] + 0.07],
-        position: [x + offset, size[1] / 2, z],
-        material: ropeMaterial,
-        shadows: false,
-        name: "Cargo binding",
+      addRoundCargoBinding({
+        x,
+        z,
+        offset,
+        height: size[1],
+        depth: size[2],
+        name: "Chest binding",
+        knot: true,
       });
+      objectRenderBudget.cargoCover.chestBindings += 1;
     }
     addStreetCoverCollider(cover, size, [x, size[1] / 2, z]);
   };
@@ -3151,22 +3223,46 @@ export function buildArena(THREE, scene) {
     addStreetCoverCollider(cover, [rackWidth, 1.72, 1.18], [x, 0.86, z]);
   };
   const addClothBale = (cover, x, z, width, height, materialIndex = 0) => {
-    addBox({
-      size: [width, height, 1.18],
-      position: [x, height / 2, z],
-      material: dyedCloth[materialIndex % dyedCloth.length],
-      name: "Rope-bound cloth bale",
-    });
-    for (const offset of [-width * 0.27, width * 0.27]) {
-      addBox({
-        size: [0.055, height + 0.04, 1.22],
-        position: [x + offset, height / 2, z],
-        material: ropeMaterial,
-        shadows: false,
-        name: "Bale cord",
-      });
+    const depth = 1.18;
+    const baleGeometry = new THREE.BoxGeometry(width, height, depth, 2, 2, 1);
+    const positions = baleGeometry.attributes.position;
+    for (let index = 0; index < positions.count; index += 1) {
+      const px = positions.getX(index);
+      const py = positions.getY(index);
+      const pz = positions.getZ(index);
+      const nx = Math.abs(px) / (width / 2);
+      const ny = Math.abs(py) / (height / 2);
+      const nz = Math.abs(pz) / (depth / 2);
+      positions.setXYZ(
+        index,
+        px * (1 - ny * nz * 0.055),
+        py * (1 - nx * nz * 0.06),
+        pz * (1 - nx * ny * 0.045),
+      );
     }
-    addStreetCoverCollider(cover, [width, height, 1.18], [x, height / 2, z]);
+    baleGeometry.computeVertexNormals();
+    const bale = new THREE.Mesh(
+      baleGeometry,
+      dyedCloth[materialIndex % dyedCloth.length],
+    );
+    bale.position.set(x, height / 2, z);
+    bale.castShadow = bale.receiveShadow = true;
+    bale.name = "Soft-cornered rope-bound cloth bale";
+    root.add(bale);
+    objectRenderBudget.cargoCover.clothBales += 1;
+    objectRenderBudget.cargoCover.staticTriangles += geometryTriangles(baleGeometry);
+    for (const offset of [-width * 0.27, width * 0.27]) {
+      addRoundCargoBinding({
+        x,
+        z,
+        offset,
+        height,
+        depth,
+        name: "Bale binding",
+      });
+      objectRenderBudget.cargoCover.baleBindings += 1;
+    }
+    addStreetCoverCollider(cover, [width, height, depth], [x, height / 2, z]);
   };
 
   const venetianCargo = beginStreetCover({
