@@ -85,6 +85,39 @@ try {
       `Animated vessel draw budget regressed: ${JSON.stringify(arena.vesselRenderBudget)}`,
     );
   }
+  const objectBudget = arena.objectRenderBudget;
+  if (
+    !objectBudget ||
+    objectBudget.oliveTrees.instances !== 6 ||
+    objectBudget.oliveTrees.trunks !== 6 ||
+    objectBudget.oliveTrees.roots !== 18 ||
+    objectBudget.oliveTrees.branches !== 24 ||
+    objectBudget.oliveTrees.foliageCards !== 90
+  ) {
+    throw new Error(
+      `Olive-tree construction regressed: ${JSON.stringify(objectBudget?.oliveTrees)}`,
+    );
+  }
+  if (objectBudget.oliveTrees.staticTriangles > 2200) {
+    throw new Error(
+      `Olive-tree triangle budget regressed: ${objectBudget.oliveTrees.staticTriangles}`,
+    );
+  }
+  if (
+    objectBudget.torches.instances !== 9 ||
+    objectBudget.torches.tripodLegs !== 27 ||
+    objectBudget.torches.fuelPieces !== 18 ||
+    objectBudget.torches.pointLights !== 9
+  ) {
+    throw new Error(
+      `Torch construction regressed: ${JSON.stringify(objectBudget.torches)}`,
+    );
+  }
+  if (objectBudget.torches.staticTriangles > 3000) {
+    throw new Error(
+      `Torch triangle budget regressed: ${objectBudget.torches.staticTriangles}`,
+    );
+  }
 
   const playerHeight = 1.72;
   const playerRadius = 0.46;
@@ -132,6 +165,7 @@ try {
     blockedEntryAnchors,
     zones: arena.zones.length,
     vesselRenderBudget: arena.vesselRenderBudget,
+    objectRenderBudget: objectBudget,
   }, null, 2));
 } finally {
   await vite.close();

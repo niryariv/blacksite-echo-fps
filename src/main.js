@@ -367,6 +367,7 @@ if (import.meta.env.DEV) {
         geometries: renderer.info.memory.geometries,
         staticCity: arena.renderBudget,
         vessels: arena.vesselRenderBudget,
+        objects: arena.objectRenderBudget,
         guardModel: guards[0]?.modelBudget || null,
       };
     },

@@ -2986,6 +2986,29 @@ export function buildArena(THREE, scene) {
   addBoundCrate(harbourWork, 39.2, 49.55, [3.25, 1.18, 1.35]);
   addStreetCoverCollider(harbourWork, [3.25, 2.2, 1.35], [39.2, 1.1, 49.35]);
 
+  const objectRenderBudget = {
+    oliveTrees: {
+      instances: 0,
+      trunks: 0,
+      roots: 0,
+      branches: 0,
+      foliageCards: 0,
+      staticTriangles: 0,
+    },
+    torches: {
+      instances: 0,
+      tripodLegs: 0,
+      fuelPieces: 0,
+      pointLights: 0,
+      staticTriangles: 0,
+    },
+  };
+  const geometryTriangles = (geometry) => (
+    geometry.index
+      ? geometry.index.count / 3
+      : geometry.attributes.position.count / 3
+  );
+
   const oliveLeafTexture = canvasTexture(256, (ctx, s) => {
     const random = seededPainter(0x0117e);
     ctx.clearRect(0, 0, s, s);
@@ -3032,7 +3055,10 @@ export function buildArena(THREE, scene) {
     side: THREE.DoubleSide,
     roughness: 0.96,
   });
-  const oliveCardGeometry = new THREE.PlaneGeometry(2.1, 1.35, 3, 2);
+  // Alpha-cut foliage gets its silhouette from the texture, so two broad
+  // quads are enough. The saved subdivisions pay for a gnarled trunk, tapered
+  // limbs, and root flares without increasing the vegetation triangle budget.
+  const oliveCardGeometry = new THREE.PlaneGeometry(2.1, 1.35, 2, 1);
   const oliveCardPositions = oliveCardGeometry.attributes.position;
   for (let index = 0; index < oliveCardPositions.count; index += 1) {
     const x = oliveCardPositions.getX(index);
@@ -3040,22 +3066,72 @@ export function buildArena(THREE, scene) {
     oliveCardPositions.setZ(index, Math.sin(x * 2.1) * Math.cos(y * 2.8) * 0.065);
   }
   oliveCardGeometry.computeVertexNormals();
+  const oliveTrunkGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.46, -2.15),
+      new THREE.Vector2(0.36, -1.72),
+      new THREE.Vector2(0.31, -0.96),
+      new THREE.Vector2(0.38, -0.18),
+      new THREE.Vector2(0.29, 0.62),
+      new THREE.Vector2(0.25, 1.42),
+      new THREE.Vector2(0.17, 2.15),
+    ],
+    9,
+  );
+  const oliveTrunkPositions = oliveTrunkGeometry.attributes.position;
+  for (let index = 0; index < oliveTrunkPositions.count; index += 1) {
+    const y = oliveTrunkPositions.getY(index);
+    oliveTrunkPositions.setX(
+      index,
+      oliveTrunkPositions.getX(index) + Math.sin((y + 2.15) * 1.34) * 0.08,
+    );
+    oliveTrunkPositions.setZ(
+      index,
+      oliveTrunkPositions.getZ(index) + Math.sin((y + 2.15) * 1.91 + 0.7) * 0.055,
+    );
+  }
+  oliveTrunkGeometry.computeVertexNormals();
+  const oliveBranchGeometry = new THREE.CylinderGeometry(0.042, 0.14, 2.8, 7);
+  const oliveRootGeometry = new THREE.CylinderGeometry(0.045, 0.24, 0.9, 6);
   [
     [104, -44], [105, 8], [103, 26], [-90, -46], [-91, -23], [-89, 21],
-  ].forEach(([x, z]) => {
-    addCylinder({ radius: 0.3, height: 4.3, position: [x, 2.15, z], material: timber, segments: 9, name: "Olive trunk" });
+  ].forEach(([x, z], treeIndex) => {
+    objectRenderBudget.oliveTrees.instances += 1;
+    const trunk = new THREE.Mesh(oliveTrunkGeometry, darkTimber);
+    trunk.position.set(x, 2.15, z);
+    trunk.rotation.y = treeIndex * 0.73;
+    trunk.castShadow = trunk.receiveShadow = true;
+    trunk.name = "Gnarled olive trunk";
+    root.add(trunk);
+    objectRenderBudget.oliveTrees.trunks += 1;
+    objectRenderBudget.oliveTrees.staticTriangles += geometryTriangles(oliveTrunkGeometry);
+    for (let rootFlare = 0; rootFlare < 3; rootFlare += 1) {
+      const rootAngle = treeIndex * 0.57 + rootFlare * Math.PI * 2 / 3;
+      const flare = new THREE.Mesh(oliveRootGeometry, darkTimber);
+      flare.position.set(
+        x + Math.cos(rootAngle) * 0.27,
+        0.3,
+        z + Math.sin(rootAngle) * 0.27,
+      );
+      flare.rotation.z = Math.cos(rootAngle) * 0.98;
+      flare.rotation.x = Math.sin(rootAngle) * -0.98;
+      flare.castShadow = flare.receiveShadow = true;
+      flare.name = "Olive root flare";
+      root.add(flare);
+      objectRenderBudget.oliveTrees.roots += 1;
+      objectRenderBudget.oliveTrees.staticTriangles += geometryTriangles(oliveRootGeometry);
+    }
     for (let branch = 0; branch < 4; branch += 1) {
       const angle = branch * Math.PI * 0.5 + 0.35;
-      const limb = addCylinder({
-        radius: 0.11,
-        height: 2.8,
-        position: [x + Math.cos(angle) * 0.58, 4.25, z + Math.sin(angle) * 0.58],
-        material: timber,
-        segments: 7,
-        name: "Olive branch",
-      });
+      const limb = new THREE.Mesh(oliveBranchGeometry, darkTimber);
+      limb.position.set(x + Math.cos(angle) * 0.58, 4.25, z + Math.sin(angle) * 0.58);
       limb.rotation.z = Math.cos(angle) * 0.55;
       limb.rotation.x = Math.sin(angle) * -0.55;
+      limb.castShadow = limb.receiveShadow = true;
+      limb.name = "Tapered olive branch";
+      root.add(limb);
+      objectRenderBudget.oliveTrees.branches += 1;
+      objectRenderBudget.oliveTrees.staticTriangles += geometryTriangles(oliveBranchGeometry);
     }
     const clusters = [
       [0, 5.45, 0, 1.7, 0.75, 1.35],
@@ -3079,34 +3155,68 @@ export function buildArena(THREE, scene) {
         crown.receiveShadow = false;
         crown.name = "Olive leaf spray";
         root.add(crown);
+        objectRenderBudget.oliveTrees.foliageCards += 1;
+        objectRenderBudget.oliveTrees.staticTriangles += geometryTriangles(oliveCardGeometry);
       }
     });
   });
 
+  const torchStandardGeometry = new THREE.CylinderGeometry(0.035, 0.06, 1.82, 6);
+  const torchLegGeometry = new THREE.CylinderGeometry(0.024, 0.046, 0.82, 5);
+  const torchFuelGeometry = new THREE.CylinderGeometry(0.035, 0.052, 0.48, 5);
+  const torchBasketGeometry = new THREE.ConeGeometry(0.24, 0.28, 10, 1, true);
+  const torchBasketRimGeometry = new THREE.TorusGeometry(0.24, 0.026, 4, 12);
+  const torchProngGeometry = new THREE.CylinderGeometry(0.018, 0.023, 0.42, 5);
   const addTorch = (x, z, y = 2.4) => {
-    addBox({
-      size: [0.11, 1.55, 0.11],
-      position: [x, y - 0.9, z],
-      material: agedIron,
-      shadows: false,
-      name: "Torch iron standard",
-    });
+    objectRenderBudget.torches.instances += 1;
+    const standard = new THREE.Mesh(torchStandardGeometry, agedIron);
+    standard.position.set(x, y - 1.08, z);
+    standard.name = "Tapered forged torch standard";
+    root.add(standard);
+    objectRenderBudget.torches.staticTriangles += geometryTriangles(torchStandardGeometry);
+    for (let leg = 0; leg < 3; leg += 1) {
+      const angle = leg * Math.PI * 2 / 3;
+      const tripodLeg = new THREE.Mesh(torchLegGeometry, agedIron);
+      tripodLeg.position.set(
+        x + Math.cos(angle) * 0.19,
+        y - 1.76,
+        z + Math.sin(angle) * 0.19,
+      );
+      tripodLeg.rotation.z = Math.cos(angle) * 0.52;
+      tripodLeg.rotation.x = Math.sin(angle) * -0.52;
+      tripodLeg.name = "Forged torch tripod leg";
+      root.add(tripodLeg);
+      objectRenderBudget.torches.tripodLegs += 1;
+      objectRenderBudget.torches.staticTriangles += geometryTriangles(torchLegGeometry);
+    }
     const basket = new THREE.Mesh(
-      new THREE.ConeGeometry(0.24, 0.28, 10, 1, true),
+      torchBasketGeometry,
       bronze,
     );
     basket.rotation.z = Math.PI;
     basket.position.set(x, y - 0.18, z);
     basket.name = "Hammered torch basket";
     root.add(basket);
-    const basketRim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.026, 5, 14), bronze);
+    objectRenderBudget.torches.staticTriangles += geometryTriangles(torchBasketGeometry);
+    const basketRim = new THREE.Mesh(torchBasketRimGeometry, bronze);
     basketRim.rotation.x = Math.PI / 2;
     basketRim.position.set(x, y - 0.05, z);
     basketRim.name = "Torch basket rim";
     root.add(basketRim);
+    objectRenderBudget.torches.staticTriangles += geometryTriangles(torchBasketRimGeometry);
+    for (const direction of [-1, 1]) {
+      const fuel = new THREE.Mesh(torchFuelGeometry, darkTimber);
+      fuel.position.set(x, y - 0.02, z);
+      fuel.rotation.z = direction * 0.72;
+      fuel.rotation.x = direction * 0.18;
+      fuel.name = "Charred brazier fuel";
+      root.add(fuel);
+      objectRenderBudget.torches.fuelPieces += 1;
+      objectRenderBudget.torches.staticTriangles += geometryTriangles(torchFuelGeometry);
+    }
     for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 2) {
       const prong = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.018, 0.023, 0.42, 5),
+        torchProngGeometry,
         agedIron,
       );
       prong.position.set(
@@ -3118,6 +3228,7 @@ export function buildArena(THREE, scene) {
       prong.rotation.x = Math.sin(angle) * 0.13;
       prong.name = "Torch basket prong";
       root.add(prong);
+      objectRenderBudget.torches.staticTriangles += geometryTriangles(torchProngGeometry);
     }
     const flame = new THREE.Sprite(flameSpriteMaterial);
     flame.position.set(x, y + 0.17, z);
@@ -3127,6 +3238,7 @@ export function buildArena(THREE, scene) {
     const light = new THREE.PointLight(0xff9d42, 8, 10, 2);
     light.position.set(x, y + 0.1, z);
     root.add(light);
+    objectRenderBudget.torches.pointLights += 1;
     flame.userData.animate = (time) => {
       const flicker = 0.82 + Math.sin(time * 8 + x) * 0.18;
       flame.scale.set(0.55 + flicker * 0.09, 0.78 + flicker * 0.18, 1);
@@ -3378,5 +3490,6 @@ export function buildArena(THREE, scene) {
     streetStories,
     renderBudget,
     vesselRenderBudget,
+    objectRenderBudget,
   };
 }
