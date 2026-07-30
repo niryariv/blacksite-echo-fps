@@ -141,6 +141,21 @@ export function buildArena(THREE, scene) {
       linchpins: 0,
       staticTriangles: 0,
     },
+    well: {
+      instances: 0,
+      outerWalls: 0,
+      innerWalls: 0,
+      copingRings: 0,
+      shaftShadows: 0,
+      framePosts: 0,
+      crossbars: 0,
+      drums: 0,
+      axles: 0,
+      ropes: 0,
+      crankArms: 0,
+      crankGrips: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -1871,59 +1886,143 @@ export function buildArena(THREE, scene) {
     objectRenderBudget.textiles.bannerRails += 1;
     objectRenderBudget.textiles.staticTriangles += 12;
   }
-  const well = addCylinder({ radius: 1.35, height: 0.9, position: [-37, 0.45, -42], material: paleStone, segments: 18, parent: hospital, name: "Hospitaller well", collider: true });
-  well.geometry = new THREE.CylinderGeometry(1.35, 1.35, 0.9, 18, 1, true);
+  objectRenderBudget.well.instances = 1;
+  const wellOuterGeometry = new THREE.CylinderGeometry(1.35, 1.35, 0.9, 10, 1, true);
+  const wellOuter = new THREE.Mesh(wellOuterGeometry, paleStone);
+  wellOuter.position.set(-37, 0.45, -42);
+  wellOuter.castShadow = wellOuter.receiveShadow = true;
+  wellOuter.name = "Worn outer masonry of Hospitaller well";
+  hospital.add(wellOuter);
+  objectRenderBudget.well.outerWalls += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellOuterGeometry);
+
+  const wellInnerGeometry = new THREE.CylinderGeometry(1.05, 1.05, 0.9, 10, 1, true);
+  wellInnerGeometry.scale(-1, 1, 1);
+  const wellInner = new THREE.Mesh(wellInnerGeometry, oldStone);
+  wellInner.position.set(-37, 0.45, -42);
+  wellInner.receiveShadow = true;
+  wellInner.name = "Visible stone lining inside Hospitaller well";
+  hospital.add(wellInner);
+  objectRenderBudget.well.innerWalls += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellInnerGeometry);
+
+  const wellCopingGeometry = new THREE.RingGeometry(1.05, 1.35, 10, 1);
+  const wellCoping = new THREE.Mesh(wellCopingGeometry, paleStone);
+  wellCoping.position.set(-37, 0.905, -42);
+  wellCoping.rotation.x = -Math.PI / 2;
+  wellCoping.receiveShadow = true;
+  wellCoping.name = "Broad worn well coping ring";
+  hospital.add(wellCoping);
+  objectRenderBudget.well.copingRings += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellCopingGeometry);
+
+  const wellShaftGeometry = new THREE.CircleGeometry(1.04, 10);
+  const wellShaft = new THREE.Mesh(wellShaftGeometry, darkRecess);
+  wellShaft.position.set(-37, 0.04, -42);
+  wellShaft.rotation.x = -Math.PI / 2;
+  wellShaft.name = "Deep shadow inside Hospitaller well shaft";
+  hospital.add(wellShaft);
+  objectRenderBudget.well.shaftShadows += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellShaftGeometry);
+  addCollider([2.565, 0.9, 2.565], [-37, 0.45, -42]);
+
   for (const side of [-1, 1]) {
-    addBox({
+    const framePost = addBox({
       size: [0.18, 2.6, 0.18],
       position: [-37 + side * 1.15, 1.7, -42],
       material: timber,
       parent: hospital,
-      name: "Well frame",
+      name: "Squared timber well-frame post",
     });
+    objectRenderBudget.well.framePosts += 1;
+    objectRenderBudget.well.staticTriangles += geometryTriangles(framePost.geometry);
   }
-  addBox({ size: [2.7, 0.18, 0.18], position: [-37, 2.95, -42], material: timber, parent: hospital, name: "Well crossbar" });
+  const wellCrossbar = addBox({
+    size: [2.7, 0.18, 0.18],
+    position: [-37, 2.95, -42],
+    material: timber,
+    parent: hospital,
+    name: "Mortised timber well crossbar",
+  });
+  objectRenderBudget.well.crossbars += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellCrossbar.geometry);
+
+  const wellWindlassGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.26, -1.15),
+      new THREE.Vector2(0.19, -1.03),
+      new THREE.Vector2(0.19, 1.03),
+      new THREE.Vector2(0.26, 1.15),
+    ],
+    6,
+  );
   const wellWindlass = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.19, 0.22, 2.3, 10),
+    wellWindlassGeometry,
     darkTimber,
   );
   wellWindlass.position.set(-37, 2.68, -42);
   wellWindlass.rotation.z = Math.PI / 2;
   wellWindlass.castShadow = true;
-  wellWindlass.name = "Well windlass drum";
+  wellWindlass.name = "Flanged timber well windlass drum";
   hospital.add(wellWindlass);
+  objectRenderBudget.well.drums += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellWindlassGeometry);
+
+  const wellAxleGeometry = new THREE.CylinderGeometry(0.052, 0.052, 2.72, 5);
   const wellAxle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.052, 0.052, 2.72, 7),
+    wellAxleGeometry,
     agedIron,
   );
   wellAxle.position.set(-37, 2.68, -42);
   wellAxle.rotation.z = Math.PI / 2;
-  wellAxle.name = "Well windlass axle";
+  wellAxle.name = "Forged windlass axle";
   hospital.add(wellAxle);
+  objectRenderBudget.well.axles += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellAxleGeometry);
+
+  const wellRopeGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-37, 2.6, -42.18),
+      new THREE.Vector3(-37.04, 1.78, -42.16),
+      new THREE.Vector3(-36.98, 0.55, -42.19),
+    ]),
+    3,
+    0.034,
+    3,
+    false,
+  );
   const wellRope = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.032, 0.037, 2.08, 7),
+    wellRopeGeometry,
     ropeMaterial,
   );
-  wellRope.position.set(-37, 1.6, -42.18);
   wellRope.castShadow = true;
-  wellRope.name = "Coiled well rope";
+  wellRope.name = "Weight-bowed well rope";
   hospital.add(wellRope);
-  addBox({
+  objectRenderBudget.well.ropes += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellRopeGeometry);
+
+  const wellCrankArm = addBox({
     size: [0.08, 0.68, 0.08],
     position: [-38.48, 2.4, -42],
     material: agedIron,
     parent: hospital,
     shadows: false,
-    name: "Well crank arm",
+    name: "Forged offset well-crank arm",
   });
+  objectRenderBudget.well.crankArms += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellCrankArm.geometry);
+
+  const wellCrankGripGeometry = new THREE.CylinderGeometry(0.065, 0.075, 0.38, 4);
   const wellCrankGrip = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.065, 0.075, 0.38, 7),
+    wellCrankGripGeometry,
     timber,
   );
   wellCrankGrip.position.set(-38.48, 2.07, -41.84);
   wellCrankGrip.rotation.x = Math.PI / 2;
-  wellCrankGrip.name = "Well crank grip";
+  wellCrankGrip.name = "Faceted worn timber crank grip";
   hospital.add(wellCrankGrip);
+  objectRenderBudget.well.crankGrips += 1;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellCrankGripGeometry);
   addBox({ size: [4.5, 0.22, 2.3], position: [-23, 0.11, -45], material: new THREE.MeshStandardMaterial({ color: 0x315f67, roughness: 0.45 }), parent: hospital, shadows: false });
   for (const [x, z, rotation] of [[-42, -37, 0], [-27, -35, Math.PI / 2]]) {
     const bench = new THREE.Group();

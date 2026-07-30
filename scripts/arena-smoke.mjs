@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 102500) {
+  if (budget.staticTriangles > 102400) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -304,6 +304,29 @@ try {
   if (objectBudget.handcart.staticTriangles > 592) {
     throw new Error(
       `Handcart triangle budget regressed: ${objectBudget.handcart.staticTriangles}`,
+    );
+  }
+  if (
+    objectBudget.well.instances !== 1 ||
+    objectBudget.well.outerWalls !== 1 ||
+    objectBudget.well.innerWalls !== 1 ||
+    objectBudget.well.copingRings !== 1 ||
+    objectBudget.well.shaftShadows !== 1 ||
+    objectBudget.well.framePosts !== 2 ||
+    objectBudget.well.crossbars !== 1 ||
+    objectBudget.well.drums !== 1 ||
+    objectBudget.well.axles !== 1 ||
+    objectBudget.well.ropes !== 1 ||
+    objectBudget.well.crankArms !== 1 ||
+    objectBudget.well.crankGrips !== 1
+  ) {
+    throw new Error(
+      `Hospitaller-well construction regressed: ${JSON.stringify(objectBudget?.well)}`,
+    );
+  }
+  if (objectBudget.well.staticTriangles > 208) {
+    throw new Error(
+      `Hospitaller-well triangle budget regressed: ${objectBudget.well.staticTriangles}`,
     );
   }
   if (
