@@ -161,6 +161,11 @@ export function buildArena(THREE, scene) {
       troughSurfaces: 0,
       staticTriangles: 0,
     },
+    roofParapets: {
+      flatRoofs: 0,
+      sections: 0,
+      staticTriangles: 0,
+    },
     chimneys: {
       instances: 0,
       masonryBodies: 0,
@@ -1911,20 +1916,35 @@ export function buildArena(THREE, scene) {
         shadows: false,
         name: "Flat lime roof",
       });
-      for (const [size, position] of [
+      objectRenderBudget.roofParapets.flatRoofs += 1;
+      const parapetSections = [
         [[w + 0.6, 0.62, 0.3], [x, h + 0.58, z - d / 2]],
         [[w + 0.6, 0.62, 0.3], [x, h + 0.58, z + d / 2]],
         [[0.3, 0.62, d], [x - w / 2, h + 0.58, z]],
         [[0.3, 0.62, d], [x + w / 2, h + 0.58, z]],
-      ]) {
-        addBox({
+      ];
+      for (const [sideIndex, [size, position]] of parapetSections.entries()) {
+        const parapet = addBox({
           size,
           position,
           material: paleStone,
           parent: house,
           shadows: false,
-          name: "Roof parapet",
+          name: "Weathered uneven roof parapet",
         });
+        const weatheringPhase = detailCode * 0.017 + sideIndex * 1.913;
+        const heightScale = 1 + Math.sin(weatheringPhase) * 0.035;
+        parapet.scale.set(
+          1 + Math.cos(weatheringPhase * 0.73) * 0.008,
+          heightScale,
+          1 - Math.sin(weatheringPhase * 0.61) * 0.008,
+        );
+        parapet.position.y += (heightScale - 1) * 0.31;
+        parapet.rotation.y = Math.cos(weatheringPhase * 1.17) * 0.004;
+        objectRenderBudget.roofParapets.sections += 1;
+        objectRenderBudget.roofParapets.staticTriangles += geometryTriangles(
+          parapet.geometry,
+        );
       }
       if (detailVariant > 0.62) {
         const accessX = x + (detailCode % 2 ? -1 : 1) * w * 0.24;

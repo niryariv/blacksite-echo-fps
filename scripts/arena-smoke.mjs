@@ -376,6 +376,23 @@ try {
     );
   }
   if (
+    objectBudget.roofParapets.flatRoofs !== 17 ||
+    objectBudget.roofParapets.sections !== 68
+  ) {
+    throw new Error(
+      `Roof-parapet construction regressed: ${
+        JSON.stringify(objectBudget?.roofParapets)
+      }`,
+    );
+  }
+  if (objectBudget.roofParapets.staticTriangles > 816) {
+    throw new Error(
+      `Roof-parapet triangle budget regressed: ${
+        objectBudget.roofParapets.staticTriangles
+      }`,
+    );
+  }
+  if (
     objectBudget.chimneys.instances !== 9 ||
     objectBudget.chimneys.masonryBodies !== 9 ||
     objectBudget.chimneys.capCourses !== 9 ||
