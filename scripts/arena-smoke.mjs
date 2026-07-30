@@ -266,6 +266,21 @@ try {
     );
   }
   if (
+    objectBudget.shutters.materialVariants !== 2 ||
+    objectBudget.shutters.textureSize !== 128 ||
+    objectBudget.shutters.frontLeaves !== 172 ||
+    objectBudget.shutters.sideLeaves !== 304
+  ) {
+    throw new Error(
+      `City-shutter construction regressed: ${JSON.stringify(objectBudget?.shutters)}`,
+    );
+  }
+  if (objectBudget.shutters.staticTriangles > 5712) {
+    throw new Error(
+      `City-shutter triangle budget regressed: ${objectBudget.shutters.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.cargoCover.chests !== 5 ||
     objectBudget.cargoCover.chestLids !== 5 ||
     objectBudget.cargoCover.chestBindings !== 10 ||

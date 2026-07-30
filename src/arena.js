@@ -116,6 +116,13 @@ export function buildArena(THREE, scene) {
       nails: 0,
       staticTriangles: 0,
     },
+    shutters: {
+      materialVariants: 2,
+      textureSize: 128,
+      frontLeaves: 0,
+      sideLeaves: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -410,6 +417,67 @@ export function buildArena(THREE, scene) {
     3,
     2,
   );
+  const shutterTexture = canvasTexture(128, (ctx, s) => {
+    const random = seededPainter(0x5a177e);
+    ctx.fillStyle = "#c7c0aa";
+    ctx.fillRect(0, 0, s, s);
+    const plankWidth = s / 4;
+    for (let plank = 0; plank < 4; plank += 1) {
+      const x = plank * plankWidth;
+      ctx.fillStyle = plank % 2
+        ? "rgba(255,248,224,.055)"
+        : "rgba(48,31,18,.045)";
+      ctx.fillRect(x, 0, plankWidth, s);
+      if (plank > 0) {
+        ctx.fillStyle = "rgba(31,22,14,.48)";
+        ctx.fillRect(x - 1.5, 0, 3, s);
+        ctx.fillStyle = "rgba(255,246,218,.11)";
+        ctx.fillRect(x + 1.5, 0, 1, s);
+      }
+      for (let grain = 0; grain < 7; grain += 1) {
+        const gx = x + 3 + random() * (plankWidth - 6);
+        ctx.strokeStyle = `rgba(56,40,25,${0.06 + random() * 0.1})`;
+        ctx.lineWidth = 0.5 + random() * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(gx, -4);
+        for (let y = 0; y <= s + 4; y += 12) {
+          ctx.lineTo(gx + Math.sin(y * 0.08 + grain) * 1.4, y);
+        }
+        ctx.stroke();
+      }
+    }
+    for (const y of [29, 94]) {
+      ctx.fillStyle = "rgba(38,26,16,.28)";
+      ctx.fillRect(0, y + 6, s, 3);
+      ctx.fillStyle = "rgba(207,196,169,.72)";
+      ctx.fillRect(0, y, s, 7);
+      ctx.fillStyle = "rgba(255,247,219,.12)";
+      ctx.fillRect(0, y, s, 1);
+    }
+    for (let chip = 0; chip < 42; chip += 1) {
+      const x = random() * s;
+      const y = random() * s;
+      const width = 1.2 + random() * 4.8;
+      const height = 0.7 + random() * 2.4;
+      ctx.fillStyle = `rgba(69,43,24,${0.18 + random() * 0.36})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, width, height, random() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+      if (random() > 0.58) {
+        ctx.fillStyle = "rgba(230,216,183,.16)";
+        ctx.fillRect(x - width * 0.45, y - height, width * 0.9, 1);
+      }
+    }
+    const edgeWear = ctx.createLinearGradient(0, 0, s, 0);
+    edgeWear.addColorStop(0, "rgba(38,24,14,.22)");
+    edgeWear.addColorStop(0.08, "rgba(255,255,255,0)");
+    edgeWear.addColorStop(0.92, "rgba(255,255,255,0)");
+    edgeWear.addColorStop(1, "rgba(38,24,14,.22)");
+    ctx.fillStyle = edgeWear;
+    ctx.fillRect(0, 0, s, s);
+  });
+  shutterTexture.name = "128px shared worn-painted shutter atlas";
+  shutterTexture.anisotropy = 2;
   const sailTexture = canvasTexture(256, (ctx, s) => {
     const random = seededPainter(0x51a1);
     ctx.fillStyle = "#d8cba8";
@@ -591,9 +659,9 @@ export function buildArena(THREE, scene) {
   const shutterMaterials = [0x315b5a, 0x6e3827].map(
     (color) => new THREE.MeshStandardMaterial({
       color,
-      map: woodTexture,
-      bumpMap: woodTexture,
-      bumpScale: 0.028,
+      map: shutterTexture,
+      bumpMap: shutterTexture,
+      bumpScale: 0.022,
       roughness: 0.93,
     }),
   );
@@ -1731,9 +1799,11 @@ export function buildArena(THREE, scene) {
             material: shutterMaterial,
             parent: house,
             shadows: false,
-            name: "Timber shutter",
+            name: "Worn painted plank street shutter",
           });
           shutter.rotation.y = side * -0.12;
+          objectRenderBudget.shutters.frontLeaves += 1;
+          objectRenderBudget.shutters.staticTriangles += geometryTriangles(shutter.geometry);
         }
         addBox({
           size: [0.035, 1.08, 0.12],
@@ -1784,9 +1854,11 @@ export function buildArena(THREE, scene) {
               material: shutterMaterial,
               parent: house,
               shadows: false,
-              name: "Side timber shutter",
+              name: "Worn painted plank side shutter",
             });
             shutter.rotation.x = shutterSide * 0.08;
+            objectRenderBudget.shutters.sideLeaves += 1;
+            objectRenderBudget.shutters.staticTriangles += geometryTriangles(shutter.geometry);
           }
         }
       }
