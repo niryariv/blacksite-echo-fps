@@ -101,6 +101,14 @@ export function buildArena(THREE, scene) {
       bungs: 0,
       staticTriangles: 0,
     },
+    sacks: {
+      instances: 0,
+      bodies: 0,
+      ties: 0,
+      cordTails: 0,
+      openings: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -370,14 +378,47 @@ export function buildArena(THREE, scene) {
     const random = seededPainter(0x5ac7);
     ctx.fillStyle = "#a88a5a";
     ctx.fillRect(0, 0, s, s);
-    for (let line = 0; line < s; line += 3) {
-      ctx.fillStyle = "rgba(255,230,177,.08)";
+    for (let line = 0; line < s; line += 4) {
+      ctx.fillStyle = line % 8
+        ? "rgba(244,219,167,.1)"
+        : "rgba(72,48,25,.08)";
       ctx.fillRect(0, line, s, 1);
       ctx.fillRect(line, 0, 1, s);
+      ctx.fillStyle = "rgba(255,238,194,.035)";
+      for (let stitch = (line / 4) % 2 ? 2 : 0; stitch < s; stitch += 8) {
+        ctx.fillRect(stitch, line + 1, 3, 1);
+        ctx.fillRect(line + 1, stitch, 1, 3);
+      }
     }
-    for (let mark = 0; mark < 70; mark += 1) {
-      ctx.fillStyle = `rgba(55,35,18,${0.025 + random() * 0.08})`;
-      ctx.fillRect(random() * s, random() * s, 1 + random() * 3, 1 + random() * 3);
+    for (let fiber = 0; fiber < 90; fiber += 1) {
+      const x = random() * s;
+      const y = random() * s;
+      ctx.strokeStyle = `rgba(60,39,20,${0.025 + random() * 0.07})`;
+      ctx.lineWidth = 0.5 + random();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 2 + random() * 6, y + (random() - 0.5) * 2);
+      ctx.stroke();
+    }
+    const wear = ctx.createRadialGradient(s * 0.42, s * 0.38, 4, s * 0.42, s * 0.38, s * 0.7);
+    wear.addColorStop(0, "rgba(255,238,191,.08)");
+    wear.addColorStop(0.68, "rgba(0,0,0,0)");
+    wear.addColorStop(1, "rgba(55,34,17,.12)");
+    ctx.fillStyle = wear;
+    ctx.fillRect(0, 0, s, s);
+    for (let stain = 0; stain < 9; stain += 1) {
+      ctx.fillStyle = `rgba(65,43,23,${0.025 + random() * 0.045})`;
+      ctx.beginPath();
+      ctx.ellipse(
+        random() * s,
+        random() * s,
+        2 + random() * 8,
+        1 + random() * 4,
+        random() * Math.PI,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
     }
   }, 3, 3);
   const roofTexture = canvasTexture(
@@ -3052,31 +3093,118 @@ export function buildArena(THREE, scene) {
     color: 0xc1a578,
     map: sackTexture,
     bumpMap: sackTexture,
-    bumpScale: 0.035,
+    bumpScale: 0.028,
     roughness: 1,
   });
+  const sackProfile = [
+    new THREE.Vector2(0.22, 0.02),
+    new THREE.Vector2(0.37, 0.08),
+    new THREE.Vector2(0.46, 0.24),
+    new THREE.Vector2(0.48, 0.5),
+    new THREE.Vector2(0.43, 0.72),
+    new THREE.Vector2(0.29, 0.84),
+    new THREE.Vector2(0.13, 0.91),
+    new THREE.Vector2(0.12, 1.02),
+    new THREE.Vector2(0.18, 1.12),
+  ];
+  const createSackGeometry = (variant) => {
+    const geometry = new THREE.LatheGeometry(sackProfile, 10);
+    const positions = geometry.attributes.position;
+    const phase = variant * 1.37;
+    for (let vertex = 0; vertex < positions.count; vertex += 1) {
+      const x = positions.getX(vertex);
+      const y = positions.getY(vertex);
+      const z = positions.getZ(vertex);
+      const angle = Math.atan2(z, x);
+      const bodyFullness = Math.sin(Math.min(1, y / 0.9) * Math.PI);
+      const gatheredCloth = Math.max(0, (y - 0.76) / 0.36);
+      const radialVariation = (
+        1
+        + Math.sin(angle * 3 + phase) * (0.018 + bodyFullness * 0.025)
+        + Math.cos(angle * 5 - phase * 0.7) * gatheredCloth * 0.055
+      );
+      const lean = Math.sin(y * Math.PI / 1.12) * (variant - 2) * 0.008;
+      const settle = Math.cos(angle - phase) * Math.max(0, 0.18 - y) * 0.045;
+      positions.setXYZ(
+        vertex,
+        x * radialVariation + lean,
+        y,
+        z * radialVariation + settle,
+      );
+    }
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+  const sackTieGeometry = new THREE.TorusGeometry(0.135, 0.024, 4, 8);
+  const sackOpeningGeometry = new THREE.CircleGeometry(0.145, 10);
+  const sackCordTailGeometries = [
+    new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.05, 0.91, 0.11),
+        new THREE.Vector3(-0.12, 0.82, 0.13),
+        new THREE.Vector3(-0.16, 0.73, 0.1),
+      ]),
+      3,
+      0.017,
+      3,
+      false,
+    ),
+    new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.05, 0.91, 0.11),
+        new THREE.Vector3(0.13, 0.84, 0.12),
+        new THREE.Vector3(0.18, 0.77, 0.08),
+      ]),
+      3,
+      0.017,
+      3,
+      false,
+    ),
+  ];
   [
     [57.5, -17.5, 0.9], [55.8, -18.2, 0.68], [21.4, 20.2, 0.76],
     [35.2, 55.5, 0.82], [46, 59.2, 0.72],
   ].forEach(([x, z, scale], index) => {
-    const sack = new THREE.Mesh(new THREE.SphereGeometry(0.48, 12, 9), sackMaterial);
-    sack.position.set(x, 0.46 * scale, z);
-    sack.scale.set(scale * 0.78, scale, scale * 0.64);
+    const sack = new THREE.Group();
+    sack.position.set(x, 0, z);
+    sack.scale.set(scale * 0.86, scale, scale * 0.76);
     sack.rotation.y = index * 0.7;
-    sack.castShadow = sack.receiveShadow = true;
-    sack.name = "Merchant grain sack";
+    sack.name = "Slumped merchant grain sack";
     root.add(sack);
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.27, 0.28, 9), sackMaterial);
-    neck.position.set(x, 0.88 * scale, z);
-    neck.scale.set(scale, scale, scale);
-    neck.rotation.y = index * 0.7;
-    neck.castShadow = true;
-    neck.name = "Gathered sack neck";
-    root.add(neck);
-    const tie = new THREE.Mesh(new THREE.TorusGeometry(0.1 * scale, 0.025, 5, 10), wicker);
+    objectRenderBudget.sacks.instances += 1;
+
+    const bodyGeometry = createSackGeometry(index);
+    const body = new THREE.Mesh(bodyGeometry, sackMaterial);
+    body.castShadow = body.receiveShadow = true;
+    body.name = "Continuous filled sack body and gathered neck";
+    sack.add(body);
+    objectRenderBudget.sacks.bodies += 1;
+    objectRenderBudget.sacks.staticTriangles += geometryTriangles(bodyGeometry);
+
+    const tie = new THREE.Mesh(sackTieGeometry, wicker);
     tie.rotation.x = Math.PI / 2;
-    tie.position.set(x, 0.82 * scale, z);
-    root.add(tie);
+    tie.position.y = 0.91;
+    tie.name = "Twine cinching the sack neck";
+    sack.add(tie);
+    objectRenderBudget.sacks.ties += 1;
+    objectRenderBudget.sacks.staticTriangles += geometryTriangles(sackTieGeometry);
+
+    sackCordTailGeometries.forEach((geometry, tailIndex) => {
+      const tail = new THREE.Mesh(geometry, wicker);
+      tail.rotation.y = (index % 3 - 1) * 0.16;
+      tail.name = `Loose sack-cord tail ${tailIndex + 1}`;
+      sack.add(tail);
+      objectRenderBudget.sacks.cordTails += 1;
+      objectRenderBudget.sacks.staticTriangles += geometryTriangles(geometry);
+    });
+
+    const opening = new THREE.Mesh(sackOpeningGeometry, darkRecess);
+    opening.rotation.x = -Math.PI / 2;
+    opening.position.y = 1.115;
+    opening.name = "Shadowed folds inside sack mouth";
+    sack.add(opening);
+    objectRenderBudget.sacks.openings += 1;
+    objectRenderBudget.sacks.staticTriangles += geometryTriangles(sackOpeningGeometry);
   });
 
   // Street life is also stealth infrastructure. These clusters are based on

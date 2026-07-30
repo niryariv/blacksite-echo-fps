@@ -235,6 +235,22 @@ try {
     );
   }
   if (
+    objectBudget.sacks.instances !== 5 ||
+    objectBudget.sacks.bodies !== 5 ||
+    objectBudget.sacks.ties !== 5 ||
+    objectBudget.sacks.cordTails !== 10 ||
+    objectBudget.sacks.openings !== 5
+  ) {
+    throw new Error(
+      `Grain-sack construction regressed: ${JSON.stringify(objectBudget?.sacks)}`,
+    );
+  }
+  if (objectBudget.sacks.staticTriangles > 1350) {
+    throw new Error(
+      `Grain-sack triangle budget regressed: ${objectBudget.sacks.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||
