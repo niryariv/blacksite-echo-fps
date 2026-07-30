@@ -161,6 +161,19 @@ export function buildArena(THREE, scene) {
       troughSurfaces: 0,
       staticTriangles: 0,
     },
+    chimneys: {
+      instances: 0,
+      masonryBodies: 0,
+      capCourses: 0,
+      sootOpenings: 0,
+      staticTriangles: 0,
+    },
+    marketRoof: {
+      instances: 0,
+      boardPlanks: 0,
+      visibleSurfaces: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1635,6 +1648,8 @@ export function buildArena(THREE, scene) {
   roofSpoutBottom.dispose();
   roofSpoutRight.dispose();
   roofSpoutLeft.dispose();
+  const chimneyOpeningGeometry = new THREE.PlaneGeometry(0.43, 0.43);
+  chimneyOpeningGeometry.rotateX(-Math.PI / 2);
 
   const addDoor = (parent, x, y, z, rotation = 0) => {
     const doorway = new THREE.Group();
@@ -1721,7 +1736,8 @@ export function buildArena(THREE, scene) {
     const roofRise = Math.min(2.4, d * 0.24);
     const addHouseChimney = (offsetX, offsetZ, surfaceY) => {
       const chimneyHeight = 1.05 + (detailCode % 3) * 0.16;
-      addBox({
+      objectRenderBudget.chimneys.instances += 1;
+      const chimneyBody = addBox({
         size: [0.62, chimneyHeight, 0.62],
         position: [x + offsetX, surfaceY + chimneyHeight / 2, z + offsetZ],
         material: oldStone,
@@ -1729,7 +1745,11 @@ export function buildArena(THREE, scene) {
         shadows: false,
         name: "Coursed rooftop chimney",
       });
-      addBox({
+      objectRenderBudget.chimneys.masonryBodies += 1;
+      objectRenderBudget.chimneys.staticTriangles += geometryTriangles(
+        chimneyBody.geometry,
+      );
+      const chimneyCap = addBox({
         size: [0.76, 0.16, 0.76],
         position: [x + offsetX, surfaceY + chimneyHeight + 0.02, z + offsetZ],
         material: paleStone,
@@ -1737,14 +1757,22 @@ export function buildArena(THREE, scene) {
         shadows: false,
         name: "Chimney cap course",
       });
-      addBox({
-        size: [0.43, 0.035, 0.43],
-        position: [x + offsetX, surfaceY + chimneyHeight + 0.115, z + offsetZ],
-        material: darkRecess,
-        parent: house,
-        shadows: false,
-        name: "Soot-black chimney opening",
-      });
+      objectRenderBudget.chimneys.capCourses += 1;
+      objectRenderBudget.chimneys.staticTriangles += geometryTriangles(
+        chimneyCap.geometry,
+      );
+      const chimneyOpening = new THREE.Mesh(chimneyOpeningGeometry, darkRecess);
+      chimneyOpening.position.set(
+        x + offsetX,
+        surfaceY + chimneyHeight + 0.115,
+        z + offsetZ,
+      );
+      chimneyOpening.name = "Flush soot-black chimney opening";
+      house.add(chimneyOpening);
+      objectRenderBudget.chimneys.sootOpenings += 1;
+      objectRenderBudget.chimneys.staticTriangles += geometryTriangles(
+        chimneyOpeningGeometry,
+      );
     };
 
     const pitched = roof && cityRandom() > 0.44;
@@ -2586,7 +2614,30 @@ export function buildArena(THREE, scene) {
       name: "Genoese market arch",
     });
   }
-  addBox({ size: [10, 0.25, 41], position: [9, 6.62, -0.5], material: timber, shadows: false, name: "Genoese market roof" });
+  const marketRoofParts = [];
+  for (let board = 0; board < 21; board += 1) {
+    const boardZ = (board - 10) * 1.95;
+    const topSurface = new THREE.PlaneGeometry(10, 1.82);
+    topSurface.rotateX(-Math.PI / 2);
+    topSurface.translate(0, 0.125, boardZ);
+    marketRoofParts.push(topSurface);
+    const bottomSurface = new THREE.PlaneGeometry(10, 1.82);
+    bottomSurface.rotateX(Math.PI / 2);
+    bottomSurface.translate(0, -0.125, boardZ);
+    marketRoofParts.push(bottomSurface);
+  }
+  const marketRoofGeometry = mergeGeometries(marketRoofParts, false);
+  marketRoofParts.forEach((surface) => surface.dispose());
+  const marketRoof = new THREE.Mesh(marketRoofGeometry, timber);
+  marketRoof.position.set(9, 6.62, -0.5);
+  marketRoof.name = "Twenty-one separated two-sided Genoese market roof boards";
+  root.add(marketRoof);
+  objectRenderBudget.marketRoof.instances = 1;
+  objectRenderBudget.marketRoof.boardPlanks = 21;
+  objectRenderBudget.marketRoof.visibleSurfaces = 42;
+  objectRenderBudget.marketRoof.staticTriangles = geometryTriangles(
+    marketRoofGeometry,
+  );
 
   // Templar fortress at the south-western edge.
   const templar = new THREE.Group();

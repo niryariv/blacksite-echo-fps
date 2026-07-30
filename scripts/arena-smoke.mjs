@@ -76,7 +76,7 @@ try {
       `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
     );
   }
-  if (budget.staticTriangles > 100700) {
+  if (budget.staticTriangles > 100680) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -372,6 +372,43 @@ try {
     throw new Error(
       `Roof-drainage triangle budget regressed: ${
         objectBudget.roofDrainage.staticTriangles
+      }`,
+    );
+  }
+  if (
+    objectBudget.chimneys.instances !== 9 ||
+    objectBudget.chimneys.masonryBodies !== 9 ||
+    objectBudget.chimneys.capCourses !== 9 ||
+    objectBudget.chimneys.sootOpenings !== 9
+  ) {
+    throw new Error(
+      `Rooftop-chimney construction regressed: ${
+        JSON.stringify(objectBudget?.chimneys)
+      }`,
+    );
+  }
+  if (objectBudget.chimneys.staticTriangles > 234) {
+    throw new Error(
+      `Rooftop-chimney triangle budget regressed: ${
+        objectBudget.chimneys.staticTriangles
+      }`,
+    );
+  }
+  if (
+    objectBudget.marketRoof.instances !== 1 ||
+    objectBudget.marketRoof.boardPlanks !== 21 ||
+    objectBudget.marketRoof.visibleSurfaces !== 42
+  ) {
+    throw new Error(
+      `Genoese-market-roof construction regressed: ${
+        JSON.stringify(objectBudget?.marketRoof)
+      }`,
+    );
+  }
+  if (objectBudget.marketRoof.staticTriangles > 84) {
+    throw new Error(
+      `Genoese-market-roof triangle budget regressed: ${
+        objectBudget.marketRoof.staticTriangles
       }`,
     );
   }
