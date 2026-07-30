@@ -3,6 +3,15 @@ import { createServer } from "vite";
 
 const noop = () => {};
 const gradient = { addColorStop: noop };
+const mergeDiagnostics = [];
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const message = args.map(String).join(" ");
+  if (message.includes("BufferGeometryUtils") && message.includes("mergeGeometries")) {
+    mergeDiagnostics.push(message);
+  }
+  originalConsoleError(...args);
+};
 const context = new Proxy(
   {
     createLinearGradient: () => gradient,
@@ -60,9 +69,38 @@ const vite = await createServer({
 });
 
 try {
-  const { buildArena } = await vite.ssrLoadModule("/src/arena.js");
+  const { buildArena, mergeGeometries } = await vite.ssrLoadModule("/src/arena.js");
+  const mixedMergeIndexed = new THREE.BoxGeometry(1, 1, 1);
+  const mixedMergePlain = new THREE.PlaneGeometry(1, 1).toNonIndexed();
+  const mixedMergeResult = mergeGeometries([
+    mixedMergeIndexed,
+    mixedMergePlain,
+  ]);
+  if (!mixedMergeResult?.attributes.position || mixedMergeResult.index) {
+    throw new Error("Mixed-index geometry normalization regressed");
+  }
+  mixedMergeIndexed.dispose();
+  mixedMergePlain.dispose();
+  mixedMergeResult.dispose();
+
   const scene = new THREE.Scene();
   const arena = buildArena(THREE, scene);
+  const missingGeometryMeshes = [];
+  scene.traverse((object) => {
+    if (object.isMesh && !object.geometry) {
+      missingGeometryMeshes.push(object.name || object.type);
+    }
+  });
+  if (missingGeometryMeshes.length) {
+    throw new Error(
+      `Meshes have missing geometry: ${missingGeometryMeshes.join(", ")}`,
+    );
+  }
+  if (mergeDiagnostics.length) {
+    throw new Error(
+      `Three.js geometry merge diagnostics: ${mergeDiagnostics.join(" | ")}`,
+    );
+  }
   const budget = arena.renderBudget;
 
   if (!budget || budget.staticBatches <= 0 || budget.staticTriangles <= 0) {
@@ -749,5 +787,6 @@ try {
     objectRenderBudget: objectBudget,
   }, null, 2));
 } finally {
+  console.error = originalConsoleError;
   await vite.close();
 }

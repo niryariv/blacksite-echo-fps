@@ -1,4 +1,31 @@
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries as mergeBufferGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+
+export function mergeGeometries(geometries, useGroups = false) {
+  if (!Array.isArray(geometries) || geometries.length === 0) {
+    throw new Error("Cannot merge an empty geometry collection");
+  }
+  const indexedCount = geometries.reduce(
+    (count, geometry) => count + (geometry.index ? 1 : 0),
+    0,
+  );
+  const converted = [];
+  const compatibleGeometries = (
+    indexedCount > 0 && indexedCount < geometries.length
+      ? geometries.map((geometry) => {
+        if (!geometry.index) return geometry;
+        const nonIndexed = geometry.toNonIndexed();
+        converted.push(nonIndexed);
+        return nonIndexed;
+      })
+      : geometries
+  );
+  const merged = mergeBufferGeometries(compatibleGeometries, useGroups);
+  converted.forEach((geometry) => geometry.dispose());
+  if (!merged) {
+    throw new Error("Three.js rejected an incompatible geometry merge");
+  }
+  return merged;
+}
 
 /**
  * A playable interpretation of Frankish Acre around 1250 CE.
