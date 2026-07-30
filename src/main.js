@@ -289,6 +289,48 @@ let selectedModeId = "stealth";
 const discoveredStreetStories = new Set();
 let activeStreetStoryId = "";
 let streetStoryVisibleUntil = 0;
+const discoveredGuardOrders = new Set();
+let activeGuardOrderId = "";
+let guardOrderVisibleUntil = 0;
+
+const guardOrderDefinitions = Object.freeze({
+  hospitaller: {
+    id: "hospitaller",
+    name: "ORDER OF ST JOHN // HOSPITALLERS",
+    shortName: "HOSPITALLERS",
+    type: "RELIGIOUS-MILITARY ORDER",
+    sigil: "✣",
+    accent: "#ded8c8",
+    clothColor: 0x20221f,
+    heraldryColor: 0xe2dccd,
+    showCross: true,
+    fact: "Monastic brothers who cared for the sick and pilgrims as well as fighting. Black cloth and a white cross identify the Order of St John.",
+  },
+  templar: {
+    id: "templar",
+    name: "ORDER OF THE TEMPLE // TEMPLARS",
+    shortName: "TEMPLARS",
+    type: "RELIGIOUS-MILITARY ORDER",
+    sigil: "✚",
+    accent: "#d9584e",
+    clothColor: 0xc9bfa7,
+    heraldryColor: 0x9d3028,
+    showCross: true,
+    fact: "Warrior monks sworn to defend the Latin East. A pale mantle and red cross identify the Order of the Temple.",
+  },
+  garrison: {
+    id: "garrison",
+    name: "ACRE GARRISON",
+    shortName: "ACRE GARRISON",
+    type: "SECULAR MEN-AT-ARMS // NOT A MONASTIC ORDER",
+    sigil: "◆",
+    accent: "#d3a653",
+    clothColor: 0x354653,
+    heraldryColor: 0xd3a653,
+    showCross: false,
+    fact: "Secular men-at-arms serving the Kingdom of Jerusalem guard public gates and streets; unlike the military orders, they take no monastic vows.",
+  },
+});
 
 const game = {
   phase: "briefing",
@@ -393,6 +435,8 @@ if (import.meta.env.DEV) {
     },
     missionState() {
       return {
+        phase: game.phase,
+        mode: game.mode,
         route: game.entryRoute?.id,
         enteredCity: game.enteredCity,
         stage: game.stage,
@@ -433,6 +477,17 @@ if (import.meta.env.DEV) {
     },
     audioDiagnostics() {
       return audio.guardDiagnostics();
+    },
+    guardOrders() {
+      return {
+        discovered: [...discoveredGuardOrders],
+        active: activeGuardOrderId,
+        assignments: guards.map((guard) => ({
+          index: guard.index,
+          order: guard.order.id,
+          position: guard.root.position.toArray(),
+        })),
+      };
     },
   };
   document.documentElement.dataset.gateCorridorClear = String(
@@ -751,13 +806,23 @@ const guardMaterials = {
     metalness: 0.48,
     roughness: 0.62,
   }),
-  cloth: [0x71352b, 0x2c302b, 0x3c4b51].map(
-    (color) => new THREE.MeshStandardMaterial({
-      color,
-      map: clothTexture,
-      metalness: 0.05,
-      roughness: 0.95,
-    }),
+  orders: Object.fromEntries(
+    Object.values(guardOrderDefinitions).map((order) => [
+      order.id,
+      {
+        cloth: new THREE.MeshStandardMaterial({
+          color: order.clothColor,
+          map: clothTexture,
+          metalness: 0.05,
+          roughness: 0.95,
+        }),
+        heraldry: new THREE.MeshStandardMaterial({
+          color: order.heraldryColor,
+          map: clothTexture,
+          roughness: 0.96,
+        }),
+      },
+    ]),
   ),
   leggings: [0x303636, 0x382f2b].map(
     (color) => new THREE.MeshStandardMaterial({
@@ -783,21 +848,20 @@ const guardMaterials = {
     metalness: 0.78,
     roughness: 0.48,
   }),
-  heraldry: new THREE.MeshStandardMaterial({
-    color: 0xd9d0b9,
-    map: clothTexture,
-    roughness: 0.96,
-  }),
 };
 
 function createGuard(index, position, options = {}) {
   const root = new THREE.Group();
   root.position.copy(position);
 
+  const order = guardOrderDefinitions[options.orderId] || guardOrderDefinitions.garrison;
+  const orderMaterials = guardMaterials.orders[order.id];
   const chainmail = guardMaterials.chainmail;
-  const cloth = guardMaterials.cloth[index % guardMaterials.cloth.length];
+  const cloth = orderMaterials.cloth;
   const leggings = guardMaterials.leggings[index % guardMaterials.leggings.length];
-  const { leather, skin, hair, iron, heraldry } = guardMaterials;
+  const { leather, skin, hair, iron } = guardMaterials;
+  const heraldry = orderMaterials.heraldry;
+  root.name = `${order.shortName} patrol guard`;
 
   const torso = new THREE.Group();
   torso.position.y = 1.1;
@@ -815,6 +879,7 @@ function createGuard(index, position, options = {}) {
   beltBuckle.name = "Guard belt buckle";
   const surcoatHeraldry = new THREE.Mesh(guardGeometries.surcoatHeraldry, heraldry);
   surcoatHeraldry.name = "Merged surcoat cross";
+  surcoatHeraldry.visible = order.showCross;
   torso.add(body, surcoat, belt, beltBuckle, surcoatHeraldry);
 
   const headGroup = new THREE.Group();
@@ -878,6 +943,7 @@ function createGuard(index, position, options = {}) {
   shield.name = "Kite shield";
   const shieldHeraldry = new THREE.Mesh(guardGeometries.shieldHeraldry, heraldry);
   shieldHeraldry.name = "Merged shield cross";
+  shieldHeraldry.visible = order.showCross;
   const shieldBoss = new THREE.Mesh(guardGeometries.shieldBoss, iron);
   shieldBoss.position.set(0, 0.02, 0.115);
   shieldBoss.scale.z = 0.45;
@@ -939,6 +1005,7 @@ function createGuard(index, position, options = {}) {
 
   const guard = {
     index,
+    order,
     root,
     body: torso,
     head: headGroup,
@@ -983,10 +1050,29 @@ function createGuard(index, position, options = {}) {
 }
 
 const guardSpawns = arena.mission.guardSpawns;
-guardSpawns.forEach((position, index) => guards.push(createGuard(index, position)));
+const streetGuardOrders = [
+  "garrison",
+  "garrison",
+  "garrison",
+  "hospitaller",
+  "hospitaller",
+  "garrison",
+  "templar",
+  "garrison",
+  "garrison",
+];
+const wallGuardOrders = ["hospitaller", "templar", "templar", "garrison"];
+guardSpawns.forEach((position, index) => {
+  guards.push(
+    createGuard(index, position, {
+      orderId: streetGuardOrders[index],
+    }),
+  );
+});
 arena.mission.wallGuardSpawns.forEach((wallGuard, wallIndex) => {
   guards.push(
     createGuard(guardSpawns.length + wallIndex, wallGuard.position, {
+      orderId: wallGuardOrders[wallIndex],
       wallPatrol: true,
       axis: wallGuard.axis,
       min: wallGuard.min,
@@ -998,6 +1084,15 @@ if (import.meta.env.DEV) {
   document.documentElement.dataset.guardModelBudget = JSON.stringify(
     guards[0]?.modelBudget || null,
   );
+  document.documentElement.dataset.guardOrderCount = String(
+    Object.keys(guardOrderDefinitions).length,
+  );
+  document.documentElement.dataset.guardAffiliationsComplete = String(
+    guards.every((guard) => Boolean(guard.order)),
+  );
+  document.documentElement.dataset.guardOrderAssignments = guards
+    .map((guard) => guard.order.id)
+    .join(",");
 }
 
 function createMissionObjects() {
@@ -2165,6 +2260,13 @@ function updateHUD() {
       discoveredStreetStories.size,
     );
     document.documentElement.dataset.activeStreetStory = activeStreetStoryId;
+    document.documentElement.dataset.guardOrderDiscoveries = String(
+      discoveredGuardOrders.size,
+    );
+    document.documentElement.dataset.activeGuardOrder = activeGuardOrderId;
+    document.documentElement.dataset.guardOrderGuideAvailable = String(
+      Boolean($("guard-order-panel") && document.querySelector(".map-orders")),
+    );
     document.documentElement.dataset.gameMode = game.mode;
     document.documentElement.dataset.invulnerable = String(game.mode === "explore");
     document.documentElement.dataset.explorationAlerts = String(game.explorationAlerts);
@@ -2256,6 +2358,7 @@ function updateHUD() {
     ? "MEDITERRANEAN SEA"
     : currentZone?.name || "OLD ACRE";
   updateStreetStories();
+  updateGuardOrderGuide();
 }
 
 function updateStreetStories() {
@@ -2299,6 +2402,70 @@ function updateStreetStories() {
     panel.classList.add("hidden");
     activeStreetStoryId = "";
   }
+}
+
+const guardOrderEye = new THREE.Vector3();
+const guardOrderPoint = new THREE.Vector3();
+const guardOrderDirection = new THREE.Vector3();
+const guardOrderForward = new THREE.Vector3();
+function revealGuardOrder(order) {
+  const panel = $("guard-order-panel");
+  activeGuardOrderId = order.id;
+  guardOrderVisibleUntil = game.elapsed + 9;
+  discoveredGuardOrders.add(order.id);
+  panel.style.setProperty("--order-color", order.accent);
+  $("guard-order-sigil").textContent = order.sigil;
+  $("guard-order-name").textContent = order.name;
+  $("guard-order-type").textContent = order.type;
+  $("guard-order-copy").textContent = order.fact;
+  panel.classList.toggle("pressure", game.detection >= 55);
+  panel.classList.add("hidden");
+  void panel.offsetWidth;
+  panel.classList.remove("hidden");
+  addFeed(`FIELD GUIDE // ${order.shortName}`);
+}
+
+function updateGuardOrderGuide() {
+  const panel = $("guard-order-panel");
+  panel.classList.toggle("pressure", game.detection >= 55);
+  if (game.inTunnel || player.submerged) {
+    panel.classList.add("hidden");
+    return;
+  }
+
+  if (activeGuardOrderId && game.elapsed < guardOrderVisibleUntil) {
+    panel.classList.remove("hidden");
+    return;
+  }
+  panel.classList.add("hidden");
+  activeGuardOrderId = "";
+  if (
+    discoveredGuardOrders.size >= Object.keys(guardOrderDefinitions).length
+  ) return;
+
+  guardOrderEye.copy(player.position);
+  guardOrderEye.y += 0.04;
+  camera.getWorldDirection(guardOrderForward);
+  guardOrderForward.y = 0;
+  if (guardOrderForward.lengthSq() > 0.001) guardOrderForward.normalize();
+
+  let nearestGuard = null;
+  let nearestDistance = Infinity;
+  for (const guard of guards) {
+    if (discoveredGuardOrders.has(guard.order.id)) continue;
+    guardOrderDirection.copy(guard.root.position).sub(player.position);
+    guardOrderDirection.y = 0;
+    const distance = guardOrderDirection.length();
+    if (distance > 17 || distance >= nearestDistance || distance < 0.001) continue;
+    guardOrderDirection.multiplyScalar(1 / distance);
+    if (guardOrderForward.dot(guardOrderDirection) < 0.4) continue;
+    guardOrderPoint.copy(guard.root.position);
+    guardOrderPoint.y += 1.25;
+    if (!clearLineOfSight(guardOrderEye, guardOrderPoint)) continue;
+    nearestGuard = guard;
+    nearestDistance = distance;
+  }
+  if (nearestGuard) revealGuardOrder(nearestGuard.order);
 }
 
 function drawCityMap() {
@@ -2853,7 +3020,10 @@ function showHUD(show) {
   ["top-hud", "bottom-hud", "compass", "waypoint", "map-key", "combat-feed"].forEach((id) => {
     $(id).classList.toggle("hidden", !show);
   });
-  if (!show) $("life-panel").classList.add("hidden");
+  if (!show) {
+    $("life-panel").classList.add("hidden");
+    $("guard-order-panel").classList.add("hidden");
+  }
 }
 
 function hideCityMap() {

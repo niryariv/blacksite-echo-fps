@@ -70,6 +70,25 @@
             <b aria-label="North">N<br /><i>↑</i></b>
           </header>
           <canvas id="map-canvas"></canvas>
+          <aside class="map-orders" aria-label="Guard orders field guide">
+            <b class="map-orders-title">ORDERS &amp; GARRISON // FIELD GUIDE</b>
+            <div class="map-order hospitaller">
+              <i aria-hidden="true">✣</i>
+              <p><strong>HOSPITALLERS</strong><span>RELIGIOUS-MILITARY ORDER</span></p>
+              <small>Black mantle, white cross. Monastic brothers who tended the sick and defended their northern compound.</small>
+            </div>
+            <div class="map-order templar">
+              <i aria-hidden="true">✚</i>
+              <p><strong>TEMPLARS</strong><span>RELIGIOUS-MILITARY ORDER</span></p>
+              <small>White mantle, red cross. Warrior monks guarding their sea fortress and port route.</small>
+            </div>
+            <div class="map-order garrison">
+              <i aria-hidden="true">◆</i>
+              <p><strong>ACRE GARRISON</strong><span>SECULAR MEN-AT-ARMS</span></p>
+              <small>Kingdom soldiers on public gates and streets; unlike the orders, they took no monastic vows.</small>
+            </div>
+            <em>Patrol postings are reconstructed from Acre’s historic quarters.</em>
+          </aside>
           <footer>
             <span><i class="map-player-dot"></i> YOUR POSITION</span>
             <span><i class="map-objective-dot"></i> CURRENT OBJECTIVE</span>
@@ -90,6 +109,16 @@
         <strong id="life-title">THE WORKING HARBOUR</strong>
         <small id="life-context">INNER HARBOUR</small>
         <p id="life-copy"></p>
+      </aside>
+
+      <aside id="guard-order-panel" class="hud hidden" aria-live="polite">
+        <header>
+          <span>FIELD IDENTIFICATION</span>
+          <b id="guard-order-sigil" aria-hidden="true">✣</b>
+        </header>
+        <strong id="guard-order-name">HOSPITALLERS</strong>
+        <small id="guard-order-type">RELIGIOUS-MILITARY ORDER</small>
+        <p id="guard-order-copy"></p>
       </aside>
 
       <footer id="bottom-hud" class="hud hidden">
@@ -139,7 +168,8 @@
             unharmed. You enter unarmed. In Mission mode, confirmation by the
             watch ends the run; Exploration mode keeps the city open without
             failure. Listen carefully: iron-shod steps grow sharper as guards
-            approach and dull behind stone.
+            approach and dull behind stone. Distinct uniforms identify each
+            order without interrupting play; hold the city map to review them.
           </p>
           <div class="route-heading">
             <span>CHOOSE INSERTION</span>

@@ -146,6 +146,7 @@ button { font: inherit; }
   backdrop-filter: blur(5px);
 }
 .map-frame {
+  position: relative;
   display: grid; grid-template-rows: auto minmax(0,1fr) auto;
   width: min(1240px, 94vw); height: min(880px, 92vh); padding: 18px 20px 16px;
   color: #302719; background:
@@ -167,6 +168,41 @@ button { font: inherit; }
 #map-canvas {
   width: 100%; height: 100%; min-height: 0; display: block;
   filter: saturate(.92) contrast(1.03);
+}
+.map-orders {
+  position: absolute; right: 28px; bottom: 55px; width: min(365px, 38%);
+  padding: 11px 12px 10px; color: #3f3221; text-shadow: none;
+  background: #e2ca94e8; border: 1px solid #725635aa;
+  box-shadow: 0 8px 20px #49331e33, inset 0 0 20px #8c633722;
+}
+.map-orders-title {
+  display: block; margin-bottom: 7px; padding-bottom: 6px;
+  color: #6f2d25; border-bottom: 1px solid #78593677;
+  font: 700 9px Georgia, serif; letter-spacing: .18em;
+}
+.map-order {
+  display: grid; grid-template-columns: 24px 1fr; gap: 0 7px;
+  align-items: center; margin-top: 6px;
+}
+.map-order > i {
+  grid-row: 1 / 3; font: normal 20px Georgia, serif; text-align: center;
+}
+.map-order > p { display: flex; align-items: baseline; gap: 7px; margin: 0; }
+.map-order strong {
+  color: #332719; font: 700 10px "Arial Narrow", sans-serif; letter-spacing: .1em;
+}
+.map-order span {
+  color: #765936; font: 700 7px "Arial Narrow", sans-serif; letter-spacing: .1em;
+}
+.map-order small {
+  color: #55422c; font: 9px/1.25 Georgia, serif;
+}
+.map-order.hospitaller > i { color: #f1ead7; background: #252522; }
+.map-order.templar > i { color: #9b2d25; background: #d6c9a9; }
+.map-order.garrison > i { color: #bd8b3c; background: #354653; }
+.map-orders > em {
+  display: block; margin-top: 7px; color: #765936;
+  font: italic 8px Georgia, serif;
 }
 .map-frame footer {
   display: flex; align-items: center; gap: 19px; padding: 10px 6px 0;
@@ -274,6 +310,49 @@ button { font: inherit; }
   to { opacity: 1; transform: none; }
 }
 
+#guard-order-panel {
+  --order-color: var(--accent);
+  right: 32px; bottom: 170px; width: min(330px, calc(100vw - 64px));
+  padding: 12px 14px 13px; overflow: hidden;
+  background: linear-gradient(135deg, #07100ff2, #0b1512e8);
+  border: 1px solid color-mix(in srgb, var(--order-color) 42%, transparent);
+  border-right: 3px solid var(--order-color);
+  box-shadow: 0 16px 45px #0008; animation: order-in .28s ease-out;
+  transition: opacity .18s, transform .18s;
+}
+#guard-order-panel.pressure {
+  width: min(292px, calc(100vw - 64px)); opacity: .86;
+  transform: scale(.96); transform-origin: right bottom;
+}
+#guard-order-panel header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 5px;
+}
+#guard-order-panel header span {
+  color: var(--order-color); font-size: 8px; font-weight: 700; letter-spacing: .18em;
+}
+#guard-order-panel header b {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  color: var(--order-color); border: 1px solid var(--order-color);
+  font: 16px Georgia, serif;
+}
+#guard-order-panel > strong {
+  display: block; color: var(--ink); font: 700 16px "Arial Narrow", sans-serif;
+  letter-spacing: .1em;
+}
+#guard-order-panel > small {
+  display: block; margin-top: 1px; color: var(--order-color);
+  font-size: 8px; font-weight: 700; letter-spacing: .15em;
+}
+#guard-order-panel > p {
+  margin: 7px 0 0; color: #b9c1b9; font: 12px/1.35 Georgia, serif;
+}
+#guard-order-panel.pressure > p { font-size: 10px; line-height: 1.25; }
+@keyframes order-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: none; }
+}
+
 #interact-prompt {
   position: fixed; z-index: 12; left: 50%; bottom: 20%; transform: translateX(-50%);
   padding: 7px 14px; background: #07100fde; border: 1px solid #79908b66;
@@ -373,9 +452,17 @@ button:hover { transform:translateY(-2px); filter:brightness(1.15); }
   #map-key { right: 16px; bottom: 112px; }
   #life-panel { right: 16px; top: 176px; width: min(310px, calc(100vw - 32px)); }
   #life-panel p { font-size: 12px; }
+  #guard-order-panel {
+    right: 16px; bottom: 154px; width: min(300px, calc(100vw - 32px));
+  }
   #city-map { padding: 2vh 2vw; }
   .map-frame { width: 96vw; height: 92vh; padding: 10px; border-width: 4px; }
   .map-frame h2 { font-size: 22px; }
+  .map-orders {
+    right: 14px; bottom: 58px; width: min(325px, calc(100% - 28px));
+    padding: 8px 9px;
+  }
+  .map-order small { font-size: 8px; }
   .map-frame footer { gap: 9px; flex-wrap: wrap; }
   .map-frame footer strong { width: 100%; margin-left: 0; text-align: right; }
 }
