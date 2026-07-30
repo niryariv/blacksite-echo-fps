@@ -74,6 +74,15 @@ export function buildArena(THREE, scene) {
       gullTriangles: 0,
       animatedSystems: 0,
     },
+    marketGoods: {
+      producePieces: 0,
+      produceStems: 0,
+      produceTriangles: 0,
+      sugarMolds: 0,
+      sugarRims: 0,
+      sugarOpenings: 0,
+      sugarTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -2901,6 +2910,33 @@ export function buildArena(THREE, scene) {
     new THREE.MeshStandardMaterial({ color: 0x60713a, roughness: 0.98 }),
     new THREE.MeshStandardMaterial({ color: 0x974231, roughness: 0.96 }),
   ];
+  const produceGeometry = new THREE.DodecahedronGeometry(0.14, 0);
+  const producePositions = produceGeometry.attributes.position;
+  for (let index = 0; index < producePositions.count; index += 1) {
+    const x = producePositions.getX(index);
+    const y = producePositions.getY(index);
+    const z = producePositions.getZ(index);
+    const organicScale = 1 + Math.sin(x * 31 + y * 23 + z * 17) * 0.055;
+    producePositions.setXYZ(
+      index,
+      x * organicScale,
+      y * (organicScale + Math.cos(x * 29 - z * 19) * 0.035),
+      z * organicScale,
+    );
+  }
+  produceGeometry.computeVertexNormals();
+  const produceStemGeometry = new THREE.CylinderGeometry(
+    0.014,
+    0.023,
+    0.09,
+    5,
+  ).toNonIndexed();
+  const produceScales = [
+    [1.05, 0.84, 1],
+    [0.78, 1.32, 0.78],
+    [0.98, 1.08, 0.98],
+  ];
+  const produceNames = ["onion", "cucumber", "pomegranate"];
   [
     [59, -18.3], [20.5, 18.4], [-3, 33], [39, 54.5],
   ].forEach(([x, z], basketIndex) => {
@@ -2924,14 +2960,32 @@ export function buildArena(THREE, scene) {
     handle.name = "Bent wicker basket handle";
     basket.add(handle);
     for (let i = 0; i < 7; i += 1) {
+      const produceType = (basketIndex + i) % marketProduce.length;
+      const size = 0.92 + (i % 2) * 0.14;
       const produce = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(0.13 + (i % 2) * 0.025, 1),
-        marketProduce[(basketIndex + i) % marketProduce.length],
+        produceGeometry,
+        marketProduce[produceType],
       );
       const angle = i * 2.4;
       produce.position.set(Math.cos(angle) * 0.27, 0.46 + (i % 3) * 0.07, Math.sin(angle) * 0.27);
+      produce.scale.set(
+        produceScales[produceType][0] * size,
+        produceScales[produceType][1] * size,
+        produceScales[produceType][2] * size,
+      );
+      produce.rotation.set((i % 3 - 1) * 0.08, angle * 0.31, (basketIndex - 1.5) * 0.035);
       produce.castShadow = true;
+      produce.name = `Market ${produceNames[produceType]}`;
       basket.add(produce);
+      objectRenderBudget.marketGoods.producePieces += 1;
+      objectRenderBudget.marketGoods.produceTriangles += geometryTriangles(produceGeometry);
+      const stem = new THREE.Mesh(produceStemGeometry, marketProduce[1]);
+      stem.position.y = 0.155;
+      stem.rotation.z = (i % 3 - 1) * 0.16;
+      stem.name = `${produceNames[produceType]} stem`;
+      produce.add(stem);
+      objectRenderBudget.marketGoods.produceStems += 1;
+      objectRenderBudget.marketGoods.produceTriangles += geometryTriangles(produceStemGeometry);
     }
   });
 
@@ -3197,16 +3251,33 @@ export function buildArena(THREE, scene) {
     approach: [-3.2, -31.5],
   });
   addBoundCrate(sugarStore, -6.05, -32.1, [2.35, 1.55, 1.2]);
+  const sugarMoldGeometry = new THREE.CylinderGeometry(0.32, 0.11, 0.85, 10, 1, true);
+  const sugarMoldRimGeometry = new THREE.TorusGeometry(0.32, 0.025, 4, 8);
+  const sugarMoldOpeningGeometry = new THREE.CircleGeometry(0.275, 10);
   for (let column = 0; column < 4; column += 1) {
-    const sugarCone = new THREE.Mesh(
-      new THREE.ConeGeometry(0.32, 0.85, 12),
-      pottery,
-    );
-    sugarCone.position.set(-7.1 + column * 0.7, 1.95, -31.45);
-    sugarCone.rotation.z = Math.PI;
-    sugarCone.castShadow = true;
-    sugarCone.name = "Cone-shaped sugar vessel";
-    root.add(sugarCone);
+    const x = -7.1 + column * 0.7;
+    const sugarMold = new THREE.Mesh(sugarMoldGeometry, pottery);
+    sugarMold.position.set(x, 1.95, -31.45);
+    sugarMold.rotation.y = column * 0.19;
+    sugarMold.castShadow = true;
+    sugarMold.name = "Hollow conical sugar mold";
+    root.add(sugarMold);
+    objectRenderBudget.marketGoods.sugarMolds += 1;
+    objectRenderBudget.marketGoods.sugarTriangles += geometryTriangles(sugarMoldGeometry);
+    const rim = new THREE.Mesh(sugarMoldRimGeometry, pottery);
+    rim.position.set(x, 2.375, -31.45);
+    rim.rotation.x = Math.PI / 2;
+    rim.name = "Rolled sugar-mold rim";
+    root.add(rim);
+    objectRenderBudget.marketGoods.sugarRims += 1;
+    objectRenderBudget.marketGoods.sugarTriangles += geometryTriangles(sugarMoldRimGeometry);
+    const opening = new THREE.Mesh(sugarMoldOpeningGeometry, darkRecess);
+    opening.position.set(x, 2.374, -31.45);
+    opening.rotation.x = -Math.PI / 2;
+    opening.name = "Sugar-mold dark interior";
+    root.add(opening);
+    objectRenderBudget.marketGoods.sugarOpenings += 1;
+    objectRenderBudget.marketGoods.sugarTriangles += geometryTriangles(sugarMoldOpeningGeometry);
   }
   addStreetCoverCollider(sugarStore, [2.85, 1.02, 0.78], [-6.05, 1.58, -31.45]);
 

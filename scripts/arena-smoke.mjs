@@ -182,6 +182,25 @@ try {
     );
   }
   if (
+    objectBudget.marketGoods.producePieces !== 28 ||
+    objectBudget.marketGoods.produceStems !== 28 ||
+    objectBudget.marketGoods.sugarMolds !== 4 ||
+    objectBudget.marketGoods.sugarRims !== 4 ||
+    objectBudget.marketGoods.sugarOpenings !== 4
+  ) {
+    throw new Error(
+      `Market-goods construction regressed: ${JSON.stringify(objectBudget.marketGoods)}`,
+    );
+  }
+  if (
+    objectBudget.marketGoods.produceTriangles > 1568 ||
+    objectBudget.marketGoods.sugarTriangles > 376
+  ) {
+    throw new Error(
+      `Market-goods triangle budget regressed: ${JSON.stringify(objectBudget.marketGoods)}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||
