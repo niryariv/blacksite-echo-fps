@@ -1,4 +1,5 @@
 import { mergeGeometries as mergeBufferGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { ACRE_PLAN } from "./acre-plan.js";
 
 export function mergeGeometries(geometries, useGroups = false) {
   if (!Array.isArray(geometries) || geometries.length === 0) {
@@ -356,13 +357,13 @@ export function buildArena(THREE, scene) {
   );
 
   const mission = {
-    playerStart: new THREE.Vector3(116, 1.72, -22),
+    playerStart: new THREE.Vector3(122, 1.72, -71),
     target: new THREE.Vector3(-30, 0, -41),
     exfil: new THREE.Vector3(51, 0.18, 64),
     guardSpawns: [
-      new THREE.Vector3(76, 0, -22),
-      new THREE.Vector3(52, 0, -18),
-      new THREE.Vector3(17, 0, -25),
+      new THREE.Vector3(76, 0, -69),
+      new THREE.Vector3(46, 0, -66),
+      new THREE.Vector3(17, 0, -60),
       new THREE.Vector3(-8, 0, -36),
       new THREE.Vector3(-24, 0, -42),
       new THREE.Vector3(-2, 0, 5),
@@ -372,13 +373,13 @@ export function buildArena(THREE, scene) {
     ],
     wallGuardSpawns: [
       {
-        position: new THREE.Vector3(-100, 1.66, -24),
+        position: new THREE.Vector3(-102, 1.66, -24),
         axis: "z",
         min: -31,
         max: 5,
       },
       {
-        position: new THREE.Vector3(-100, 1.66, 39),
+        position: new THREE.Vector3(-101, 1.66, 39),
         axis: "z",
         min: 20,
         max: 59,
@@ -404,7 +405,7 @@ export function buildArena(THREE, scene) {
       name: "ST ANTHONY’S GATE",
       shortName: "EASTERN GATE",
       method: "OPEN ROAD",
-      description: "Longest approach · broad sightlines · no climb",
+      description: "Montmusard approach · broad sightlines · no climb",
       spawn: mission.playerStart.clone(),
       arrival: mission.playerStart.clone(),
       yaw: Math.PI / 2,
@@ -445,8 +446,8 @@ export function buildArena(THREE, scene) {
   ];
 
   const bounds = new THREE.Box3(
-    new THREE.Vector3(-108, -2, -92),
-    new THREE.Vector3(108, 26, 88),
+    new THREE.Vector3(ACRE_PLAN.bounds.min[0], -2, ACRE_PLAN.bounds.min[1]),
+    new THREE.Vector3(ACRE_PLAN.bounds.max[0], 26, ACRE_PLAN.bounds.max[1]),
   );
 
   const canvasTexture = (size, painter, repeatX = 1, repeatY = 1) => {
@@ -1152,28 +1153,37 @@ export function buildArena(THREE, scene) {
   };
   animated.push(water);
 
-  addBox({
-    size: [141, 0.9, 166],
-    position: [-29.5, -0.18, -2],
-    material: cobbles,
-    name: "Acre western peninsula",
-    shadows: false,
+  // The exposed land follows the archaeology-led peninsula outline rather
+  // than the former pair of rectangular ground slabs. ShapeGeometry keeps the
+  // irregular coast legible from towers and on the held map.
+  const cityShape = new THREE.Shape();
+  ACRE_PLAN.cityOutline.forEach(([x, z], index) => {
+    if (index === 0) cityShape.moveTo(x, -z);
+    else cityShape.lineTo(x, -z);
   });
-  addBox({
-    size: [53, 0.9, 127],
-    position: [67.5, -0.18, -22.5],
-    material: cobbles,
-    name: "Acre eastern peninsula",
-    shadows: false,
+  cityShape.closePath();
+  const harbourCut = new THREE.Path();
+  ACRE_PLAN.harbour.innerWater.forEach(([x, z], index) => {
+    if (index === 0) harbourCut.moveTo(x, -z);
+    else harbourCut.lineTo(x, -z);
   });
+  harbourCut.closePath();
+  cityShape.holes.push(harbourCut);
+  const cityGroundGeometry = new THREE.ShapeGeometry(cityShape);
+  cityGroundGeometry.rotateX(-Math.PI / 2);
+  const cityGround = new THREE.Mesh(cityGroundGeometry, cobbles);
+  cityGround.position.y = 0.27;
+  cityGround.receiveShadow = true;
+  cityGround.name = "Archaeological outline of Frankish Acre";
+  root.add(cityGround);
   addBox({
     size: [55, 0.7, 52],
-    position: [102.5, -0.18, -15],
+    position: [106.5, -0.18, -71],
     material: sandyEarth,
     name: "Eastern approach",
     shadows: false,
   });
-  addBox({ size: [110, 0.07, 5.8], position: [75, 0.31, -22], material: packedEarth, shadows: false, name: "East gate road" });
+  addBox({ size: [110, 0.07, 5.8], position: [75, 0.31, -71], material: packedEarth, shadows: false, name: "St Anthony approach road" });
   addBox({ size: [5.8, 0.07, 113], position: [9, 0.31, 3.5], material: packedEarth, shadows: false, name: "Via Regis" });
   addBox({ size: [48, 0.07, 5.8], position: [33, 0.31, 44], material: packedEarth, shadows: false, name: "Harbour road" });
   addBox({ size: [5.2, 0.075, 43], position: [-4, 0.315, -42], material: packedEarth, shadows: false, name: "Hospitaller street" });
@@ -1317,8 +1327,9 @@ export function buildArena(THREE, scene) {
     }
   });
 
-  // Coastline limits: rocky quay rather than a conjectural high western wall.
-  addBox({ size: [3, 2.2, 164], position: [-100, 0.55, -1], material: oldStone, collider: true });
+  // Coastline limits: the long western sea line reaches the full length of
+  // Montmusard, while the southern edge bends toward the protected harbour.
+  addBox({ size: [3, 2.2, 204], position: [-100, 0.55, -21], material: oldStone, collider: true });
   addBox({ size: [194, 2.2, 3], position: [-2, 0.55, 81], material: oldStone, collider: true });
   addBox({ size: [3, 2, 34], position: [94, 0.45, 63], material: oldStone, collider: true });
   const shorelineRockGeometry = createWeatheredRockGeometry(1.2, 2.4);
@@ -1333,7 +1344,7 @@ export function buildArena(THREE, scene) {
   const rockQuaternion = new THREE.Quaternion();
   const rockScale = new THREE.Vector3();
   let rockIndex = 0;
-  for (let z = -79; z <= 77; z += 6.2) {
+  for (let z = -119; z <= 77; z += 6.2) {
     if (Math.abs(z + 11) < 8) continue;
     rockQuaternion.setFromEuler(new THREE.Euler(cityRandom(), cityRandom(), cityRandom()));
     rockScale.set(1.2 + cityRandom() * 1.8, 0.7 + cityRandom() * 0.9, 1 + cityRandom() * 1.5);
@@ -1675,9 +1686,73 @@ export function buildArena(THREE, scene) {
     }
   };
 
-  // Thirteenth-century outer wall around Montmusard and the older inner line.
-  addWall([194, 7.5, 3.2], [-2, 3.75, -86], "Montmusard outer wall");
-  addWall([3.2, 7.5, 59], [94, 3.75, -57.5], "Eastern outer wall");
+  const addWallSpan = ([startX, startZ], [endX, endZ], name, height = 7.5) => {
+    objectRenderBudget.wallDetails.wallRuns += 1;
+    const deltaX = endX - startX;
+    const deltaZ = endZ - startZ;
+    const length = Math.hypot(deltaX, deltaZ);
+    const angle = Math.atan2(deltaZ, deltaX);
+    const centerX = (startX + endX) / 2;
+    const centerZ = (startZ + endZ) / 2;
+    const wall = addBox({
+      size: [length + 0.25, height, 3.2],
+      position: [centerX, height / 2, centerZ],
+      material: oldStone,
+      name,
+    });
+    wall.rotation.y = -angle;
+
+    // Short AABBs follow the rotated masonry closely enough that the player
+    // cannot cut through a diagonal wall or become trapped in an oversized
+    // bounding box.
+    const colliderRuns = Math.max(1, Math.ceil(length / 5));
+    for (let run = 0; run < colliderRuns; run += 1) {
+      const t = (run + 0.5) / colliderRuns;
+      const runLength = length / colliderRuns;
+      addCollider(
+        [
+          Math.abs(Math.cos(angle)) * runLength + Math.abs(Math.sin(angle)) * 3.2,
+          height,
+          Math.abs(Math.sin(angle)) * runLength + Math.abs(Math.cos(angle)) * 3.2,
+        ],
+        [startX + deltaX * t, height / 2, startZ + deltaZ * t],
+      );
+    }
+    for (let offset = 2.5; offset < length - 1; offset += 4.5) {
+      const t = offset / length;
+      const merlon = addBox({
+        size: [2.35, 1.5, 2.15],
+        position: [
+          startX + deltaX * t,
+          height + 0.72,
+          startZ + deltaZ * t,
+        ],
+        material: paleStone,
+        shadows: false,
+        name: "Montmusard wall merlon",
+      });
+      merlon.rotation.y = -angle;
+      objectRenderBudget.crenellations.merlons += 1;
+      objectRenderBudget.crenellations.staticTriangles += geometryTriangles(merlon.geometry);
+    }
+  };
+
+  const addWallPolyline = (points, name, height = 7.5) => {
+    for (let index = 1; index < points.length; index += 1) {
+      addWallSpan(points[index - 1], points[index], name, height);
+    }
+  };
+
+  // Louis IX's Montmusard works formed an asymmetric double enclosure: the
+  // western sea front projected much farther north than the eastern junction
+  // with the old city. The former full-width horizontal wall erased that
+  // defining feature.
+  addWallPolyline(ACRE_PLAN.montmusardOuterWall.slice(0, -1), "Montmusard outer wall");
+  addWallSpan([82, -77], [88, -74], "Montmusard outer wall");
+  addWallSpan([95, -66], [91, -68], "Montmusard outer wall");
+  addWallPolyline(ACRE_PLAN.montmusardInnerWall, "Montmusard inner wall", 6.6);
+
+  addWall([3.2, 7.5, 30], [94, 3.75, -45], "Eastern old-city wall");
   addWall([3.2, 7.5, 25], [94, 3.75, 4.5], "Eastern outer wall");
   addWall([3.2, 7.5, 34], [94, 3.75, 41], "Harbour land wall");
 
@@ -1685,18 +1760,19 @@ export function buildArena(THREE, scene) {
   addWall([64, 5.8, 2.7], [47, 2.9, -64], "Old northern wall");
 
   // St Anthony's Gate, the insertion point.
+  const landGateZ = ACRE_PLAN.landmarks.stAnthonyGate[1];
   const gate = new THREE.Group();
   gate.name = "St Anthony's Gate";
   root.add(gate);
-  addBox({ size: [7, 11, 7], position: [92, 5.5, -31], material: oldStone, collider: true, parent: gate });
-  addBox({ size: [7, 11, 7], position: [92, 5.5, -13], material: oldStone, collider: true, parent: gate });
-  addBox({ size: [7, 3, 11], position: [92, 9.5, -22], material: paleStone, parent: gate });
-  addCrenellations("z", -33, -11, 92, 12.1, gate);
+  addBox({ size: [7, 11, 7], position: [92, 5.5, landGateZ - 9], material: oldStone, collider: true, parent: gate });
+  addBox({ size: [7, 11, 7], position: [92, 5.5, landGateZ + 9], material: oldStone, collider: true, parent: gate });
+  addBox({ size: [7, 3, 11], position: [92, 9.5, landGateZ], material: paleStone, parent: gate });
+  addCrenellations("z", landGateZ - 11, landGateZ + 11, 92, 12.1, gate);
   for (const faceX of [88.42, 95.58]) {
     addArch({
       radius: 3.15,
       thickness: 0.58,
-      position: [faceX, 4.15, -22],
+      position: [faceX, 4.15, landGateZ],
       material: paleStone,
       rotationY: Math.PI / 2,
       parent: gate,
@@ -1705,7 +1781,7 @@ export function buildArena(THREE, scene) {
     for (const side of [-1, 1]) {
       addBox({
         size: [0.62, 4.25, 0.86],
-        position: [faceX, 2.12, -22 + side * 3.15],
+        position: [faceX, 2.12, landGateZ + side * 3.15],
         material: paleStone,
         collider: true,
         parent: gate,
@@ -1714,7 +1790,7 @@ export function buildArena(THREE, scene) {
       });
     }
   }
-  const landGateButtressParts = [-35, -9].map((buttressZ) => {
+  const landGateButtressParts = [landGateZ - 13, landGateZ + 13].map((buttressZ) => {
     const buttress = new THREE.BoxGeometry(5.2, 6.2, 2.2);
     buttress.translate(88.7, 3.1, buttressZ);
     addCollider([5.2, 6.2, 2.2], [88.7, 3.1, buttressZ]);
@@ -1792,8 +1868,8 @@ export function buildArena(THREE, scene) {
     return tower;
   };
 
-  addTower(-95, -84, 5.8, 11, "North-west sea tower");
-  addTower(92, -84, 6.2, 12, "Accursed Tower");
+  addTower(-101, -122, 5.8, 11, "North-west Montmusard sea tower");
+  addTower(82, -77, 6.2, 12, "Montmusard eastern tower");
   addTower(92, 18, 5.2, 10, "Eastern wall tower");
   addTower(89, 76, 5.8, 11, "Burj al-Sultan harbour tower");
 
@@ -2317,9 +2393,10 @@ export function buildArena(THREE, scene) {
 
   // Montmusard: a looser northern suburb between the two defensive lines.
   [
-    [-78, -74, 14, 11, 5.8], [-58, -74, 12, 10, 6.5], [-35, -75, 15, 10, 6],
-    [-10, -74, 14, 11, 7], [16, -74, 16, 10, 6], [42, -74, 13, 11, 6.8],
-    [68, -74, 14, 10, 5.6],
+    [-86, -107, 13, 10, 5.8], [-67, -106, 12, 10, 6.5],
+    [-48, -100, 14, 11, 6], [-29, -94, 13, 10, 6.8],
+    [-10, -88, 14, 11, 7], [12, -82, 15, 10, 6],
+    [50, -74, 13, 11, 6.8],
   ].forEach(([x, z, w, d, h]) => addHouse({ x, z, w, d, h, name: "Montmusard house" }));
 
   // Hospitaller headquarters: massive wings around a large central court.
@@ -3172,8 +3249,35 @@ export function buildArena(THREE, scene) {
   addCollider([52, 2.3, 16], [68, 0.8, 50]);
   addCollider([52, 2.3, 13], [68, 0.8, 75.5]);
   addCollider([28, 2.3, 12], [80, 0.8, 64]);
-  addBox({ size: [48, 1.65, 3], position: [67, 0.3, 42], material: oldStone, collider: true, name: "Northern harbour quay" });
-  addBox({ size: [3, 1.65, 37], position: [42, 0.3, 61], material: oldStone, collider: true, name: "Western harbour quay" });
+  const addQuaySpan = ([startX, startZ], [endX, endZ], width, height, name) => {
+    const deltaX = endX - startX;
+    const deltaZ = endZ - startZ;
+    const length = Math.hypot(deltaX, deltaZ);
+    const angle = Math.atan2(deltaZ, deltaX);
+    const quay = addBox({
+      size: [length + 0.2, height, width],
+      position: [(startX + endX) / 2, height / 2 - 0.52, (startZ + endZ) / 2],
+      material: oldStone,
+      name,
+    });
+    quay.rotation.y = -angle;
+    const colliderRuns = Math.max(1, Math.ceil(length / 4.5));
+    for (let run = 0; run < colliderRuns; run += 1) {
+      const t = (run + 0.5) / colliderRuns;
+      const runLength = length / colliderRuns;
+      addCollider(
+        [
+          Math.abs(Math.cos(angle)) * runLength + Math.abs(Math.sin(angle)) * width,
+          height,
+          Math.abs(Math.sin(angle)) * runLength + Math.abs(Math.cos(angle)) * width,
+        ],
+        [startX + deltaX * t, height / 2 - 0.52, startZ + deltaZ * t],
+      );
+    }
+  };
+  addQuaySpan([42, 43], [74, 42], 3, 1.65, "Northern inner-harbour quay");
+  addQuaySpan([42, 43], [40.85, 58.4], 3, 1.65, "Western inner-harbour quay");
+  addQuaySpan([40.15, 68.7], [40, 70], 3, 1.65, "Western inner-harbour quay");
   addBox({
     size: [24, 0.5, 5.55],
     position: [42, 0.25, 64],
@@ -3258,8 +3362,51 @@ export function buildArena(THREE, scene) {
       }
     }
   }
-  addBox({ size: [5, 2.2, 58], position: [91, 0.7, 50], material: oldStone, collider: true, name: "Harbour mole" });
-  addBox({ size: [41, 2.2, 4], position: [71, 0.7, 80], material: oldStone, collider: true, name: "Southern harbour mole" });
+  for (let index = 1; index < ACRE_PLAN.harbour.southernBreakwater.length; index += 1) {
+    addQuaySpan(
+      ACRE_PLAN.harbour.southernBreakwater[index - 1],
+      ACRE_PLAN.harbour.southernBreakwater[index],
+      4,
+      2.2,
+      "Southern harbour breakwater",
+    );
+  }
+  for (let index = 1; index < ACRE_PLAN.harbour.easternBreakwater.length; index += 1) {
+    addQuaySpan(
+      ACRE_PLAN.harbour.easternBreakwater[index - 1],
+      ACRE_PLAN.harbour.easternBreakwater[index],
+      4,
+      2.2,
+      "Eastern harbour breakwater",
+    );
+  }
+  addTower(
+    ACRE_PLAN.harbour.towerOfFlies[0],
+    ACRE_PLAN.harbour.towerOfFlies[1],
+    5.6,
+    10,
+    "Tower of the Flies",
+  );
+  const [chainStart, chainEnd] = ACRE_PLAN.harbour.chain;
+  const harbourChainGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(chainStart[0], 1.1, chainStart[1]),
+      new THREE.Vector3(
+        (chainStart[0] + chainEnd[0]) / 2,
+        0.28,
+        (chainStart[1] + chainEnd[1]) / 2,
+      ),
+      new THREE.Vector3(chainEnd[0], 1.25, chainEnd[1]),
+    ]),
+    22,
+    0.09,
+    5,
+    false,
+  );
+  const harbourChain = new THREE.Mesh(harbourChainGeometry, agedIron);
+  harbourChain.name = "Sagging Constantinople harbour chain";
+  harbourChain.castShadow = true;
+  root.add(harbourChain);
 
   const craneDrumGeometry = new THREE.LatheGeometry(
     [
@@ -5556,25 +5703,24 @@ export function buildArena(THREE, scene) {
   objectRenderBudget.atmosphere.gullTriangles = geometryTriangles(gullGeometry);
   objectRenderBudget.atmosphere.animatedSystems += 1;
 
-  // Invisible outer limits and harbour safety volumes.
-  // Keep the eastern approach bounded while leaving the insertion road open.
-  // The player starts east of this line and must be able to continue through
-  // St Anthony's Gate at z = -22.
-  addCollider([3, 8, 63], [110, 4, -60.5]);
-  addCollider([3, 8, 103], [110, 4, 36.5]);
-  addCollider([220, 8, 3], [0, 4, -94]);
+  // Invisible outer limits and harbour safety volumes. Leave the landward
+  // insertion open on St Anthony's road at the south-eastern edge of
+  // Montmusard.
+  addCollider([3, 8, 52], [128, 4, -106]);
+  addCollider([3, 8, 156], [128, 4, 16]);
+  addCollider([244, 8, 3], [6, 4, -134]);
 
   const zones = [
     { name: "TEMPLAR TUNNEL", box: new THREE.Box3(new THREE.Vector3(-58, -7, 47), new THREE.Vector3(39, -1, 53)) },
-    { name: "ST ANTHONY'S GATE", box: new THREE.Box3(new THREE.Vector3(72, -2, -37), new THREE.Vector3(108, 12, -7)) },
-    { name: "MONTMUSART", box: new THREE.Box3(new THREE.Vector3(-98, -2, -85), new THREE.Vector3(92, 12, -63)) },
+    { name: "ST ANTHONY'S GATE", box: new THREE.Box3(new THREE.Vector3(72, -2, -84), new THREE.Vector3(126, 12, -61)) },
+    { name: "MONTMUSART", box: new THREE.Box3(new THREE.Vector3(-102, -2, -126), new THREE.Vector3(92, 12, -63)) },
     { name: "HOSPITALLER QUARTER", box: new THREE.Box3(new THREE.Vector3(-58, -2, -63), new THREE.Vector3(-5, 14, -23)) },
-    { name: "TEMPLAR QUARTER", box: new THREE.Box3(new THREE.Vector3(-98, -2, 39), new THREE.Vector3(-48, 15, 79)) },
-    { name: "PISAN QUARTER", box: new THREE.Box3(new THREE.Vector3(-48, -2, 20), new THREE.Vector3(18, 10, 79)) },
-    { name: "GENOESE QUARTER", box: new THREE.Box3(new THREE.Vector3(-5, -2, -22), new THREE.Vector3(24, 10, 24)) },
-    { name: "VENETIAN QUARTER", box: new THREE.Box3(new THREE.Vector3(24, -2, -20), new THREE.Vector3(87, 12, 42)) },
-    { name: "INNER HARBOUR", box: new THREE.Box3(new THREE.Vector3(18, -2, 42), new THREE.Vector3(94, 12, 82)) },
+    { name: "TEMPLAR QUARTER", box: new THREE.Box3(new THREE.Vector3(-98, -2, 34), new THREE.Vector3(-48, 15, 80)) },
+    { name: "PISAN QUARTER", box: new THREE.Box3(new THREE.Vector3(-58, -2, 31), new THREE.Vector3(40, 10, 80)) },
     { name: "CATHEDRAL CLOSE", box: new THREE.Box3(new THREE.Vector3(-52, -2, -24), new THREE.Vector3(2, 15, 21)) },
+    { name: "GENOESE QUARTER", box: new THREE.Box3(new THREE.Vector3(-68, -2, -22), new THREE.Vector3(7, 10, 38)) },
+    { name: "VENETIAN QUARTER", box: new THREE.Box3(new THREE.Vector3(1, -2, -21), new THREE.Vector3(87, 12, 43)) },
+    { name: "INNER HARBOUR", box: new THREE.Box3(new THREE.Vector3(38, -2, 41), new THREE.Vector3(92, 12, 80)) },
   ];
 
   // The authored city is made from thousands of modular pieces. Merge static

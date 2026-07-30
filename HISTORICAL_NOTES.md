@@ -3,20 +3,27 @@
 This game is a compressed, playable interpretation rather than a survey-grade
 reconstruction. It fixes the setting at the height of the second Frankish
 Kingdom, when Acre was its political capital and primary Mediterranean port.
-The map preserves the documented relationships between major districts while
-compressing their real distances to keep a stealth run readable.
+No measured city survey survives from 1250: contemporary and early-modern
+views are schematic, and much of Frankish Acre remains beneath the Ottoman
+city. The map therefore uses excavated remains and modern scholarly
+reconstructions for geometry, preserves the documented relationships between
+major districts, and compresses real distances to keep a stealth run readable.
 
 ## Geography and fortification
 
 - Acre occupies a peninsula beside a natural bay, with the harbour on its
   south-eastern side and the open Mediterranean to the west and south.
 - The thirteenth-century expansion into Montmusard extended the city north of
-  its earlier wall. The new quarter gained a separate outer defensive line,
+  its earlier wall. Its asymmetric defenses run farther north along the western
+  shore than on the eastern side. The new quarter gained double land defenses,
   while the older wall continued to divide the urban fabric.
 - The western coast is represented as a rocky edge and quay, not a continuous
   conjectural Crusader curtain wall. The principal heavy defenses face land.
 - The inner harbour, outer roadstead, mole, quays, ships, and the harbour guard
-  tower form the extraction side of the map.
+  tower form the extraction side of the map. The playable harbour uses an
+  irregular inner basin, a narrow chain-controlled entrance, the southern mole,
+  and the offshore Tower of the Flies instead of the square basin shown by
+  several later pictorial maps.
 
 ## Quarters and landmarks
 
@@ -79,7 +86,8 @@ uses, and neighborhood associations come from the sources below.
 - Adrian J. Boas, “Urban Landscape Development in Twelfth-Century Acre,”
   *Journal of the Royal Asiatic Society*.
 - David Jacoby, “Crusader Acre in the Thirteenth Century: Urban Layout and
-  Topography,” *Studi Medievali*.
+  Topography,” *Studi Medievali*,
+  [including the archaeology-led topographic reconstruction](https://www.mgh-bibliothek.de/dokumente/a/a051143.pdf).
 - Benjamin Z. Kedar, “The Outer Walls of Frankish Acre,” *Atiqot* 31.
 - David Jacoby, “New Venetian Evidence on Crusader Acre,” in *The Experience
   of Crusading*, vol. 2, and “Aspects of Everyday Life in Frankish Acre,”

@@ -70,6 +70,7 @@ const vite = await createServer({
 
 try {
   const { buildArena, mergeGeometries } = await vite.ssrLoadModule("/src/arena.js");
+  const { ACRE_PLAN, pointInPolygon } = await vite.ssrLoadModule("/src/acre-plan.js");
   const mixedMergeIndexed = new THREE.BoxGeometry(1, 1, 1);
   const mixedMergePlain = new THREE.PlaneGeometry(1, 1).toNonIndexed();
   const mixedMergeResult = mergeGeometries([
@@ -109,12 +110,12 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.sourceStaticMeshes > 3774) {
+  if (budget.sourceStaticMeshes > 4200) {
     throw new Error(
       `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
     );
   }
-  if (budget.staticTriangles > 99900) {
+  if (budget.staticTriangles > 110000) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -208,14 +209,14 @@ try {
   }
   if (
     objectBudget.landscape.approachRocks !== 18 ||
-    objectBudget.landscape.shorelineRocks !== 43 ||
+    objectBudget.landscape.shorelineRocks !== 50 ||
     objectBudget.landscape.scrubClusters !== 39
   ) {
     throw new Error(
       `Exterior landscape construction regressed: ${JSON.stringify(objectBudget?.landscape)}`,
     );
   }
-  if (objectBudget.landscape.renderedTriangles > 2600) {
+  if (objectBudget.landscape.renderedTriangles > 3000) {
     throw new Error(
       `Exterior landscape triangle budget regressed: ${objectBudget.landscape.renderedTriangles}`,
     );
@@ -353,7 +354,7 @@ try {
   if (
     objectBudget.shutters.materialVariants !== 2 ||
     objectBudget.shutters.textureSize !== 128 ||
-    objectBudget.shutters.frontLeaves !== 172 ||
+    objectBudget.shutters.frontLeaves !== 170 ||
     objectBudget.shutters.sideLeaves !== 304
   ) {
     throw new Error(
@@ -383,9 +384,9 @@ try {
     );
   }
   if (
-    objectBudget.windowGrilles.instances !== 86 ||
-    objectBudget.windowGrilles.verticalBars !== 258 ||
-    objectBudget.windowGrilles.horizontalBars !== 172
+    objectBudget.windowGrilles.instances !== 85 ||
+    objectBudget.windowGrilles.verticalBars !== 255 ||
+    objectBudget.windowGrilles.horizontalBars !== 170
   ) {
     throw new Error(
       `Window-grille construction regressed: ${JSON.stringify(objectBudget?.windowGrilles)}`,
@@ -452,10 +453,10 @@ try {
     );
   }
   if (
-    objectBudget.chimneys.instances !== 9 ||
-    objectBudget.chimneys.masonryBodies !== 9 ||
-    objectBudget.chimneys.capCourses !== 9 ||
-    objectBudget.chimneys.sootOpenings !== 9
+    objectBudget.chimneys.instances !== 12 ||
+    objectBudget.chimneys.masonryBodies !== 12 ||
+    objectBudget.chimneys.capCourses !== 12 ||
+    objectBudget.chimneys.sootOpenings !== 12
   ) {
     throw new Error(
       `Rooftop-chimney construction regressed: ${
@@ -463,7 +464,7 @@ try {
       }`,
     );
   }
-  if (objectBudget.chimneys.staticTriangles > 234) {
+  if (objectBudget.chimneys.staticTriangles > 320) {
     throw new Error(
       `Rooftop-chimney triangle budget regressed: ${
         objectBudget.chimneys.staticTriangles
@@ -489,9 +490,9 @@ try {
     );
   }
   if (
-    objectBudget.towerDetails.towers !== 8 ||
-    objectBudget.towerDetails.crossletSlits !== 48 ||
-    objectBudget.towerDetails.slitSurfaces !== 96
+    objectBudget.towerDetails.towers !== 9 ||
+    objectBudget.towerDetails.crossletSlits !== 54 ||
+    objectBudget.towerDetails.slitSurfaces !== 108
   ) {
     throw new Error(
       `Tower-detail construction regressed: ${
@@ -499,7 +500,7 @@ try {
       }`,
     );
   }
-  if (objectBudget.towerDetails.staticTriangles > 192) {
+  if (objectBudget.towerDetails.staticTriangles > 220) {
     throw new Error(
       `Tower-detail triangle budget regressed: ${
         objectBudget.towerDetails.staticTriangles
@@ -507,8 +508,8 @@ try {
     );
   }
   if (
-    objectBudget.crenellations.runs !== 12 ||
-    objectBudget.crenellations.merlons !== 136
+    objectBudget.crenellations.runs !== 11 ||
+    objectBudget.crenellations.merlons !== 173
   ) {
     throw new Error(
       `Battlement construction regressed: ${
@@ -516,7 +517,7 @@ try {
       }`,
     );
   }
-  if (objectBudget.crenellations.staticTriangles > 1632) {
+  if (objectBudget.crenellations.staticTriangles > 2100) {
     throw new Error(
       `Battlement triangle budget regressed: ${
         objectBudget.crenellations.staticTriangles
@@ -524,8 +525,8 @@ try {
     );
   }
   if (
-    objectBudget.wallDetails.wallRuns !== 6 ||
-    objectBudget.wallDetails.lancetSlits !== 34
+    objectBudget.wallDetails.wallRuns !== 18 ||
+    objectBudget.wallDetails.lancetSlits !== 16
   ) {
     throw new Error(
       `Defensive-wall-detail construction regressed: ${
@@ -798,11 +799,92 @@ try {
     throw new Error(`Blocked entry anchors: ${blockedEntryAnchors.join(", ")}`);
   }
 
+  const oldWallZ = ACRE_PLAN.oldCityWall[0][1];
+  const westMontmusardReach = oldWallZ - ACRE_PLAN.montmusardOuterWall[0][1];
+  const eastMontmusardReach = oldWallZ
+    - ACRE_PLAN.montmusardOuterWall.at(-1)[1];
+  if (
+    westMontmusardReach < 50 ||
+    eastMontmusardReach > 20 ||
+    ACRE_PLAN.landmarks.hospitaller[1] >= ACRE_PLAN.landmarks.genoeseCommune[1] ||
+    ACRE_PLAN.landmarks.templar[0] >= ACRE_PLAN.landmarks.pisanFondaco[0] ||
+    !pointInPolygon(ACRE_PLAN.landmarks.hospitaller, ACRE_PLAN.cityOutline) ||
+    !pointInPolygon(ACRE_PLAN.landmarks.templar, ACRE_PLAN.cityOutline) ||
+    pointInPolygon(ACRE_PLAN.harbour.towerOfFlies, ACRE_PLAN.cityOutline)
+  ) {
+    throw new Error("Historical-plan topology regressed");
+  }
+
+  const navigationStep = 1.25;
+  const minimumX = ACRE_PLAN.bounds.min[0];
+  const minimumZ = ACRE_PLAN.bounds.min[1];
+  const columns = Math.ceil(
+    (ACRE_PLAN.bounds.max[0] - minimumX) / navigationStep,
+  ) + 1;
+  const rows = Math.ceil(
+    (ACRE_PLAN.bounds.max[1] - minimumZ) / navigationStep,
+  ) + 1;
+  const cellPosition = (cellX, cellZ) => new THREE.Vector3(
+    minimumX + cellX * navigationStep,
+    playerHeight,
+    minimumZ + cellZ * navigationStep,
+  );
+  const routeExists = (start, goal) => {
+    const startX = Math.round((start.x - minimumX) / navigationStep);
+    const startZ = Math.round((start.z - minimumZ) / navigationStep);
+    const queue = [[startX, startZ]];
+    const visited = new Uint8Array(columns * rows);
+    visited[startZ * columns + startX] = 1;
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const [cellX, cellZ] = queue[cursor];
+      const position = cellPosition(cellX, cellZ);
+      if (Math.hypot(position.x - goal.x, position.z - goal.z) <= 2) {
+        return true;
+      }
+      for (const [offsetX, offsetZ] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nextX = cellX + offsetX;
+        const nextZ = cellZ + offsetZ;
+        if (nextX < 0 || nextZ < 0 || nextX >= columns || nextZ >= rows) continue;
+        const key = nextZ * columns + nextX;
+        if (visited[key]) continue;
+        visited[key] = 1;
+        const next = cellPosition(nextX, nextZ);
+        if (!blockedAt(next)) queue.push([nextX, nextZ]);
+      }
+    }
+    return false;
+  };
+  const unreachableMissionRoutes = arena.entryRoutes
+    .filter((route) => !routeExists(route.arrival, arena.mission.target))
+    .map((route) => route.id);
+  const targetToFortressTunnel = routeExists(
+    arena.mission.target,
+    arena.tunnel.portals[0].surface,
+  );
+  const portTunnelToExfil = routeExists(
+    arena.tunnel.portals[1].surface,
+    arena.mission.exfil,
+  );
+  if (
+    unreachableMissionRoutes.length
+    || !targetToFortressTunnel
+    || !portTunnelToExfil
+  ) {
+    throw new Error(
+      `Mission navigation regressed: entries=${unreachableMissionRoutes.join(",") || "none"}, fortressTunnel=${targetToFortressTunnel}, portExfil=${portTunnelToExfil}`,
+    );
+  }
+
   console.log(JSON.stringify({
     renderBudget: budget,
     colliders: arena.colliders.length,
     entryRoutes: arena.entryRoutes.length,
     blockedEntryAnchors,
+    missionNavigation: {
+      entryRoutesReachTarget: arena.entryRoutes.length,
+      targetToFortressTunnel,
+      portTunnelToExfil,
+    },
     zones: arena.zones.length,
     vesselRenderBudget: arena.vesselRenderBudget,
     objectRenderBudget: objectBudget,

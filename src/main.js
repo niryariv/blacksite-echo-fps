@@ -8,6 +8,7 @@ import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildArena, mergeGeometries } from "./arena.js";
 import { StealthAudio } from "./audio.js";
+import { ACRE_PLAN, planBounds, pointInPolygon } from "./acre-plan.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("game");
@@ -490,10 +491,15 @@ if (import.meta.env.DEV) {
       };
     },
   };
+  const gateRoute = arena.entryRoutes.find((route) => route.id === "gate");
   document.documentElement.dataset.gateCorridorClear = String(
-    Array.from({ length: 51 }, (_, index) => 116 - index * 0.5).every(
-      (x) => !boxCollides(new THREE.Vector3(x, player.height, -22)),
-    ),
+    gateRoute &&
+      Array.from({ length: 41 }, (_, index) =>
+        gateRoute.spawn.clone().lerp(gateRoute.arrival, index / 40),
+      ).every((point) => {
+        point.y = player.height;
+        return !boxCollides(point);
+      }),
   );
   document.documentElement.dataset.streetCoverCount = String(arena.streetCover.length);
   document.documentElement.dataset.streetStoriesCount = String(arena.streetStories.length);
@@ -2484,7 +2490,7 @@ function drawCityMap() {
   const margin = Math.max(18, Math.min(30, rect.width * 0.026));
   const mapWidth = rect.width - margin * 2;
   const mapHeight = rect.height - margin * 2;
-  const world = { left: -108, right: 122, top: -94, bottom: 88 };
+  const world = ACRE_PLAN.world;
   const scaleX = mapWidth / (world.right - world.left);
   const scaleZ = mapHeight / (world.bottom - world.top);
   const project = (x, z) => ({
@@ -2580,11 +2586,7 @@ function drawCityMap() {
     // A muted watercolor sea surrounds the defensible peninsula.
     ink.fillStyle = "rgba(63,112,117,.31)";
     ink.fillRect(margin, margin, mapWidth, mapHeight);
-    const coast = [
-      [-100, -86], [94, -86], [94, -42], [108, -38], [108, 12],
-      [94, 17], [94, 40], [86, 43], [43, 43], [41, 81],
-      [-92, 81], [-100, 69], [-103, 34], [-104, -24], [-100, -86],
-    ];
+    const coast = ACRE_PLAN.cityOutline;
     pathWorld(ink, coast, true);
     ink.fillStyle = "rgba(222,199,142,.94)";
     ink.fill();
@@ -2604,11 +2606,7 @@ function drawCityMap() {
         x: world.left + ((x - margin) / mapWidth) * (world.right - world.left),
         z: world.top + ((y - margin) / mapHeight) * (world.bottom - world.top),
       };
-      const inOpenSea =
-        worldPoint.x < -101 ||
-        worldPoint.x > 108 ||
-        worldPoint.z > 82 ||
-        (worldPoint.x > 42 && worldPoint.z > 43);
+      const inOpenSea = !pointInPolygon([worldPoint.x, worldPoint.z], coast);
       if (!inOpenSea) continue;
       const length = 5 + seeded(i + 311) * 13;
       ink.beginPath();
@@ -2619,32 +2617,39 @@ function drawCityMap() {
       ink.stroke();
     }
 
-    const districts = [
-      { name: "MONTMUSART", rect: [-97, -83, 91, -66], cols: 29, rows: 3, seed: 10, tone: "rgba(128,102,62,.11)", label: [-50, -75] },
-      { name: "WESTERN WARDS", rect: [-97, -62, -59, -24], cols: 6, rows: 6, seed: 44, tone: "rgba(128,102,62,.08)", label: null },
-      { name: "HOSPITALLER", rect: [-57, -62, -5, -24], cols: 7, rows: 5, seed: 70, tone: "rgba(130,63,43,.13)", label: [-31, -55] },
-      { name: "NORTHERN MARKET", rect: [-3, -62, 91, -24], cols: 14, rows: 6, seed: 102, tone: "rgba(128,102,62,.08)", label: null },
-      { name: "WESTERN WARD", rect: [-97, -22, -53, 37], cols: 7, rows: 9, seed: 121, tone: "rgba(128,102,62,.08)", label: null },
-      { name: "HOLY CROSS", rect: [-51, -22, -6, 16], cols: 7, rows: 6, seed: 130, tone: "rgba(135,105,55,.11)", label: [-29, 12] },
-      { name: "TEMPLAR", rect: [-96, 39, -48, 78], cols: 6, rows: 5, seed: 190, tone: "rgba(130,63,43,.14)", label: [-74, 73] },
-      { name: "PISAN", rect: [-47, 21, 18, 78], cols: 11, rows: 9, seed: 250, tone: "rgba(76,103,78,.09)", label: [-15, 69] },
-      { name: "GENOESE", rect: [-4, -20, 23, 23], cols: 5, rows: 8, seed: 340, tone: "rgba(76,103,78,.11)", label: [10, 15] },
-      { name: "VENETIAN", rect: [24, -19, 87, 40], cols: 11, rows: 9, seed: 410, tone: "rgba(76,103,78,.09)", label: [59, 31] },
-    ];
+    const districts = ACRE_PLAN.districts;
     districts.forEach((district) => {
-      const [x1, z1, x2, z2] = district.rect;
-      rectWorld(ink, x1, z1, x2, z2, district.tone);
+      pathWorld(ink, district.polygon, true);
+      ink.fillStyle = district.tone;
+      ink.fill();
+      ink.strokeStyle = "rgba(89,61,34,.24)";
+      ink.lineWidth = 0.65;
+      ink.setLineDash([2, 3]);
+      ink.stroke();
+      ink.setLineDash([]);
     });
 
     const reserved = [
       [-31, -43, 18], [-20, -5, 12], [-78, 58, 18],
-      [9, 0, 7], [50, 9, 8], [37, 50, 7],
+      [-39, 12, 7], [48, 8, 8], [52, 56, 8], [82, 29, 8],
     ];
+    const distanceToSegment = (x, z, [ax, az], [bx, bz]) => {
+      const deltaX = bx - ax;
+      const deltaZ = bz - az;
+      const lengthSquared = deltaX * deltaX + deltaZ * deltaZ;
+      const t = lengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((x - ax) * deltaX + (z - az) * deltaZ) / lengthSquared));
+      return Math.hypot(x - (ax + deltaX * t), z - (az + deltaZ * t));
+    };
     const nearRoad = (x, z) =>
-      Math.abs(z + 22) < 3.5 ||
-      Math.abs(x - 4) < 3.1 ||
-      Math.abs(z - 18) < 2.7 ||
-      reserved.some(([rx, rz, radius]) => Math.hypot(x - rx, z - rz) < radius);
+      ACRE_PLAN.roads.some((road) => road.points.some(
+        (point, index) => index > 0
+          && distanceToSegment(x, z, road.points[index - 1], point) < (
+            road.kind === "primary" ? 4.3 : 2.7
+          ),
+      ))
+      || reserved.some(([rx, rz, radius]) => Math.hypot(x - rx, z - rz) < radius);
     const building = (x, z, width, depth, seed) => {
       const p = project(x, z);
       const pw = Math.max(2.2, width * scaleX);
@@ -2674,21 +2679,28 @@ function drawCityMap() {
       }
       ink.restore();
     };
-    districts.forEach((district) => {
-      const [x1, z1, x2, z2] = district.rect;
-      const cellWidth = (x2 - x1) / district.cols;
-      const cellDepth = (z2 - z1) / district.rows;
-      for (let row = 0; row < district.rows; row += 1) {
-        for (let col = 0; col < district.cols; col += 1) {
-          const seed = district.seed + row * district.cols + col;
-          const x = x1 + (col + 0.5) * cellWidth + (seeded(seed) - 0.5) * cellWidth * 0.32;
-          const z = z1 + (row + 0.5) * cellDepth + (seeded(seed + 1) - 0.5) * cellDepth * 0.28;
-          if (nearRoad(x, z) || seeded(seed + 8) < 0.08) continue;
+    districts.forEach((district, districtIndex) => {
+      const bounds = planBounds(district.polygon);
+      const spacing = district.id === "montmusard" ? 11 : 7.6;
+      let seedIndex = 100 + districtIndex * 701;
+      for (let z = bounds.minZ + spacing / 2; z < bounds.maxZ; z += spacing) {
+        for (let x = bounds.minX + spacing / 2; x < bounds.maxX; x += spacing) {
+          const seed = seedIndex;
+          seedIndex += 1;
+          const jitterX = (seeded(seed) - 0.5) * spacing * 0.48;
+          const jitterZ = (seeded(seed + 1) - 0.5) * spacing * 0.48;
+          const buildingX = x + jitterX;
+          const buildingZ = z + jitterZ;
+          if (
+            !pointInPolygon([buildingX, buildingZ], district.polygon)
+            || nearRoad(buildingX, buildingZ)
+            || seeded(seed + 8) < (district.id === "montmusard" ? 0.36 : 0.12)
+          ) continue;
           building(
-            x,
-            z,
-            cellWidth * (0.48 + seeded(seed + 2) * 0.28),
-            cellDepth * (0.45 + seeded(seed + 3) * 0.3),
+            buildingX,
+            buildingZ,
+            spacing * (0.45 + seeded(seed + 2) * 0.25),
+            spacing * (0.42 + seeded(seed + 3) * 0.27),
             seed,
           );
         }
@@ -2707,26 +2719,21 @@ function drawCityMap() {
     rectWorld(ink, -91, 47, -66, 70, "rgba(102,124,67,.18)", "#69553899", 0.8);
 
     // Main roads laid over the dense fabric.
-    const roads = [
-      [[118, -22], [94, -22], [61, -22], [21, -22], [1, -40], [-30, -41]],
-      [[4, -59], [4, 33], [38, 48], [38, 64], [54, 64]],
-      [[-53, 18], [18, 18], [70, 18]],
-      [[-92, 35], [-45, 18], [-5, 18]],
-      [[24, -4], [87, -4]],
-      [[-46, 42], [18, 42], [38, 49]],
-    ];
-    roads.forEach((road, index) => {
-      lineWorld(ink, road, index < 3 ? "rgba(234,213,165,.92)" : "rgba(226,203,150,.82)", index < 3 ? 5.5 : 3.3);
-      lineWorld(ink, road, "rgba(115,84,48,.46)", 0.8, [2, 5]);
+    ACRE_PLAN.roads.forEach((road) => {
+      const primary = road.kind === "primary";
+      lineWorld(ink, road.points, primary ? "rgba(234,213,165,.92)" : "rgba(226,203,150,.82)", primary ? 5.5 : 3.3);
+      lineWorld(ink, road.points, "rgba(115,84,48,.46)", 0.8, [2, 5]);
     });
 
     // Fortifications: heavy land walls, old-city divider, towers, and quays.
     const walls = [
-      [[-100, -86], [94, -86], [94, -29]],
-      [[94, -15], [94, 40]],
-      [[-98, -64], [-24, -64]],
-      [[15, -64], [79, -64]],
-      [[-100, 81], [40, 81]],
+      ACRE_PLAN.montmusardOuterWall,
+      ACRE_PLAN.montmusardInnerWall,
+      ACRE_PLAN.westernSeaWall,
+      ACRE_PLAN.southernSeaWall,
+      ACRE_PLAN.easternWall,
+      ACRE_PLAN.oldCityWall.slice(0, 3),
+      ACRE_PLAN.oldCityWall.slice(3),
     ];
     walls.forEach((wall) => {
       lineWorld(ink, wall, "#503923", 6);
@@ -2734,11 +2741,10 @@ function drawCityMap() {
       lineWorld(ink, wall, "rgba(65,45,26,.8)", 0.8, [3, 4]);
     });
     [
-      [-98, -85], [-73, -85], [-48, -85], [-23, -85], [2, -85],
-      [27, -85], [52, -85], [77, -85], [93, -84], [93, -57],
-      [93, -34], [93, -8], [93, 18], [-96, -64], [-58, -64],
-      [-24, -64], [16, -64], [48, -64], [79, -64], [-98, 79],
-      [-64, 80], [-30, 80], [4, 80], [39, 80],
+      [-102, -124], [-72, -128], [-38, -119], [5, -105], [48, -90],
+      [82, -77], [95, -66], [-101, -64], [-62, -64], [-24, -64],
+      [15, -64], [52, -63], [91, -61], [-90, 75], [-62, 82],
+      [-20, 82], [25, 79], [88, 36],
     ].forEach(([x, z]) => tower(ink, x, z, 3.7));
 
     // Templar castle.
@@ -2770,16 +2776,31 @@ function drawCityMap() {
     ink.textAlign = "center";
     ink.fillText("✝", cross.x, cross.y + 4);
 
-    // Merchant courts, arsenal, harbour chain, ships, and moles.
-    rectWorld(ink, 3, -10, 15, 11, "#c9a56b", "#4d3721", 1.2);
-    rectWorld(ink, 6, -6, 12, 7, "rgba(218,192,133,.78)", "#71583a", 0.8);
-    rectWorld(ink, 43, 0, 57, 18, "#c9a56b", "#4d3721", 1.2);
-    rectWorld(ink, 47, 4, 53, 14, "rgba(218,192,133,.78)", "#71583a", 0.8);
-    rectWorld(ink, 67, 26, 87, 39, "#b8935e", "#4d3721", 1.3);
-    lineWorld(ink, [[18, 42], [91, 42]], "#4c3824", 5);
-    lineWorld(ink, [[18, 81], [91, 81]], "#4c3824", 5);
-    lineWorld(ink, [[91, 42], [91, 80]], "#4c3824", 4);
-    tower(ink, 87, 64, 5.3);
+    // Merchant courts and the archaeology-led harbour. Jacoby's reconstruction
+    // rules out the square inner basin shown on later manuscript plans.
+    pathWorld(ink, ACRE_PLAN.harbour.innerWater, true);
+    ink.fillStyle = "rgba(56,105,111,.55)";
+    ink.fill();
+    ink.strokeStyle = "rgba(49,76,77,.72)";
+    ink.lineWidth = 1.2;
+    ink.stroke();
+
+    rectWorld(ink, -46, 5, -32, 19, "#c9a56b", "#4d3721", 1.2);
+    rectWorld(ink, -42, 8, -36, 16, "rgba(218,192,133,.78)", "#71583a", 0.8);
+    rectWorld(ink, 41, 0, 55, 17, "#c9a56b", "#4d3721", 1.2);
+    rectWorld(ink, 45, 4, 51, 13, "rgba(218,192,133,.78)", "#71583a", 0.8);
+    rectWorld(ink, -27, 45, -9, 60, "#c4a168", "#4d3721", 1.2);
+    rectWorld(ink, 74, 23, 88, 35, "#b8935e", "#4d3721", 1.3);
+
+    lineWorld(ink, ACRE_PLAN.harbour.southernBreakwater, "#4c3824", 5.5);
+    lineWorld(ink, ACRE_PLAN.harbour.easternBreakwater, "#4c3824", 5.5);
+    lineWorld(ink, ACRE_PLAN.harbour.chain, "#6e2d23", 2.8, [3, 2]);
+    tower(
+      ink,
+      ACRE_PLAN.harbour.towerOfFlies[0],
+      ACRE_PLAN.harbour.towerOfFlies[1],
+      5.3,
+    );
     const drawShip = (x, z, size = 1) => {
       const p = project(x, z);
       ink.beginPath();
@@ -2801,11 +2822,12 @@ function drawCityMap() {
       ink.fill();
       ink.stroke();
     };
-    drawShip(58, 58, 0.7);
-    drawShip(73, 69, 0.85);
+    drawShip(55, 58, 0.7);
+    drawShip(83, 65, 0.85);
+    drawShip(104, 82, 0.75);
 
     // Secret tunnel, portals, and annotation.
-    lineWorld(ink, [[-59, 58], [-54, 50], [35, 50], [37, 50]], "#6e2d23", 3, [8, 5]);
+    lineWorld(ink, ACRE_PLAN.tunnel.surfaceLine, "#6e2d23", 3, [8, 5]);
     for (const portal of arena.tunnel.portals) {
       const entry = project(portal.surface.x, portal.surface.z);
       ink.beginPath();
@@ -2849,8 +2871,10 @@ function drawCityMap() {
       ink.font = `italic 700 ${Math.max(8, Math.min(10, rect.width / 115))}px Georgia, serif`;
       ink.textAlign = "center";
       ink.fillText(district.name, label.x, label.y);
-      ink.font = "italic 8px Georgia, serif";
-      ink.fillText("QUARTER", label.x, label.y + 9);
+      if (!["montmusard", "royal"].includes(district.id)) {
+        ink.font = "italic 8px Georgia, serif";
+        ink.fillText("QUARTER", label.x, label.y + 9);
+      }
     });
 
     const callout = (x, z, label, offsetX, offsetY, align = "left") => {
@@ -2875,24 +2899,43 @@ function drawCityMap() {
       ink.textBaseline = "bottom";
       ink.fillText(label, endX + (align === "left" ? 4 : -4), endY - 2);
     };
-    callout(-31, -43, "HOSPITALLER HEADQUARTERS", -55, -29, "right");
-    callout(-20, -5, "CATHEDRAL OF THE HOLY CROSS", -42, -35, "right");
-    callout(-78, 58, "TEMPLAR CASTLE", -36, 26, "right");
-    callout(50, 9, "VENETIAN MARKET", 48, -25);
-    callout(76, 32, "ARSENAL", 40, -12);
-    callout(87, 64, "COURT OF THE CHAIN", 35, 20);
-    callout(94, -22, "ST ANTHONY’S GATE", 30, -24);
+    callout(...ACRE_PLAN.landmarks.hospitaller, "HOSPITALLER HEADQUARTERS", -55, -29, "right");
+    callout(...ACRE_PLAN.landmarks.cathedral, "CATHEDRAL OF THE HOLY CROSS", -42, -35, "right");
+    callout(...ACRE_PLAN.landmarks.templar, "TEMPLAR CASTLE", -36, 26, "right");
+    callout(...ACRE_PLAN.landmarks.genoeseCommune, "GENOESE COMMUNE", -46, 18, "right");
+    callout(...ACRE_PLAN.landmarks.pisanFondaco, "PISAN FONDACO", -18, 28, "right");
+    callout(...ACRE_PLAN.landmarks.venetianFondaco, "VENETIAN FONDACO", 42, -26);
+    callout(...ACRE_PLAN.landmarks.arsenal, "ROYAL ARSENAL", 32, -13);
+    callout(...ACRE_PLAN.landmarks.courtOfChain, "COURT OF THE CHAIN", 30, 24);
+    callout(...ACRE_PLAN.harbour.towerOfFlies, "TOWER OF THE FLIES", -12, 18, "right");
+    callout(...ACRE_PLAN.landmarks.stAnthonyGate, "ST ANTHONY’S GATE", 25, -22);
 
     ink.fillStyle = "rgba(54,83,84,.8)";
     ink.font = "italic 12px Georgia, serif";
     ink.textAlign = "left";
-    ink.fillText("Mare Mediterraneum", project(-101, 10).x, project(-101, 10).y);
-    ink.fillText("Inner Harbour", project(51, 52).x, project(51, 52).y);
+    ink.fillText("Mare Mediterraneum", project(-112, 4).x, project(-112, 4).y);
+    ink.fillText("Inner Harbour", project(48, 54).x, project(48, 54).y);
+    ink.fillText("Outer Anchorage", project(91, 84).x, project(91, 84).y);
     ink.fillStyle = "rgba(72,50,29,.8)";
-    ink.fillText("Road to Tyre", project(99, -49).x, project(99, -49).y);
+    ink.fillText("Road to Tyre", project(103, -84).x, project(103, -84).y);
+
+    const north = project(-108, -111);
+    ink.strokeStyle = "#49341f";
+    ink.fillStyle = "#49341f";
+    ink.lineWidth = 1.4;
+    ink.beginPath();
+    ink.moveTo(north.x, north.y + 18);
+    ink.lineTo(north.x, north.y - 12);
+    ink.lineTo(north.x - 4, north.y - 4);
+    ink.moveTo(north.x, north.y - 12);
+    ink.lineTo(north.x + 4, north.y - 4);
+    ink.stroke();
+    ink.font = "700 11px Georgia, serif";
+    ink.textAlign = "center";
+    ink.fillText("N", north.x, north.y - 16);
 
     // Scale and cartographer's rule.
-    const scaleStart = project(-96, 72);
+    const scaleStart = project(-106, 88);
     ink.strokeStyle = "#49341f";
     ink.lineWidth = 1.5;
     ink.beginPath();
@@ -3080,10 +3123,10 @@ function deploy() {
   player.position.copy(route.spawn);
   if (seaInsertion) player.position.y = waterSurfaceY + 0.16;
   if (devGuardAudioTest && route.id === "gate") {
-    player.position.set(90, 1.72, -22);
+    player.position.set(99, 1.72, -71);
   }
   if (devGuardAlertTest && route.id === "gate") {
-    player.position.set(80, 1.72, -22);
+    player.position.set(90, 1.72, -71);
   }
   const coverTest = arena.streetCover.find((cover) => cover.id === devCoverTestId);
   if (coverTest) {
@@ -3272,6 +3315,10 @@ $("restart-button").addEventListener("click", () => location.reload());
 canvas.addEventListener("click", () => {
   if (game.phase === "running" && document.pointerLockElement !== canvas) requestGamePointerLock();
 });
+if (import.meta.env.DEV && new URLSearchParams(location.search).has("map")) {
+  // Deterministic map-only entry for visual regression captures.
+  setTimeout(deploy, 50);
+}
 
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;

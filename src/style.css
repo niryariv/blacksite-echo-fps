@@ -160,6 +160,13 @@ button { font: inherit; }
 }
 .map-frame header span { color: #765936; font: 700 9px Georgia, serif; letter-spacing: .28em; }
 .map-frame h2 { margin: 1px 0 0; font: 700 31px Georgia, serif; letter-spacing: .08em; }
+.map-frame .map-basis {
+  display: block;
+  margin-top: 1px;
+  color: #705439;
+  font: 700 8px "Arial Narrow", sans-serif;
+  letter-spacing: .16em;
+}
 .map-frame header p { margin: 3px 0 0; color: #7a2c22; font: 700 9px "Arial Narrow", sans-serif; letter-spacing: .16em; }
 .map-frame header b {
   color: #7c2b20; font: 700 21px Georgia, serif; line-height: .75; text-align: center;
@@ -170,7 +177,7 @@ button { font: inherit; }
   filter: saturate(.92) contrast(1.03);
 }
 .map-orders {
-  position: absolute; right: 28px; bottom: 55px; width: min(365px, 38%);
+  position: absolute; right: 28px; top: 108px; width: min(350px, 36%);
   padding: 11px 12px 10px; color: #3f3221; text-shadow: none;
   background: #e2ca94e8; border: 1px solid #725635aa;
   box-shadow: 0 8px 20px #49331e33, inset 0 0 20px #8c633722;
@@ -459,7 +466,7 @@ button:hover { transform:translateY(-2px); filter:brightness(1.15); }
   .map-frame { width: 96vw; height: 92vh; padding: 10px; border-width: 4px; }
   .map-frame h2 { font-size: 22px; }
   .map-orders {
-    right: 14px; bottom: 58px; width: min(325px, calc(100% - 28px));
+    right: 14px; top: auto; bottom: 58px; width: min(325px, calc(100% - 28px));
     padding: 8px 9px;
   }
   .map-order small { font-size: 8px; }
