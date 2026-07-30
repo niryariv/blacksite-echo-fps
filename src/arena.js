@@ -5,14 +5,14 @@ export function mergeGeometries(geometries, useGroups = false) {
     throw new Error("Cannot merge an empty geometry collection");
   }
   const indexedCount = geometries.reduce(
-    (count, geometry) => count + (geometry.index ? 1 : 0),
+    (count, geometry) => count + (geometry.index !== null ? 1 : 0),
     0,
   );
   const converted = [];
   const compatibleGeometries = (
     indexedCount > 0 && indexedCount < geometries.length
       ? geometries.map((geometry) => {
-        if (!geometry.index) return geometry;
+        if (geometry.index === null) return geometry;
         const nonIndexed = geometry.toNonIndexed();
         converted.push(nonIndexed);
         return nonIndexed;
@@ -2954,7 +2954,6 @@ export function buildArena(THREE, scene) {
   [vaultStone.map, vaultStone.normalMap, vaultStone.roughnessMap].forEach((texture) => {
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(2, 34);
-    texture.needsUpdate = true;
   });
   vaultStone.side = THREE.BackSide;
   const tunnelWater = new THREE.MeshPhysicalMaterial({

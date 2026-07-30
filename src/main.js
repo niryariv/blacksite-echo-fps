@@ -6,8 +6,7 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { buildArena } from "./arena.js";
+import { buildArena, mergeGeometries } from "./arena.js";
 import { StealthAudio } from "./audio.js";
 
 const $ = (id) => document.getElementById(id);
