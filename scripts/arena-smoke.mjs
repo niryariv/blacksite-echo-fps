@@ -448,6 +448,26 @@ try {
     );
   }
   if (
+    objectBudget.gateDetails.landGateButtresses !== 2 ||
+    objectBudget.gateDetails.landGateButtressMeshes !== 1 ||
+    objectBudget.gateDetails.templarGateRecesses !== 1 ||
+    objectBudget.gateDetails.portcullisUprights !== 7 ||
+    objectBudget.gateDetails.portcullisCrossrails !== 3
+  ) {
+    throw new Error(
+      `Gate-detail construction regressed: ${
+        JSON.stringify(objectBudget?.gateDetails)
+      }`,
+    );
+  }
+  if (objectBudget.gateDetails.staticTriangles > 46) {
+    throw new Error(
+      `Gate-detail triangle budget regressed: ${
+        objectBudget.gateDetails.staticTriangles
+      }`,
+    );
+  }
+  if (
     objectBudget.cargoCover.chests !== 5 ||
     objectBudget.cargoCover.chestLids !== 5 ||
     objectBudget.cargoCover.chestBindings !== 10 ||

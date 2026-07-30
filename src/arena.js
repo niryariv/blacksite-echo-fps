@@ -185,6 +185,14 @@ export function buildArena(THREE, scene) {
       lancetSlits: 0,
       staticTriangles: 0,
     },
+    gateDetails: {
+      landGateButtresses: 0,
+      landGateButtressMeshes: 0,
+      templarGateRecesses: 0,
+      portcullisUprights: 0,
+      portcullisCrossrails: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1589,16 +1597,29 @@ export function buildArena(THREE, scene) {
       });
     }
   }
-  for (const z of [-35, -9]) {
-    addBox({
-      size: [5.2, 6.2, 2.2],
-      position: [88.7, 3.1, z],
-      material: oldStone,
-      collider: true,
-      parent: gate,
-      name: "Gate buttress",
-    });
-  }
+  const landGateButtressParts = [-35, -9].map((buttressZ) => {
+    const buttress = new THREE.BoxGeometry(5.2, 6.2, 2.2);
+    buttress.translate(88.7, 3.1, buttressZ);
+    addCollider([5.2, 6.2, 2.2], [88.7, 3.1, buttressZ]);
+    return buttress;
+  });
+  const landGateButtressGeometry = mergeGeometries(
+    landGateButtressParts,
+    false,
+  );
+  landGateButtressParts.forEach((buttress) => buttress.dispose());
+  const landGateButtresses = new THREE.Mesh(
+    landGateButtressGeometry,
+    oldStone,
+  );
+  landGateButtresses.castShadow = landGateButtresses.receiveShadow = true;
+  landGateButtresses.name = "Paired projecting St Anthony's Gate buttresses";
+  gate.add(landGateButtresses);
+  objectRenderBudget.gateDetails.landGateButtresses = 2;
+  objectRenderBudget.gateDetails.landGateButtressMeshes = 1;
+  objectRenderBudget.gateDetails.staticTriangles += geometryTriangles(
+    landGateButtressGeometry,
+  );
 
   const towerArrowSlitParts = [
     new THREE.PlaneGeometry(0.11, 0.92),
@@ -2715,7 +2736,43 @@ export function buildArena(THREE, scene) {
   [[-93, 46], [-63, 46], [-93, 70], [-63, 70]].forEach(([x, z]) =>
     addTower(x, z, 5.2, 12, "Templar fortress tower"),
   );
-  addBox({ size: [0.22, 6.6, 5.4], position: [-60.88, 3.3, 58], material: darkRecess, parent: templar, shadows: false, name: "Templar gate" });
+  const templarGateRecessGeometry = new THREE.PlaneGeometry(5.4, 6.6);
+  templarGateRecessGeometry.rotateY(Math.PI / 2);
+  const templarGateRecess = new THREE.Mesh(
+    templarGateRecessGeometry,
+    darkRecess,
+  );
+  templarGateRecess.position.set(-60.88, 3.3, 58);
+  templarGateRecess.name = "Deep recessed Templar fortress gateway";
+  templar.add(templarGateRecess);
+  objectRenderBudget.gateDetails.templarGateRecesses = 1;
+  objectRenderBudget.gateDetails.staticTriangles += geometryTriangles(
+    templarGateRecessGeometry,
+  );
+
+  const portcullisParts = [];
+  for (let upright = 0; upright < 7; upright += 1) {
+    const bar = new THREE.PlaneGeometry(0.12, 5.9);
+    bar.rotateY(Math.PI / 2);
+    bar.translate(-60.76, 3.25, 58 + (upright - 3) * 0.75);
+    portcullisParts.push(bar);
+  }
+  for (const crossrailY of [1.5, 3.2, 4.9]) {
+    const bar = new THREE.PlaneGeometry(4.9, 0.12);
+    bar.rotateY(Math.PI / 2);
+    bar.translate(-60.75, crossrailY, 58);
+    portcullisParts.push(bar);
+  }
+  const portcullisGeometry = mergeGeometries(portcullisParts, false);
+  portcullisParts.forEach((bar) => bar.dispose());
+  const portcullis = new THREE.Mesh(portcullisGeometry, agedIron);
+  portcullis.name = "Forged ten-bar Templar fortress portcullis";
+  templar.add(portcullis);
+  objectRenderBudget.gateDetails.portcullisUprights = 7;
+  objectRenderBudget.gateDetails.portcullisCrossrails = 3;
+  objectRenderBudget.gateDetails.staticTriangles += geometryTriangles(
+    portcullisGeometry,
+  );
   addArch({
     radius: 3.05,
     thickness: 0.5,
