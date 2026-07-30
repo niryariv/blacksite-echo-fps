@@ -674,22 +674,79 @@ export function buildArena(THREE, scene) {
   const roofTexture = canvasTexture(
     256,
     (ctx, s) => {
-      ctx.fillStyle = "#7d432c";
+      const ground = ctx.createLinearGradient(0, 0, 0, s);
+      ground.addColorStop(0, "#9b5639");
+      ground.addColorStop(0.48, "#7d432c");
+      ground.addColorStop(1, "#663421");
+      ctx.fillStyle = ground;
       ctx.fillRect(0, 0, s, s);
-      for (let y = 0; y < s; y += 21) {
-        const offset = (y / 21) % 2 ? 12 : 0;
-        for (let x = -offset; x < s; x += 24) {
-          ctx.strokeStyle = "rgba(48,20,12,.55)";
-          ctx.lineWidth = 2;
+      for (let row = -1, y = -21; y < s + 21; row += 1, y += 21) {
+        const offset = row % 2 ? 12 : 0;
+        for (let column = -1, x = -24 - offset; x < s + 24; column += 1, x += 24) {
+          const tone = Math.sin(row * 12.7 + column * 8.3);
+          const red = Math.round(126 + tone * 15);
+          const green = Math.round(65 + tone * 8);
+          const blue = Math.round(41 + tone * 5);
+          ctx.fillStyle = `rgb(${red},${green},${blue})`;
           ctx.beginPath();
-          ctx.arc(x + 12, y + 10, 11, 0, Math.PI);
-          ctx.stroke();
-          ctx.strokeStyle = "rgba(230,155,102,.18)";
-          ctx.beginPath();
-          ctx.moveTo(x + 2, y + 9);
+          ctx.moveTo(x + 2, y + 1);
+          ctx.lineTo(x + 22, y + 1);
           ctx.lineTo(x + 22, y + 9);
+          ctx.quadraticCurveTo(x + 20, y + 18, x + 12, y + 20);
+          ctx.quadraticCurveTo(x + 4, y + 18, x + 2, y + 9);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = "rgba(43,18,10,.72)";
+          ctx.lineWidth = 1.65;
+          ctx.beginPath();
+          ctx.moveTo(x + 1, y + 2);
+          ctx.lineTo(x + 1, y + 9);
+          ctx.quadraticCurveTo(x + 3, y + 19, x + 12, y + 21);
+          ctx.quadraticCurveTo(x + 21, y + 19, x + 23, y + 9);
+          ctx.lineTo(x + 23, y + 2);
           ctx.stroke();
+
+          ctx.strokeStyle = "rgba(247,178,119,.22)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x + 4, y + 3);
+          ctx.quadraticCurveTo(x + 5, y + 14, x + 11, y + 17);
+          ctx.stroke();
+
+          if ((row * 11 + column * 7) % 17 === 0) {
+            ctx.strokeStyle = "rgba(47,22,14,.58)";
+            ctx.beginPath();
+            ctx.moveTo(x + 15, y + 14);
+            ctx.lineTo(x + 18, y + 18);
+            ctx.lineTo(x + 21, y + 16);
+            ctx.stroke();
+          }
         }
+      }
+      const ageWash = ctx.createLinearGradient(0, 0, s, s);
+      ageWash.addColorStop(0, "rgba(245,190,132,.08)");
+      ageWash.addColorStop(0.52, "rgba(70,31,18,0)");
+      ageWash.addColorStop(1, "rgba(40,22,13,.16)");
+      ctx.fillStyle = ageWash;
+      ctx.fillRect(0, 0, s, s);
+      for (let stain = 0; stain < 18; stain += 1) {
+        const stainX = (stain * 83 + 29) % s;
+        const stainY = (stain * 47 + 61) % s;
+        ctx.fillStyle = stain % 3
+          ? "rgba(46,27,16,.045)"
+          : "rgba(93,102,56,.045)";
+        ctx.beginPath();
+        ctx.ellipse(
+          stainX,
+          stainY,
+          5 + (stain % 5) * 2,
+          2 + (stain % 4),
+          stain * 0.73,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
       }
     },
     9,
