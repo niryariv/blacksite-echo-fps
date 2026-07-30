@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 110000) {
+  if (budget.staticTriangles > 103000) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -198,6 +198,22 @@ try {
   ) {
     throw new Error(
       `Market-goods triangle budget regressed: ${JSON.stringify(objectBudget.marketGoods)}`,
+    );
+  }
+  if (
+    objectBudget.amphorae.instances !== 30 ||
+    objectBudget.amphorae.bodies !== 30 ||
+    objectBudget.amphorae.rims !== 30 ||
+    objectBudget.amphorae.handles !== 60 ||
+    objectBudget.amphorae.openings !== 30
+  ) {
+    throw new Error(
+      `Amphora construction regressed: ${JSON.stringify(objectBudget?.amphorae)}`,
+    );
+  }
+  if (objectBudget.amphorae.staticTriangles > 10980) {
+    throw new Error(
+      `Amphora triangle budget regressed: ${objectBudget.amphorae.staticTriangles}`,
     );
   }
   if (
