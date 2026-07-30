@@ -143,6 +143,26 @@ try {
     );
   }
   if (
+    objectBudget.textiles.banners !== 3 ||
+    objectBudget.textiles.bannerRails !== 3 ||
+    objectBudget.textiles.awningCanopies !== 5 ||
+    objectBudget.textiles.awningValances !== 5 ||
+    objectBudget.textiles.awningPoles !== 10 ||
+    objectBudget.textiles.awningCordSegments !== 10 ||
+    objectBudget.textiles.awningCordDraws !== 1 ||
+    objectBudget.textiles.dryingSheets !== 1 ||
+    objectBudget.textiles.clotheslines !== 1
+  ) {
+    throw new Error(
+      `Textile construction regressed: ${JSON.stringify(objectBudget.textiles)}`,
+    );
+  }
+  if (objectBudget.textiles.staticTriangles > 820) {
+    throw new Error(
+      `Textile triangle budget regressed: ${objectBudget.textiles.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||

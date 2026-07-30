@@ -51,6 +51,18 @@ export function buildArena(THREE, scene) {
       pointLights: 0,
       staticTriangles: 0,
     },
+    textiles: {
+      banners: 0,
+      bannerRails: 0,
+      awningCanopies: 0,
+      awningValances: 0,
+      awningPoles: 0,
+      awningCordSegments: 0,
+      awningCordDraws: 0,
+      dryingSheets: 0,
+      clotheslines: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -1713,19 +1725,30 @@ export function buildArena(THREE, scene) {
     }
   }
   for (const x of [-44, -31, -18]) {
-    const bannerGeometry = new THREE.PlaneGeometry(2.05, 3.5, 5, 8);
+    const bannerGeometry = new THREE.PlaneGeometry(2.05, 3.5, 5, 6);
     const positions = bannerGeometry.attributes.position;
     for (let index = 0; index < positions.count; index += 1) {
       const px = positions.getX(index);
       const py = positions.getY(index);
-      positions.setZ(index, Math.sin(py * 2.1 + px) * 0.045);
+      const drop = THREE.MathUtils.clamp((-py + 1.75) / 3.5, 0, 1);
+      const taperedX = px * (1 - drop * 0.075);
+      const raggedHem = py < -1.7 ? Math.sin(px * 5.1) * 0.055 : 0;
+      positions.setXYZ(
+        index,
+        taperedX,
+        py + raggedHem,
+        Math.sin(py * 2.1 + px) * (0.035 + drop * 0.045)
+          + Math.cos(px * 2.7) * 0.018,
+      );
     }
     bannerGeometry.computeVertexNormals();
     const banner = new THREE.Mesh(bannerGeometry, hospitallerBannerMaterial);
     banner.position.set(x, 6.45, -51.88);
     banner.castShadow = true;
-    banner.name = "Hospitaller black banner";
+    banner.name = "Wind-shaped Hospitaller black banner";
     hospital.add(banner);
+    objectRenderBudget.textiles.banners += 1;
+    objectRenderBudget.textiles.staticTriangles += geometryTriangles(bannerGeometry);
     addBox({
       size: [2.55, 0.11, 0.11],
       position: [x, 8.25, -51.82],
@@ -1734,6 +1757,8 @@ export function buildArena(THREE, scene) {
       shadows: false,
       name: "Banner rail",
     });
+    objectRenderBudget.textiles.bannerRails += 1;
+    objectRenderBudget.textiles.staticTriangles += 12;
   }
   const well = addCylinder({ radius: 1.35, height: 0.9, position: [-37, 0.45, -42], material: paleStone, segments: 18, parent: hospital, name: "Hospitaller well", collider: true });
   well.geometry = new THREE.CylinderGeometry(1.35, 1.35, 0.9, 18, 1, true);
@@ -2681,22 +2706,53 @@ export function buildArena(THREE, scene) {
     jar.add(opening);
     return jar;
   };
+  const awningCordPoints = [];
   const addMarketAwning = (x, z, variant = 0) => {
-    const geometry = new THREE.PlaneGeometry(6.2, 4.2, 12, 6);
+    const geometry = new THREE.PlaneGeometry(6.2, 4.2, 8, 4);
     const position = geometry.attributes.position;
     for (let index = 0; index < position.count; index += 1) {
       const px = position.getX(index);
       const py = position.getY(index);
-      position.setZ(index, Math.sin(px * 2.4) * 0.07 + Math.cos(py * 1.7) * 0.045);
+      const nx = px / 3.1;
+      const ny = py / 2.1;
+      const weightedSag = -Math.max(0, (1 - nx * nx) * (1 - ny * ny)) * 0.14;
+      position.setZ(
+        index,
+        weightedSag + Math.sin(px * 2.4) * 0.045 + Math.cos(py * 1.7) * 0.025,
+      );
     }
     geometry.computeVertexNormals();
-    const cloth = new THREE.Mesh(geometry, awningMaterials[variant % awningMaterials.length]);
+    const clothMaterial = awningMaterials[variant % awningMaterials.length];
+    const cloth = new THREE.Mesh(geometry, clothMaterial);
     cloth.position.set(x, 3.18, z);
     cloth.rotation.x = -Math.PI / 2;
     cloth.rotation.z = variant % 2 ? 0.035 : -0.035;
     cloth.castShadow = true;
-    cloth.name = "Striped linen market awning";
+    cloth.name = "Weight-sagged striped linen market awning";
     root.add(cloth);
+    objectRenderBudget.textiles.awningCanopies += 1;
+    objectRenderBudget.textiles.staticTriangles += geometryTriangles(geometry);
+    const valanceGeometry = new THREE.PlaneGeometry(6.2, 0.48, 8, 1);
+    const valancePositions = valanceGeometry.attributes.position;
+    for (let index = 0; index < valancePositions.count; index += 1) {
+      const px = valancePositions.getX(index);
+      const py = valancePositions.getY(index);
+      valancePositions.setXYZ(
+        index,
+        px,
+        py + (py < 0 ? Math.sin(px * 3.05 + variant) * 0.045 : 0),
+        Math.sin(px * 1.85 + variant * 0.7) * 0.025,
+      );
+    }
+    valanceGeometry.computeVertexNormals();
+    const valance = new THREE.Mesh(valanceGeometry, clothMaterial);
+    valance.position.set(x, 2.94, z + 2.06);
+    valance.rotation.y = variant % 2 ? 0.018 : -0.018;
+    valance.castShadow = true;
+    valance.name = "Hanging striped awning valance";
+    root.add(valance);
+    objectRenderBudget.textiles.awningValances += 1;
+    objectRenderBudget.textiles.staticTriangles += geometryTriangles(valanceGeometry);
     for (const px of [-2.75, 2.75]) {
       addBox({
         size: [0.11, 3.05, 0.11],
@@ -2705,17 +2761,16 @@ export function buildArena(THREE, scene) {
         shadows: false,
         name: "Awning pole",
       });
+      objectRenderBudget.textiles.awningPoles += 1;
+      objectRenderBudget.textiles.staticTriangles += 12;
     }
-    const cord = new THREE.LineSegments(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(x - 3.05, 3.12, z - 2.05),
-        new THREE.Vector3(x - 2.75, 3.05, z + 1.7),
-        new THREE.Vector3(x + 3.05, 3.12, z - 2.05),
-        new THREE.Vector3(x + 2.75, 3.05, z + 1.7),
-      ]),
-      new THREE.LineBasicMaterial({ color: 0x58402b }),
+    awningCordPoints.push(
+      new THREE.Vector3(x - 3.05, 3.12, z - 2.05),
+      new THREE.Vector3(x - 2.75, 3.05, z + 1.7),
+      new THREE.Vector3(x + 3.05, 3.12, z - 2.05),
+      new THREE.Vector3(x + 2.75, 3.05, z + 1.7),
     );
-    root.add(cord);
+    objectRenderBudget.textiles.awningCordSegments += 2;
   };
   [
     [61, -19], [42, -20], [18, -17], [19, 20], [-4, 35], [35, 48], [40, 57],
@@ -2733,6 +2788,13 @@ export function buildArena(THREE, scene) {
       addMarketAwning(x, z, index);
     }
   });
+  const awningCords = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(awningCordPoints),
+    new THREE.LineBasicMaterial({ color: 0x58402b }),
+  );
+  awningCords.name = "Merged market-awning tension cords";
+  root.add(awningCords);
+  objectRenderBudget.textiles.awningCordDraws = 1;
 
   const addTradeCrate = (x, z, scale = 1, rotation = 0) => {
     const crate = new THREE.Group();
@@ -2907,6 +2969,7 @@ export function buildArena(THREE, scene) {
       bumpMap: sackTexture,
       bumpScale: 0.026,
       roughness: 1,
+      side: THREE.DoubleSide,
     }),
     new THREE.MeshStandardMaterial({
       color: 0x445e67,
@@ -2914,6 +2977,7 @@ export function buildArena(THREE, scene) {
       bumpMap: sackTexture,
       bumpScale: 0.026,
       roughness: 1,
+      side: THREE.DoubleSide,
     }),
     new THREE.MeshStandardMaterial({
       color: 0x9a7a43,
@@ -2921,6 +2985,7 @@ export function buildArena(THREE, scene) {
       bumpMap: sackTexture,
       bumpScale: 0.026,
       roughness: 1,
+      side: THREE.DoubleSide,
     }),
   ];
   const fishNetMaterial = new THREE.LineBasicMaterial({
@@ -3081,12 +3146,35 @@ export function buildArena(THREE, scene) {
     approach: [-8.45, -45.4],
   });
   addAmphoraRack(hospitallerWater, -8.45, -48.1, 3);
-  addBox({
-    size: [2.65, 0.22, 1.3],
-    position: [-8.4, 1.86, -48.1],
-    material: dyedCloth[1],
-    name: "Drying linen",
-  });
+  const dryingLinenGeometry = new THREE.PlaneGeometry(2.65, 1.3, 6, 4);
+  const dryingLinenPositions = dryingLinenGeometry.attributes.position;
+  for (let index = 0; index < dryingLinenPositions.count; index += 1) {
+    const x = dryingLinenPositions.getX(index);
+    const foldOffset = dryingLinenPositions.getY(index);
+    const fold = Math.abs(foldOffset) / 0.65;
+    dryingLinenPositions.setXYZ(
+      index,
+      x,
+      -fold * 0.78 - Math.cos(x * 3.1) * 0.035 * fold,
+      foldOffset,
+    );
+  }
+  dryingLinenGeometry.computeVertexNormals();
+  const dryingLinen = new THREE.Mesh(dryingLinenGeometry, dyedCloth[1]);
+  dryingLinen.position.set(-8.4, 2.05, -48.1);
+  dryingLinen.castShadow = true;
+  dryingLinen.name = "Folded drying linen";
+  root.add(dryingLinen);
+  objectRenderBudget.textiles.dryingSheets += 1;
+  objectRenderBudget.textiles.staticTriangles += geometryTriangles(dryingLinenGeometry);
+  const clotheslineGeometry = new THREE.CylinderGeometry(0.022, 0.022, 2.82, 5);
+  const clothesline = new THREE.Mesh(clotheslineGeometry, ropeMaterial);
+  clothesline.position.set(-8.4, 2.05, -48.1);
+  clothesline.rotation.z = Math.PI / 2;
+  clothesline.name = "Linen clothesline";
+  root.add(clothesline);
+  objectRenderBudget.textiles.clotheslines += 1;
+  objectRenderBudget.textiles.staticTriangles += geometryTriangles(clotheslineGeometry);
   addStreetCoverCollider(hospitallerWater, [2.65, 0.22, 1.3], [-8.4, 1.86, -48.1]);
 
   const sugarStore = beginStreetCover({
