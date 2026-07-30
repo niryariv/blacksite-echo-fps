@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 101000) {
+  if (budget.staticTriangles > 100800) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -295,6 +295,20 @@ try {
   if (objectBudget.doors.staticTriangles > 4794) {
     throw new Error(
       `Street-door triangle budget regressed: ${objectBudget.doors.staticTriangles}`,
+    );
+  }
+  if (
+    objectBudget.windowGrilles.instances !== 86 ||
+    objectBudget.windowGrilles.verticalBars !== 258 ||
+    objectBudget.windowGrilles.horizontalBars !== 172
+  ) {
+    throw new Error(
+      `Window-grille construction regressed: ${JSON.stringify(objectBudget?.windowGrilles)}`,
+    );
+  }
+  if (objectBudget.windowGrilles.staticTriangles > 860) {
+    throw new Error(
+      `Window-grille triangle budget regressed: ${objectBudget.windowGrilles.staticTriangles}`,
     );
   }
   if (

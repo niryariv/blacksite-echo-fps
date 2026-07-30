@@ -132,6 +132,12 @@ export function buildArena(THREE, scene) {
       footRails: 0,
       staticTriangles: 0,
     },
+    windowGrilles: {
+      instances: 0,
+      verticalBars: 0,
+      horizontalBars: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1546,6 +1552,20 @@ export function buildArena(THREE, scene) {
   const doorHingeStrapGeometry = new THREE.PlaneGeometry(0.72, 0.075);
   const doorRivetGeometry = new THREE.CircleGeometry(0.055, 5);
   const doorPullGeometry = new THREE.TorusGeometry(0.105, 0.018, 3, 8);
+  const windowGrilleParts = [
+    ...[-0.25, 0, 0.25].map((barX) => {
+      const bar = new THREE.PlaneGeometry(0.028, 1.08);
+      bar.translate(barX, 0, 0);
+      return bar;
+    }),
+    ...[-0.34, 0.34].map((barY) => {
+      const bar = new THREE.PlaneGeometry(0.82, 0.028);
+      bar.translate(0, barY, 0);
+      return bar;
+    }),
+  ];
+  const windowGrilleGeometry = mergeGeometries(windowGrilleParts, false);
+  windowGrilleParts.forEach((bar) => bar.dispose());
 
   const addDoor = (parent, x, y, z, rotation = 0) => {
     const doorway = new THREE.Group();
@@ -1826,14 +1846,16 @@ export function buildArena(THREE, scene) {
           objectRenderBudget.shutters.frontLeaves += 1;
           objectRenderBudget.shutters.staticTriangles += geometryTriangles(shutter.geometry);
         }
-        addBox({
-          size: [0.035, 1.08, 0.12],
-          position: [wx, level, facadeZ + 0.14],
-          material: agedIron,
-          parent: house,
-          shadows: false,
-          name: "Window grille",
-        });
+        const windowGrille = new THREE.Mesh(windowGrilleGeometry, agedIron);
+        windowGrille.position.set(wx, level, facadeZ + 0.14);
+        windowGrille.name = "Five-bar forged street-window grille";
+        house.add(windowGrille);
+        objectRenderBudget.windowGrilles.instances += 1;
+        objectRenderBudget.windowGrilles.verticalBars += 3;
+        objectRenderBudget.windowGrilles.horizontalBars += 2;
+        objectRenderBudget.windowGrilles.staticTriangles += geometryTriangles(
+          windowGrilleGeometry,
+        );
       }
     }
 
