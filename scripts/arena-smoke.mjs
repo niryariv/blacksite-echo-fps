@@ -130,6 +130,27 @@ try {
   }
   const objectBudget = arena.objectRenderBudget;
   if (
+    arena.movableProps.length !== 4 ||
+    objectBudget.movableProps.instances !== 4 ||
+    objectBudget.movableProps.amphorae !== 2 ||
+    objectBudget.movableProps.tradeCrates !== 2 ||
+    objectBudget.movableProps.sourceMeshes > 42 ||
+    objectBudget.movableProps.dynamicDraws > 10 ||
+    arena.movableProps.some(
+      (prop) =>
+        !prop.userData.dynamic ||
+        !prop.userData.movable ||
+        prop.userData.movable.radius <= 0 ||
+        prop.userData.movable.noise <= 0,
+    )
+  ) {
+    throw new Error(
+      `Movable-prop construction regressed: ${JSON.stringify(
+        objectBudget?.movableProps,
+      )}`,
+    );
+  }
+  if (
     !objectBudget ||
     objectBudget.entryProps.skiffs !== 3 ||
     objectBudget.entryProps.hulls !== 3 ||

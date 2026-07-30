@@ -16,6 +16,8 @@ export class StealthAudio {
     this.guardCueCount = 0;
     this.guardAlertCount = 0;
     this.lastGuardCue = null;
+    this.objectImpactCount = 0;
+    this.lastObjectImpact = null;
     this.ambientRequested = false;
     this.ambientNodes = null;
   }
@@ -224,11 +226,41 @@ export class StealthAudio {
     }
   }
 
+  objectImpact({ material = "wood", strength = 0.5, pan = 0 } = {}) {
+    const impactStrength = Math.max(0.2, Math.min(1, Number(strength) || 0.5));
+    const stereo = Math.max(-0.9, Math.min(0.9, Number(pan) || 0));
+    this.objectImpactCount += 1;
+    this.lastObjectImpact = {
+      material,
+      strength: Number(impactStrength.toFixed(2)),
+      pan: Number(stereo.toFixed(2)),
+    };
+    if (!this._canPlay()) return true;
+
+    try {
+      const t = this.context.currentTime;
+      if (material === "pottery") {
+        this._noise(t, 0.075, 0.16 * impactStrength, 1450, "bandpass", 1.3, stereo, 0.001);
+        this._tone(t, 0.13, 940, 410, 0.11 * impactStrength, "triangle", stereo);
+        this._tone(t + 0.035, 0.11, 1320, 620, 0.065 * impactStrength, "sine", stereo);
+      } else {
+        this._noise(t, 0.09, 0.18 * impactStrength, 330, "lowpass", 0.78, stereo, 0.001);
+        this._tone(t, 0.14, 118, 48, 0.15 * impactStrength, "sine", stereo);
+        this._tone(t + 0.018, 0.07, 510, 205, 0.055 * impactStrength, "triangle", stereo);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   guardDiagnostics() {
     return {
       footsteps: this.guardCueCount,
       alerts: this.guardAlertCount,
       last: this.lastGuardCue,
+      objectImpacts: this.objectImpactCount,
+      lastObjectImpact: this.lastObjectImpact,
     };
   }
 

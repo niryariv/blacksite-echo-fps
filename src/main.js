@@ -332,6 +332,19 @@ const player = {
   bob: 0,
   roll: 0,
 };
+const worldNoiseEvents = [];
+arena.movableProps.forEach((prop) => {
+  prop.userData.movableRuntime = {
+    velocityX: 0,
+    velocityZ: 0,
+    targetTiltX: prop.rotation.x,
+    targetTiltZ: prop.rotation.z,
+    touching: false,
+    cooldown: 0,
+    fallen: false,
+    impacts: 0,
+  };
+});
 if (import.meta.env.DEV) {
   const requestedView = new URLSearchParams(location.search).get("view");
   if (requestedView) {
@@ -401,6 +414,25 @@ if (import.meta.env.DEV) {
         approach: cover.approach.toArray(),
         colliders: cover.colliderIndexes.length,
       }));
+    },
+    movableProps() {
+      return arena.movableProps.map((prop) => ({
+        name: prop.name,
+        kind: prop.userData.movable.kind,
+        position: prop.position.toArray(),
+        fallen: prop.userData.movableRuntime.fallen,
+        impacts: prop.userData.movableRuntime.impacts,
+      }));
+    },
+    worldNoiseEvents() {
+      return worldNoiseEvents.map((event) => ({
+        position: event.position.toArray(),
+        strength: event.strength,
+        ttl: event.ttl,
+      }));
+    },
+    audioDiagnostics() {
+      return audio.guardDiagnostics();
     },
   };
   document.documentElement.dataset.gateCorridorClear = String(
@@ -1310,6 +1342,142 @@ function movePlayerWithCollisions(deltaX, deltaZ) {
   }
 }
 
+const propCollisionDirection = new THREE.Vector3();
+const propLocalDirection = new THREE.Vector3();
+const propCandidate = new THREE.Vector3();
+const propPlayerSeparation = new THREE.Vector3();
+const propUpAxis = new THREE.Vector3(0, 1, 0);
+function movablePropBlocked(prop, x, z) {
+  const definition = prop.userData.movable;
+  return arena.colliders.some(
+    (box) =>
+      x + definition.radius > box.min.x &&
+      x - definition.radius < box.max.x &&
+      z + definition.radius > box.min.z &&
+      z - definition.radius < box.max.z &&
+      box.max.y > definition.baseY + 0.08 &&
+      box.min.y < definition.baseY + definition.height,
+  );
+}
+
+function emitWorldNoise(prop, strength) {
+  const position = prop.getWorldPosition(new THREE.Vector3());
+  position.y = prop.userData.movable.baseY + 0.35;
+  worldNoiseEvents.push({ position, strength, ttl: 0.9 });
+  if (worldNoiseEvents.length > 8) worldNoiseEvents.shift();
+}
+
+function updateMovableProps(dt, playerSpeed) {
+  for (let index = worldNoiseEvents.length - 1; index >= 0; index -= 1) {
+    worldNoiseEvents[index].ttl -= dt;
+    if (worldNoiseEvents[index].ttl <= 0) worldNoiseEvents.splice(index, 1);
+  }
+
+  for (const prop of arena.movableProps) {
+    const definition = prop.userData.movable;
+    const state = prop.userData.movableRuntime;
+    state.cooldown = Math.max(0, state.cooldown - dt);
+
+    propCandidate.set(
+      prop.position.x + state.velocityX * dt,
+      definition.baseY,
+      prop.position.z + state.velocityZ * dt,
+    );
+    if (
+      !movablePropBlocked(
+        prop,
+        propCandidate.x,
+        propCandidate.z,
+      )
+    ) {
+      prop.position.x = propCandidate.x;
+      prop.position.z = propCandidate.z;
+    } else {
+      state.velocityX = 0;
+      state.velocityZ = 0;
+    }
+    const movementDamping = Math.exp(-5.2 * dt);
+    state.velocityX *= movementDamping;
+    state.velocityZ *= movementDamping;
+
+    if (!state.fallen && state.cooldown <= 0) {
+      state.targetTiltX = THREE.MathUtils.damp(state.targetTiltX, 0, 3.8, dt);
+      state.targetTiltZ = THREE.MathUtils.damp(state.targetTiltZ, 0, 3.8, dt);
+    }
+    prop.rotation.x = THREE.MathUtils.damp(
+      prop.rotation.x,
+      state.targetTiltX,
+      state.fallen ? 7 : 11,
+      dt,
+    );
+    prop.rotation.z = THREE.MathUtils.damp(
+      prop.rotation.z,
+      state.targetTiltZ,
+      state.fallen ? 7 : 11,
+      dt,
+    );
+
+    propCollisionDirection
+      .set(prop.position.x - player.position.x, 0, prop.position.z - player.position.z);
+    const distance = propCollisionDirection.length();
+    const touching = distance < player.radius + definition.radius;
+    if (distance > 0.001) {
+      propCollisionDirection.multiplyScalar(1 / distance);
+    }
+    if (touching && !state.touching && state.cooldown <= 0 && playerSpeed > 0.9) {
+      if (distance <= 0.001) {
+        propCollisionDirection.set(player.velocity.x, 0, player.velocity.z);
+        if (propCollisionDirection.lengthSq() > 0.001) propCollisionDirection.normalize();
+        else propCollisionDirection.set(1, 0, 0);
+      }
+
+      const strength = THREE.MathUtils.clamp((playerSpeed - 0.65) / 6.2, 0.18, 1);
+      const fall = playerSpeed >= definition.fallThreshold;
+      state.fallen ||= fall;
+      state.impacts += 1;
+      state.cooldown = 0.42;
+      state.velocityX += propCollisionDirection.x * (0.65 + strength * 1.25);
+      state.velocityZ += propCollisionDirection.z * (0.65 + strength * 1.25);
+
+      propLocalDirection
+        .copy(propCollisionDirection)
+        .applyAxisAngle(propUpAxis, -prop.rotation.y);
+      const tilt = state.fallen ? 1.18 : 0.16 + strength * 0.2;
+      state.targetTiltX = propLocalDirection.z * tilt;
+      state.targetTiltZ = -propLocalDirection.x * tilt;
+
+      const impactNoise = Math.round(
+        THREE.MathUtils.lerp(definition.noise * 0.55, definition.noise, strength),
+      );
+      emitWorldNoise(prop, impactNoise);
+      const forwardX = -Math.sin(player.yaw);
+      const forwardZ = -Math.cos(player.yaw);
+      const pan = THREE.MathUtils.clamp(
+        propCollisionDirection.x * -forwardZ +
+          propCollisionDirection.z * forwardX,
+        -1,
+        1,
+      );
+      audio.objectImpact({
+        material: definition.material,
+        strength,
+        pan,
+      });
+    }
+    if (touching && distance > 0.001) {
+      const overlap = player.radius + definition.radius - distance;
+      propPlayerSeparation
+        .copy(player.position)
+        .addScaledVector(propCollisionDirection, -(overlap + 0.012));
+      if (!boxCollides(propPlayerSeparation)) {
+        player.position.x = propPlayerSeparation.x;
+        player.position.z = propPlayerSeparation.z;
+      }
+    }
+    state.touching = touching;
+  }
+}
+
 function updatePlayer(dt) {
   const crouchRequested =
     mouseButtons.has(2) ||
@@ -1419,6 +1587,7 @@ function updatePlayer(dt) {
       else audio.footstep(sprinting ? 1.1 : player.crouched ? 0.25 : 0.55);
     }
   }
+  updateMovableProps(dt, horizontalSpeed);
 
   const bobScale = player.inWater ? 0.18 : player.crouched ? 0.25 : sprinting ? 1.1 : 0.55;
   const bobX = Math.sin(player.bob) * 0.011 * bobScale;
@@ -1507,6 +1676,19 @@ function updateGuards(dt) {
       !devGuardAudioTest &&
       distance < hearingRadius &&
       player.noise > 20;
+    let heardWorldNoise = null;
+    let heardWorldNoiseScore = -Infinity;
+    if (!devGuardAudioTest) {
+      for (const event of worldNoiseEvents) {
+        const eventDistance = guard.root.position.distanceTo(event.position);
+        const eventRadius = 2.2 + event.strength * 0.115;
+        const score = event.strength - eventDistance * 4;
+        if (eventDistance < eventRadius && score > heardWorldNoiseScore) {
+          heardWorldNoise = event;
+          heardWorldNoiseScore = score;
+        }
+      }
+    }
 
     if (seesPlayer) {
       guard.lastSeen.copy(player.position);
@@ -1523,9 +1705,11 @@ function updateGuards(dt) {
       guard.state = "suspicious";
     } else {
       guard.awareness = Math.max(0, guard.awareness - dt * 18);
-      if (hearsPlayer) {
-        guard.lastSeen.copy(player.position);
-        guard.awareness = Math.max(guard.awareness, player.noise > 70 ? 34 : 18);
+      if (heardWorldNoise || hearsPlayer) {
+        const soundPosition = heardWorldNoise?.position || player.position;
+        const soundStrength = heardWorldNoise?.strength || player.noise;
+        guard.lastSeen.copy(soundPosition);
+        guard.awareness = Math.max(guard.awareness, soundStrength > 65 ? 34 : 18);
         guard.state = "investigate";
       } else if (guard.awareness <= 1 && guard.state !== "patrol") {
         guard.state = "patrol";

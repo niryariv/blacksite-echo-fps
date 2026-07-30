@@ -40,6 +40,7 @@ export function buildArena(THREE, scene) {
   const colliders = [];
   const animated = [];
   const pickups = [];
+  const movableProps = [];
   const streetCover = [];
   const streetStories = [];
   const root = new THREE.Group();
@@ -151,6 +152,13 @@ export function buildArena(THREE, scene) {
       diagonalBraces: 0,
       nails: 0,
       staticTriangles: 0,
+    },
+    movableProps: {
+      instances: 0,
+      amphorae: 0,
+      tradeCrates: 0,
+      sourceMeshes: 0,
+      dynamicDraws: 0,
     },
     shutters: {
       materialVariants: 2,
@@ -3856,6 +3864,71 @@ export function buildArena(THREE, scene) {
     objectRenderBudget.amphorae.staticTriangles += geometryTriangles(amphoraOpeningGeometry);
     return jar;
   };
+  const registerMovableProp = (
+    object,
+    {
+      kind,
+      material,
+      radius,
+      height,
+      fallThreshold,
+      noise,
+    },
+  ) => {
+    let sourceMeshes = 0;
+    const batches = new Map();
+    object.traverse((child) => {
+      if (!child.isMesh || child.parent !== object || Array.isArray(child.material)) return;
+      sourceMeshes += 1;
+      child.updateMatrix();
+      if (!batches.has(child.material.uuid)) {
+        batches.set(child.material.uuid, {
+          material: child.material,
+          geometries: [],
+          castShadow: false,
+          receiveShadow: false,
+        });
+      }
+      const batch = batches.get(child.material.uuid);
+      const geometry = child.geometry.clone();
+      geometry.applyMatrix4(child.matrix);
+      batch.geometries.push(geometry);
+      batch.castShadow ||= child.castShadow;
+      batch.receiveShadow ||= child.receiveShadow;
+    });
+    [...object.children]
+      .filter((child) => child.isMesh)
+      .forEach((child) => child.removeFromParent());
+    for (const batch of batches.values()) {
+      const geometry = batch.geometries.length === 1
+        ? batch.geometries[0]
+        : mergeGeometries(batch.geometries, false);
+      if (batch.geometries.length > 1) {
+        batch.geometries.forEach((part) => part.dispose());
+      }
+      const mesh = new THREE.Mesh(geometry, batch.material);
+      mesh.castShadow = batch.castShadow;
+      mesh.receiveShadow = batch.receiveShadow;
+      mesh.name = `Dynamic ${kind} material batch`;
+      object.add(mesh);
+      objectRenderBudget.movableProps.dynamicDraws += 1;
+    }
+    object.userData.dynamic = true;
+    object.userData.movable = {
+      kind,
+      material,
+      radius,
+      height,
+      fallThreshold,
+      noise,
+      baseY: object.position.y,
+    };
+    movableProps.push(object);
+    objectRenderBudget.movableProps.instances += 1;
+    objectRenderBudget.movableProps[kind] += 1;
+    objectRenderBudget.movableProps.sourceMeshes += sourceMeshes;
+    return object;
+  };
   const awningCordPoints = [];
   const awningLashingParts = [];
   const addMarketAwning = (x, z, variant = 0) => {
@@ -3943,13 +4016,23 @@ export function buildArena(THREE, scene) {
     [61, -19], [42, -20], [18, -17], [19, 20], [-4, 35], [35, 48], [40, 57],
   ].forEach(([x, z], index) => {
     for (let i = 0; i < 3; i += 1) {
-      addAmphora({
+      const jar = addAmphora({
         x: x + i * 0.68,
         y: 0.7 * (0.82 + i * 0.08),
         z: z + (i % 2) * 0.55,
         scale: 0.82 + i * 0.08,
         rotation: (index * 0.61 + i * 0.83) % (Math.PI * 2),
       });
+      if (i === 0 && (index === 0 || index === 4)) {
+        registerMovableProp(jar, {
+          kind: "amphorae",
+          material: "pottery",
+          radius: 0.42 * jar.scale.x,
+          height: 1.46 * jar.scale.y,
+          fallThreshold: 3.25,
+          noise: 76,
+        });
+      }
     }
     if (index < 5) {
       addMarketAwning(x, z, index);
@@ -4057,11 +4140,24 @@ export function buildArena(THREE, scene) {
         }
       }
     }
+    return crate;
   };
   [
     [58, -20, 1, 0.1], [56.5, -19, 0.7, -0.2], [22, 19, 0.8, 0.2],
     [33, 47, 1.1, 0.05], [36, 58, 0.85, -0.1], [44, 60, 0.75, 0.3],
-  ].forEach(([x, z, scale, rotation]) => addTradeCrate(x, z, scale, rotation));
+  ].forEach(([x, z, scale, rotation], index) => {
+    const crate = addTradeCrate(x, z, scale, rotation);
+    if (index === 0 || index === 3) {
+      registerMovableProp(crate, {
+        kind: "tradeCrates",
+        material: "wood",
+        radius: 0.82 * scale,
+        height: 1.24 * scale,
+        fallThreshold: 4.2,
+        noise: 69,
+      });
+    }
+  });
 
   const barrelGeometry = new THREE.LatheGeometry(
     [
@@ -5556,6 +5652,7 @@ export function buildArena(THREE, scene) {
       ...mission.wallGuardSpawns.map((guard) => guard.position.clone()),
     ],
     pickups,
+    movableProps,
     animated,
     bounds,
     mission,
