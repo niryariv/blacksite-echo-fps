@@ -71,6 +71,11 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
+  if (budget.sourceStaticMeshes > 3786) {
+    throw new Error(
+      `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
+    );
+  }
   if (budget.staticTriangles > 100800) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
@@ -309,6 +314,27 @@ try {
   if (objectBudget.windowGrilles.staticTriangles > 860) {
     throw new Error(
       `Window-grille triangle budget regressed: ${objectBudget.windowGrilles.staticTriangles}`,
+    );
+  }
+  if (
+    objectBudget.balconies.instances !== 8 ||
+    objectBudget.balconies.deckPlanks !== 24 ||
+    objectBudget.balconies.corbels !== 24 ||
+    objectBudget.balconies.railPosts !== 32 ||
+    objectBudget.balconies.crossBraces !== 48 ||
+    objectBudget.balconies.topRails !== 8
+  ) {
+    throw new Error(
+      `Townhouse-balcony construction regressed: ${
+        JSON.stringify(objectBudget?.balconies)
+      }`,
+    );
+  }
+  if (objectBudget.balconies.staticTriangles > 1152) {
+    throw new Error(
+      `Townhouse-balcony triangle budget regressed: ${
+        objectBudget.balconies.staticTriangles
+      }`,
     );
   }
   if (

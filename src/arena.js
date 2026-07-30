@@ -138,6 +138,15 @@ export function buildArena(THREE, scene) {
       horizontalBars: 0,
       staticTriangles: 0,
     },
+    balconies: {
+      instances: 0,
+      deckPlanks: 0,
+      corbels: 0,
+      railPosts: 0,
+      crossBraces: 0,
+      topRails: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1575,6 +1584,18 @@ export function buildArena(THREE, scene) {
   ];
   const windowGrilleGeometry = mergeGeometries(windowGrilleParts, false);
   windowGrilleParts.forEach((bar) => bar.dispose());
+  const balconyBraceAngle = Math.atan2(0.6, 1.2);
+  const balconyBraceLength = Math.hypot(1.2, 0.6);
+  const balconyBraceParts = [-1.2, 0, 1.2].flatMap((braceX) => (
+    [-1, 1].map((direction) => {
+      const brace = new THREE.PlaneGeometry(balconyBraceLength, 0.07);
+      brace.rotateZ(direction * balconyBraceAngle);
+      brace.translate(braceX, 0, 0);
+      return brace;
+    })
+  ));
+  const balconyCrossBraceGeometry = mergeGeometries(balconyBraceParts, false);
+  balconyBraceParts.forEach((brace) => brace.dispose());
 
   const addDoor = (parent, x, y, z, rotation = 0) => {
     const doorway = new THREE.Group();
@@ -1917,6 +1938,7 @@ export function buildArena(THREE, scene) {
     }
 
     if (h > 6.2 && cityRandom() > 0.58) {
+      objectRenderBudget.balconies.instances += 1;
       for (const supportX of [-1.45, 0, 1.45]) {
         const corbel = addBox({
           size: [0.15, 1.08, 0.16],
@@ -1927,31 +1949,61 @@ export function buildArena(THREE, scene) {
           name: "Diagonal balcony corbel",
         });
         corbel.rotation.x = 0.58;
+        objectRenderBudget.balconies.corbels += 1;
+        objectRenderBudget.balconies.staticTriangles += geometryTriangles(corbel.geometry);
       }
-      addBox({
-        size: [Math.min(5.4, w * 0.45), 0.3, 1.35],
-        position: [x, 4.7, facadeZ + 0.62],
-        material: timber,
-        parent: house,
-        name: "Wooden balcony",
+
+      const balconyWidth = Math.min(5.4, w * 0.45);
+      const deckParts = [-0.45, 0, 0.45].map((boardZ) => {
+        const board = new THREE.BoxGeometry(balconyWidth, 0.3, 0.42);
+        board.translate(0, 0, boardZ);
+        return board;
       });
-      for (let bx = -1.8; bx <= 1.8; bx += 0.6) {
-        addBox({
+      const balconyDeckGeometry = mergeGeometries(deckParts, false);
+      deckParts.forEach((board) => board.dispose());
+      const balconyDeck = new THREE.Mesh(balconyDeckGeometry, timber);
+      balconyDeck.position.set(x, 4.7, facadeZ + 0.62);
+      balconyDeck.name = "Three separated projecting balcony deck boards";
+      house.add(balconyDeck);
+      objectRenderBudget.balconies.deckPlanks += 3;
+      objectRenderBudget.balconies.staticTriangles += geometryTriangles(
+        balconyDeckGeometry,
+      );
+
+      for (const railX of [-1.8, -0.6, 0.6, 1.8]) {
+        const railPost = addBox({
           size: [0.08, 0.82, 0.08],
-          position: [x + bx, 5.2, facadeZ + 1.12],
+          position: [x + railX, 5.2, facadeZ + 1.12],
           material: timber,
           parent: house,
           shadows: false,
-          name: "Balcony rail",
+          name: "Stout balcony railing post",
         });
+        objectRenderBudget.balconies.railPosts += 1;
+        objectRenderBudget.balconies.staticTriangles += geometryTriangles(
+          railPost.geometry,
+        );
       }
-      addBox({
+
+      const crossBraces = new THREE.Mesh(balconyCrossBraceGeometry, darkTimber);
+      crossBraces.position.set(x, 5.2, facadeZ + 1.125);
+      crossBraces.name = "Three-bay crossed balcony railing infill";
+      house.add(crossBraces);
+      objectRenderBudget.balconies.crossBraces += 6;
+      objectRenderBudget.balconies.staticTriangles += geometryTriangles(
+        balconyCrossBraceGeometry,
+      );
+
+      const topRail = addBox({
         size: [4.2, 0.1, 0.1],
         position: [x, 5.6, facadeZ + 1.12],
         material: timber,
         parent: house,
         shadows: false,
+        name: "Continuous balcony handrail",
       });
+      objectRenderBudget.balconies.topRails += 1;
+      objectRenderBudget.balconies.staticTriangles += geometryTriangles(topRail.geometry);
     }
     return house;
   };
