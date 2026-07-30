@@ -163,6 +163,25 @@ try {
     );
   }
   if (
+    objectBudget.atmosphere.cloudDraws !== 0 ||
+    objectBudget.atmosphere.smokePuffs !== 16 ||
+    objectBudget.atmosphere.smokeDraws !== 1 ||
+    objectBudget.atmosphere.dustPoints !== 260 ||
+    objectBudget.atmosphere.dustDraws !== 1 ||
+    objectBudget.atmosphere.gulls !== 9 ||
+    objectBudget.atmosphere.gullDraws !== 1 ||
+    objectBudget.atmosphere.animatedSystems !== 3
+  ) {
+    throw new Error(
+      `Atmospheric-object construction regressed: ${JSON.stringify(objectBudget.atmosphere)}`,
+    );
+  }
+  if (objectBudget.atmosphere.gullTriangles > 54) {
+    throw new Error(
+      `Harbour-gull triangle budget regressed: ${objectBudget.atmosphere.gullTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||

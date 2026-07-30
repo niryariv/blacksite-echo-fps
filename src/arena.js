@@ -63,6 +63,17 @@ export function buildArena(THREE, scene) {
       clotheslines: 0,
       staticTriangles: 0,
     },
+    atmosphere: {
+      cloudDraws: 0,
+      smokePuffs: 0,
+      smokeDraws: 0,
+      dustPoints: 0,
+      dustDraws: 0,
+      gulls: 0,
+      gullDraws: 0,
+      gullTriangles: 0,
+      animatedSystems: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -3591,68 +3602,61 @@ export function buildArena(THREE, scene) {
       ctx.fillRect(0, 0, s, s);
     }
   });
-  const clouds = new THREE.Group();
-  clouds.name = "Coastal cloud bank";
-  clouds.visible = false;
-  root.add(clouds);
-  [
-    [-145, 45, -120, 72, 20], [-45, 58, -175, 82, 23], [75, 49, -155, 68, 18],
-    [170, 55, -80, 78, 22], [-190, 40, 20, 62, 17],
-  ].forEach(([x, y, z, sx, sy], index) => {
-    const sprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: cloudTexture,
-        color: index % 2 ? 0xb9c7c4 : 0xe4d7bd,
-        transparent: true,
-        opacity: 0.42,
-        alphaTest: 0.02,
-        depthWrite: false,
-        fog: true,
-      }),
-    );
-    sprite.position.set(x, y, z);
-    sprite.scale.set(sx, sy, 1);
-    clouds.add(sprite);
-  });
-  clouds.userData.animate = (time) => {
-    clouds.position.x = Math.sin(time * 0.025) * 8;
-  };
-  animated.push(clouds);
-
-  const smoke = new THREE.Group();
-  smoke.name = "Cooking-fire smoke";
-  smoke.visible = false;
-  root.add(smoke);
-  [
+  // Cloud sprites were disabled but still animated. Their soft texture now
+  // serves a single batched chimney-smoke point system instead.
+  const smokeSources = [
     [48, 8.4, -9], [-13, 7.4, 30], [68, 6.4, -7], [5, 7.4, 50],
-  ].forEach(([x, y, z], chimney) => {
-    for (let i = 0; i < 4; i += 1) {
-      const puff = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: cloudTexture,
-          color: 0x6f7772,
-          transparent: true,
-          opacity: 0.16 - i * 0.018,
-          alphaTest: 0.02,
-          depthWrite: false,
-          fog: true,
-        }),
-      );
-      puff.position.set(x, y + i * 1.25, z);
-      puff.scale.setScalar(1.6 + i * 0.65);
-      puff.userData = { baseY: y, phase: i * 1.25 + chimney * 0.7, x };
-      smoke.add(puff);
+  ];
+  const smokePuffCount = smokeSources.length * 4;
+  const smokePositions = new Float32Array(smokePuffCount * 3);
+  const smokeMetadata = [];
+  let smokeIndex = 0;
+  smokeSources.forEach(([x, y, z], chimney) => {
+    for (let puff = 0; puff < 4; puff += 1) {
+      const phase = puff * 1.25 + chimney * 0.7;
+      smokePositions[smokeIndex * 3] = x;
+      smokePositions[smokeIndex * 3 + 1] = y + puff * 1.25;
+      smokePositions[smokeIndex * 3 + 2] = z;
+      smokeMetadata.push({ x, y, z, phase });
+      smokeIndex += 1;
     }
   });
+  const smokeGeometry = new THREE.BufferGeometry();
+  smokeGeometry.setAttribute("position", new THREE.BufferAttribute(smokePositions, 3));
+  const smoke = new THREE.Points(
+    smokeGeometry,
+    new THREE.PointsMaterial({
+      map: cloudTexture,
+      color: 0x777c77,
+      size: 2.45,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.2,
+      alphaTest: 0.025,
+      depthWrite: false,
+      fog: true,
+    }),
+  );
+  smoke.name = "Cooking-fire smoke";
+  smoke.frustumCulled = false;
+  root.add(smoke);
   smoke.userData.animate = (time) => {
-    smoke.children.forEach((puff) => {
-      const lift = (time * 0.42 + puff.userData.phase) % 6;
-      puff.position.y = puff.userData.baseY + lift;
-      puff.position.x = puff.userData.x + lift * 0.16;
-      puff.material.opacity = 0.17 * (1 - lift / 7);
+    const positions = smoke.geometry.attributes.position;
+    smokeMetadata.forEach((puff, index) => {
+      const lift = (time * 0.42 + puff.phase) % 6;
+      positions.setXYZ(
+        index,
+        puff.x + lift * 0.16,
+        puff.y + lift,
+        puff.z + Math.sin(time * 0.31 + puff.phase) * 0.12,
+      );
     });
+    positions.needsUpdate = true;
   };
   animated.push(smoke);
+  objectRenderBudget.atmosphere.smokePuffs = smokePuffCount;
+  objectRenderBudget.atmosphere.smokeDraws = 1;
+  objectRenderBudget.atmosphere.animatedSystems += 1;
 
   const dustCount = 260;
   const dustPositions = new Float32Array(dustCount * 3);
@@ -3681,32 +3685,86 @@ export function buildArena(THREE, scene) {
     dust.position.y = Math.sin(time * 0.25) * 0.15;
   };
   animated.push(dust);
+  objectRenderBudget.atmosphere.dustPoints = dustCount;
+  objectRenderBudget.atmosphere.dustDraws = 1;
+  objectRenderBudget.atmosphere.animatedSystems += 1;
 
   const birds = new THREE.Group();
   birds.position.set(64, 25, 59);
   birds.name = "Harbour gulls";
   root.add(birds);
+  const gullGeometries = [];
   for (let i = 0; i < 9; i += 1) {
     const wingSpan = 0.55 + cityRandom() * 0.45;
-    const birdGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-wingSpan, 0, 0),
-      new THREE.Vector3(0, -0.18, 0),
-      new THREE.Vector3(0, -0.18, 0),
-      new THREE.Vector3(wingSpan, 0, 0),
-    ]);
-    const bird = new THREE.LineSegments(
-      birdGeometry,
-      new THREE.LineBasicMaterial({ color: 0x282822, transparent: true, opacity: 0.75 }),
+    const wingLift = Math.sin(i * 1.7) * 0.14;
+    const birdGeometry = new THREE.BufferGeometry();
+    birdGeometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute([
+        0, 0.015, -0.24,
+        -0.075, 0, 0,
+        0, 0, 0.23,
+        0.075, 0, 0,
+        -wingSpan, wingLift, 0.015,
+        -0.18, -0.09, 0.12,
+        wingSpan, wingLift, 0.015,
+        0.18, -0.09, 0.12,
+      ], 3),
     );
-    bird.position.set((cityRandom() - 0.5) * 22, cityRandom() * 8, (cityRandom() - 0.5) * 18);
-    bird.rotation.y = cityRandom() * Math.PI * 2;
-    birds.add(bird);
+    birdGeometry.setAttribute(
+      "color",
+      new THREE.Float32BufferAttribute([
+        0.84, 0.82, 0.74,
+        0.78, 0.77, 0.7,
+        0.64, 0.64, 0.59,
+        0.78, 0.77, 0.7,
+        0.34, 0.36, 0.36,
+        0.72, 0.72, 0.68,
+        0.34, 0.36, 0.36,
+        0.72, 0.72, 0.68,
+      ], 3),
+    );
+    birdGeometry.setIndex([
+      0, 1, 2, 0, 2, 3,
+      1, 4, 5, 1, 5, 2,
+      3, 2, 7, 3, 7, 6,
+    ]);
+    const birdMatrix = new THREE.Matrix4().compose(
+      new THREE.Vector3(
+        (cityRandom() - 0.5) * 22,
+        cityRandom() * 8,
+        (cityRandom() - 0.5) * 18,
+      ),
+      new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(0, cityRandom() * Math.PI * 2, 0),
+      ),
+      new THREE.Vector3(1, 1, 1),
+    );
+    birdGeometry.applyMatrix4(birdMatrix);
+    gullGeometries.push(birdGeometry);
   }
+  const gullGeometry = mergeGeometries(gullGeometries, false);
+  gullGeometries.forEach((geometry) => geometry.dispose());
+  const gullFlock = new THREE.Mesh(
+    gullGeometry,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      fog: true,
+    }),
+  );
+  gullFlock.name = "Merged filled harbour-gull flock";
+  birds.add(gullFlock);
   birds.userData.animate = (time) => {
     birds.rotation.y = time * 0.07;
     birds.position.y = 25 + Math.sin(time * 0.42) * 1.2;
+    birds.rotation.z = Math.sin(time * 0.19) * 0.025;
   };
   animated.push(birds);
+  objectRenderBudget.atmosphere.gulls = 9;
+  objectRenderBudget.atmosphere.gullDraws = 1;
+  objectRenderBudget.atmosphere.gullTriangles = geometryTriangles(gullGeometry);
+  objectRenderBudget.atmosphere.animatedSystems += 1;
 
   // Invisible outer limits and harbour safety volumes.
   // Keep the eastern approach bounded while leaving the insertion road open.
