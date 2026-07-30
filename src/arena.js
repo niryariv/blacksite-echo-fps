@@ -156,6 +156,28 @@ export function buildArena(THREE, scene) {
       crankGrips: 0,
       staticTriangles: 0,
     },
+    harbourCranes: {
+      instances: 0,
+      trestleLegs: 0,
+      booms: 0,
+      headBeams: 0,
+      braces: 0,
+      drums: 0,
+      axles: 0,
+      windingRims: 0,
+      windingSpokes: 0,
+      windingHubs: 0,
+      pulleyCheeks: 0,
+      pulleyWheels: 0,
+      pulleyGrooves: 0,
+      pulleyPins: 0,
+      runningRopes: 0,
+      liftingRopes: 0,
+      cargoBales: 0,
+      slingLegs: 0,
+      hooks: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -2462,113 +2484,234 @@ export function buildArena(THREE, scene) {
   addBox({ size: [5, 2.2, 58], position: [91, 0.7, 50], material: oldStone, collider: true, name: "Harbour mole" });
   addBox({ size: [41, 2.2, 4], position: [71, 0.7, 80], material: oldStone, collider: true, name: "Southern harbour mole" });
 
+  const craneDrumGeometry = new THREE.LatheGeometry(
+    [
+      new THREE.Vector2(0.44, -0.81),
+      new THREE.Vector2(0.35, -0.69),
+      new THREE.Vector2(0.35, 0.69),
+      new THREE.Vector2(0.44, 0.81),
+    ],
+    8,
+  );
+  const craneAxleGeometry = new THREE.CylinderGeometry(0.07, 0.07, 2.35, 6);
+  const craneWindingRimGeometry = new THREE.TorusGeometry(0.62, 0.055, 3, 10);
+  const craneWindingSpokeGeometry = mergeGeometries([
+    new THREE.PlaneGeometry(0.06, 0.52).rotateY(Math.PI / 2),
+    new THREE.PlaneGeometry(0.06, 0.52).rotateY(-Math.PI / 2),
+  ], false);
+  const craneWindingHubGeometry = new THREE.CylinderGeometry(0.11, 0.13, 0.22, 6);
+  const cranePulleyGeometry = new THREE.CylinderGeometry(0.22, 0.22, 0.1, 8);
+  const cranePulleyGrooveGeometry = new THREE.TorusGeometry(0.22, 0.025, 3, 8);
+  const cranePulleyPinGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.38, 4);
+  const craneRunningRopeGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 2.75, 0.35),
+      new THREE.Vector3(0, 4.55, 1.1),
+      new THREE.Vector3(0, 4.55, 3.2),
+      new THREE.Vector3(0, 4.34, 4.34),
+    ]),
+    5,
+    0.026,
+    3,
+    false,
+  );
+  const craneLiftingRopeGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 4.34, 4.34),
+      new THREE.Vector3(0.025, 3.05, 4.37),
+      new THREE.Vector3(0, 1.66, 4.4),
+    ]),
+    4,
+    0.026,
+    3,
+    false,
+  );
+  const craneCargoGeometry = new THREE.BoxGeometry(1.1, 0.9, 0.9, 2, 2, 2);
+  const craneCargoPositions = craneCargoGeometry.attributes.position;
+  for (let vertex = 0; vertex < craneCargoPositions.count; vertex += 1) {
+    const px = craneCargoPositions.getX(vertex);
+    const py = craneCargoPositions.getY(vertex);
+    const pz = craneCargoPositions.getZ(vertex);
+    const nx = Math.abs(px) / 0.55;
+    const ny = Math.abs(py) / 0.45;
+    const nz = Math.abs(pz) / 0.45;
+    craneCargoPositions.setXYZ(
+      vertex,
+      px * (1 - ny * nz * 0.065),
+      py - (1 - nx) * (1 - nz) * 0.035,
+      pz * (1 - nx * ny * 0.055),
+    );
+  }
+  craneCargoGeometry.computeVertexNormals();
+  const craneSlingGeometries = [
+    [-1, -1], [-1, 1], [1, -1], [1, 1],
+  ].map(([sideX, sideZ]) => (
+    new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(sideX * 0.48, 1.18, 4.4 + sideZ * 0.36),
+        new THREE.Vector3(sideX * 0.28, 1.38, 4.4 + sideZ * 0.2),
+        new THREE.Vector3(0, 1.55, 4.4),
+      ]),
+      2,
+      0.024,
+      3,
+      false,
+    )
+  ));
+  const craneHookGeometry = new THREE.TorusGeometry(
+    0.12,
+    0.025,
+    3,
+    8,
+    Math.PI * 1.5,
+  );
+
   const addHarbourCrane = (x, z, rotation = 0) => {
     const crane = new THREE.Group();
     crane.position.set(x, 0.25, z);
     crane.rotation.y = rotation;
-    crane.name = "Timber quay crane";
+    crane.name = "Working timber quay crane";
     root.add(crane);
+    objectRenderBudget.harbourCranes.instances += 1;
+    const trackCraneMesh = (mesh, counter) => {
+      objectRenderBudget.harbourCranes[counter] += 1;
+      objectRenderBudget.harbourCranes.staticTriangles += geometryTriangles(mesh.geometry);
+      return mesh;
+    };
+    const addCraneBox = (options, counter) => (
+      trackCraneMesh(addBox(options), counter)
+    );
     for (const side of [-1, 1]) {
-      const leg = addBox({
+      const leg = addCraneBox({
         size: [0.26, 4.8, 0.3],
         position: [side * 1.05, 2.35, 0],
         material: timber,
         parent: crane,
-        name: "Crane trestle",
-      });
+        name: "Splayed mortised crane trestle leg",
+      }, "trestleLegs");
       leg.rotation.z = side * -0.18;
     }
-    const boom = addBox({
+    const boom = addCraneBox({
       size: [0.32, 0.34, 5.7],
       position: [0, 4.45, 1.65],
       material: timber,
       parent: crane,
-      name: "Crane boom",
-    });
+      name: "Long timber lifting boom",
+    }, "booms");
     boom.rotation.x = -0.08;
-    addBox({ size: [2.7, 0.26, 0.32], position: [0, 4.25, 0], material: timber, parent: crane, name: "Crane head beam" });
+    addCraneBox({
+      size: [2.7, 0.26, 0.32],
+      position: [0, 4.25, 0],
+      material: timber,
+      parent: crane,
+      name: "Mortised crane head beam",
+    }, "headBeams");
     for (const direction of [-1, 1]) {
-      const brace = addBox({
+      const brace = addCraneBox({
         size: [0.18, 3.25, 0.2],
         position: [0, 2.35, 0.02],
         material: darkTimber,
         parent: crane,
         shadows: false,
-        name: "Crane diagonal brace",
-      });
+        name: "Cross-braced crane trestle",
+      }, "braces");
       brace.rotation.z = direction * 0.72;
     }
-    const drum = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.38, 0.38, 1.62, 14),
-      darkTimber,
-    );
+    const drum = new THREE.Mesh(craneDrumGeometry, darkTimber);
     drum.position.set(0, 2.62, 0.28);
     drum.rotation.z = Math.PI / 2;
-    drum.name = "Crane rope drum";
+    drum.name = "Flanged timber crane rope drum";
     crane.add(drum);
-    const axle = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.07, 2.35, 8),
-      agedIron,
-    );
+    trackCraneMesh(drum, "drums");
+    const axle = new THREE.Mesh(craneAxleGeometry, agedIron);
     axle.position.copy(drum.position);
     axle.rotation.z = Math.PI / 2;
-    axle.name = "Crane iron axle";
+    axle.name = "Forged crane drum axle";
     crane.add(axle);
-    const windingWheel = new THREE.Mesh(
-      new THREE.TorusGeometry(0.62, 0.055, 5, 12),
-      darkTimber,
-    );
+    trackCraneMesh(axle, "axles");
+
+    const windingWheel = new THREE.Mesh(craneWindingRimGeometry, darkTimber);
     windingWheel.position.set(1.18, 2.62, 0.28);
     windingWheel.rotation.y = Math.PI / 2;
-    windingWheel.name = "Crane winding wheel";
+    windingWheel.name = "Felloed crane winding-wheel rim";
     crane.add(windingWheel);
-    for (let spoke = 0; spoke < 3; spoke += 1) {
-      const angle = (spoke / 3) * Math.PI;
-      const spokeMesh = addBox({
-        size: [0.06, 0.9, 0.06],
-        position: [1.18, 2.62, 0.28],
-        material: darkTimber,
+    trackCraneMesh(windingWheel, "windingRims");
+    for (let spoke = 0; spoke < 6; spoke += 1) {
+      const angle = spoke * Math.PI / 3;
+      const spokeMesh = new THREE.Mesh(craneWindingSpokeGeometry, darkTimber);
+      spokeMesh.position.set(
+        1.18,
+        2.62 + Math.cos(angle) * 0.32,
+        0.28 + Math.sin(angle) * 0.32,
+      );
+      spokeMesh.rotation.x = angle;
+      spokeMesh.name = "Mortised winding-wheel spoke";
+      crane.add(spokeMesh);
+      trackCraneMesh(spokeMesh, "windingSpokes");
+    }
+    const windingHub = new THREE.Mesh(craneWindingHubGeometry, darkTimber);
+    windingHub.position.copy(windingWheel.position);
+    windingHub.rotation.z = Math.PI / 2;
+    windingHub.name = "Heavy winding-wheel nave";
+    crane.add(windingHub);
+    trackCraneMesh(windingHub, "windingHubs");
+
+    for (const side of [-1, 1]) {
+      addCraneBox({
+        size: [0.08, 0.56, 0.18],
+        position: [side * 0.13, 4.34, 4.34],
+        material: agedIron,
         parent: crane,
         shadows: false,
-        name: "Winding wheel spoke",
-      });
-      spokeMesh.rotation.x = angle;
+        name: "Forged crane-pulley cheek",
+      }, "pulleyCheeks");
     }
-    const pulley = new THREE.Mesh(
-      new THREE.TorusGeometry(0.22, 0.045, 5, 10),
-      agedIron,
-    );
+    const pulley = new THREE.Mesh(cranePulleyGeometry, darkTimber);
     pulley.position.set(0, 4.34, 4.34);
-    pulley.rotation.y = Math.PI / 2;
-    pulley.name = "Crane pulley";
+    pulley.rotation.z = Math.PI / 2;
+    pulley.name = "Solid timber crane pulley wheel";
     crane.add(pulley);
-    const rope = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.026, 0.026, 3.45, 6),
-      ropeMaterial,
-    );
-    rope.position.set(0, 2.72, 4.4);
-    rope.name = "Crane lifting rope";
-    crane.add(rope);
-    const cargo = new THREE.Mesh(
-      new THREE.SphereGeometry(0.62, 12, 9),
-      craneCargoMaterial,
-    );
-    cargo.scale.set(0.92, 0.72, 0.82);
+    trackCraneMesh(pulley, "pulleyWheels");
+    const pulleyGroove = new THREE.Mesh(cranePulleyGrooveGeometry, agedIron);
+    pulleyGroove.position.copy(pulley.position);
+    pulleyGroove.rotation.y = Math.PI / 2;
+    pulleyGroove.name = "Iron pulley wear groove";
+    crane.add(pulleyGroove);
+    trackCraneMesh(pulleyGroove, "pulleyGrooves");
+    const pulleyPin = new THREE.Mesh(cranePulleyPinGeometry, agedIron);
+    pulleyPin.position.copy(pulley.position);
+    pulleyPin.rotation.z = Math.PI / 2;
+    pulleyPin.name = "Forged pulley pin";
+    crane.add(pulleyPin);
+    trackCraneMesh(pulleyPin, "pulleyPins");
+
+    const runningRope = new THREE.Mesh(craneRunningRopeGeometry, ropeMaterial);
+    runningRope.name = "Rope led from drum along crane boom";
+    crane.add(runningRope);
+    trackCraneMesh(runningRope, "runningRopes");
+    const liftingRope = new THREE.Mesh(craneLiftingRopeGeometry, ropeMaterial);
+    liftingRope.name = "Weight-tensioned crane lifting rope";
+    crane.add(liftingRope);
+    trackCraneMesh(liftingRope, "liftingRopes");
+
+    const cargo = new THREE.Mesh(craneCargoGeometry, craneCargoMaterial);
     cargo.position.set(0, 0.82, 4.4);
     cargo.castShadow = true;
-    cargo.name = "Crane suspended cargo bundle";
+    cargo.name = "Soft-cornered suspended cloth bale";
     crane.add(cargo);
-    for (const rotation of [0, Math.PI / 2]) {
-      const sling = new THREE.Mesh(
-        new THREE.TorusGeometry(0.54, 0.025, 4, 10),
-        ropeMaterial,
-      );
-      sling.position.copy(cargo.position);
-      sling.rotation.set(Math.PI / 2, rotation, 0);
-      sling.scale.y = 0.75;
-      sling.name = "Cargo rope sling";
+    trackCraneMesh(cargo, "cargoBales");
+    craneSlingGeometries.forEach((geometry) => {
+      const sling = new THREE.Mesh(geometry, ropeMaterial);
+      sling.name = "Four-leg cargo lifting sling";
       crane.add(sling);
-    }
+      trackCraneMesh(sling, "slingLegs");
+    });
+    const hook = new THREE.Mesh(craneHookGeometry, agedIron);
+    hook.position.set(0, 1.59, 4.4);
+    hook.rotation.y = Math.PI / 2;
+    hook.name = "Open forged crane hook";
+    crane.add(hook);
+    trackCraneMesh(hook, "hooks");
   };
   addHarbourCrane(46, 52, 0);
   addHarbourCrane(84, 44, Math.PI / 2);

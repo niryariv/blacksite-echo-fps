@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 102400) {
+  if (budget.staticTriangles > 102000) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -327,6 +327,36 @@ try {
   if (objectBudget.well.staticTriangles > 208) {
     throw new Error(
       `Hospitaller-well triangle budget regressed: ${objectBudget.well.staticTriangles}`,
+    );
+  }
+  if (
+    objectBudget.harbourCranes.instances !== 2 ||
+    objectBudget.harbourCranes.trestleLegs !== 4 ||
+    objectBudget.harbourCranes.booms !== 2 ||
+    objectBudget.harbourCranes.headBeams !== 2 ||
+    objectBudget.harbourCranes.braces !== 4 ||
+    objectBudget.harbourCranes.drums !== 2 ||
+    objectBudget.harbourCranes.axles !== 2 ||
+    objectBudget.harbourCranes.windingRims !== 2 ||
+    objectBudget.harbourCranes.windingSpokes !== 12 ||
+    objectBudget.harbourCranes.windingHubs !== 2 ||
+    objectBudget.harbourCranes.pulleyCheeks !== 4 ||
+    objectBudget.harbourCranes.pulleyWheels !== 2 ||
+    objectBudget.harbourCranes.pulleyGrooves !== 2 ||
+    objectBudget.harbourCranes.pulleyPins !== 2 ||
+    objectBudget.harbourCranes.runningRopes !== 2 ||
+    objectBudget.harbourCranes.liftingRopes !== 2 ||
+    objectBudget.harbourCranes.cargoBales !== 2 ||
+    objectBudget.harbourCranes.slingLegs !== 8 ||
+    objectBudget.harbourCranes.hooks !== 2
+  ) {
+    throw new Error(
+      `Harbour-crane construction regressed: ${JSON.stringify(objectBudget?.harbourCranes)}`,
+    );
+  }
+  if (objectBudget.harbourCranes.staticTriangles > 1140) {
+    throw new Error(
+      `Harbour-crane triangle budget regressed: ${objectBudget.harbourCranes.staticTriangles}`,
     );
   }
   if (
