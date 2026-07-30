@@ -123,6 +123,15 @@ export function buildArena(THREE, scene) {
       sideLeaves: 0,
       staticTriangles: 0,
     },
+    doors: {
+      instances: 0,
+      bodyPlanks: 0,
+      hingeStraps: 0,
+      rivets: 0,
+      pullRings: 0,
+      footRails: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1527,45 +1536,55 @@ export function buildArena(THREE, scene) {
   addTower(92, 18, 5.2, 10, "Eastern wall tower");
   addTower(89, 76, 5.8, 11, "Burj al-Sultan harbour tower");
 
+  const streetDoorPlanks = Array.from({ length: 5 }, (_, plankIndex) => {
+    const plank = new THREE.BoxGeometry(0.31, 2.6, 0.18);
+    plank.translate((plankIndex - 2) * 0.33, 0, 0);
+    return plank;
+  });
+  const streetDoorGeometry = mergeGeometries(streetDoorPlanks, false);
+  streetDoorPlanks.forEach((plank) => plank.dispose());
+  const doorHingeStrapGeometry = new THREE.PlaneGeometry(0.72, 0.075);
+  const doorRivetGeometry = new THREE.CircleGeometry(0.055, 5);
+  const doorPullGeometry = new THREE.TorusGeometry(0.105, 0.018, 3, 8);
+
   const addDoor = (parent, x, y, z, rotation = 0) => {
     const doorway = new THREE.Group();
     doorway.position.set(x, y, z);
     doorway.rotation.y = rotation;
     doorway.name = "Plank-and-iron street door";
     parent.add(doorway);
-    const door = addBox({
-      size: [1.65, 2.6, 0.18],
-      position: [0, 0, 0],
-      material: timber,
-      parent: doorway,
-      shadows: false,
-      name: "Vertical timber door planks",
-    });
+    objectRenderBudget.doors.instances += 1;
+
+    const door = new THREE.Mesh(streetDoorGeometry, timber);
+    door.name = "Five separated vertical door planks";
+    doorway.add(door);
+    objectRenderBudget.doors.bodyPlanks += 5;
+    objectRenderBudget.doors.staticTriangles += geometryTriangles(streetDoorGeometry);
+
     for (const strapY of [-0.78, 0, 0.78]) {
-      addBox({
-        size: [0.72, 0.075, 0.045],
-        position: [-0.4, strapY, 0.115],
-        material: agedIron,
-        parent: doorway,
-        shadows: false,
-        name: "Hand-forged door hinge strap",
-      });
-      const pivot = new THREE.Mesh(
-        new THREE.BoxGeometry(0.065, 0.065, 0.16),
-        agedIron,
-      );
-      pivot.position.set(-0.76, strapY, 0.125);
-      pivot.name = "Door hinge pin";
-      doorway.add(pivot);
+      const strap = new THREE.Mesh(doorHingeStrapGeometry, agedIron);
+      strap.position.set(-0.4, strapY, 0.115);
+      strap.name = "Flush hand-forged door hinge strap";
+      doorway.add(strap);
+      objectRenderBudget.doors.hingeStraps += 1;
+      objectRenderBudget.doors.staticTriangles += geometryTriangles(doorHingeStrapGeometry);
+
+      const rivet = new THREE.Mesh(doorRivetGeometry, agedIron);
+      rivet.position.set(-0.76, strapY, 0.14);
+      rivet.name = "Forged door hinge rivet";
+      doorway.add(rivet);
+      objectRenderBudget.doors.rivets += 1;
+      objectRenderBudget.doors.staticTriangles += geometryTriangles(doorRivetGeometry);
     }
-    const latchRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.105, 0.018, 4, 8),
-      agedIron,
-    );
+
+    const latchRing = new THREE.Mesh(doorPullGeometry, agedIron);
     latchRing.position.set(0.48, -0.05, 0.14);
-    latchRing.name = "Iron door pull";
+    latchRing.name = "Slim iron door pull";
     doorway.add(latchRing);
-    addBox({
+    objectRenderBudget.doors.pullRings += 1;
+    objectRenderBudget.doors.staticTriangles += geometryTriangles(doorPullGeometry);
+
+    const footRail = addBox({
       size: [1.55, 0.12, 0.07],
       position: [0, -1.18, 0.11],
       material: darkTimber,
@@ -1573,6 +1592,8 @@ export function buildArena(THREE, scene) {
       shadows: false,
       name: "Weathered door foot rail",
     });
+    objectRenderBudget.doors.footRails += 1;
+    objectRenderBudget.doors.staticTriangles += geometryTriangles(footRail.geometry);
     return door;
   };
 
