@@ -88,6 +88,20 @@ try {
   const objectBudget = arena.objectRenderBudget;
   if (
     !objectBudget ||
+    objectBudget.landscape.approachRocks !== 18 ||
+    objectBudget.landscape.shorelineRocks !== 43 ||
+    objectBudget.landscape.scrubClusters !== 39
+  ) {
+    throw new Error(
+      `Exterior landscape construction regressed: ${JSON.stringify(objectBudget?.landscape)}`,
+    );
+  }
+  if (objectBudget.landscape.renderedTriangles > 2600) {
+    throw new Error(
+      `Exterior landscape triangle budget regressed: ${objectBudget.landscape.renderedTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||

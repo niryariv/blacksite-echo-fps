@@ -19,6 +19,35 @@ export function buildArena(THREE, scene) {
   root.name = "Acre, 1250 CE";
   scene.add(root);
 
+  const objectRenderBudget = {
+    landscape: {
+      approachRocks: 0,
+      shorelineRocks: 0,
+      scrubClusters: 0,
+      renderedTriangles: 0,
+    },
+    oliveTrees: {
+      instances: 0,
+      trunks: 0,
+      roots: 0,
+      branches: 0,
+      foliageCards: 0,
+      staticTriangles: 0,
+    },
+    torches: {
+      instances: 0,
+      tripodLegs: 0,
+      fuelPieces: 0,
+      pointLights: 0,
+      staticTriangles: 0,
+    },
+  };
+  const geometryTriangles = (geometry) => (
+    geometry.index
+      ? geometry.index.count / 3
+      : geometry.attributes.position.count / 3
+  );
+
   const mission = {
     playerStart: new THREE.Vector3(116, 1.72, -22),
     target: new THREE.Vector3(-30, 0, -41),
@@ -693,8 +722,29 @@ export function buildArena(THREE, scene) {
 
   // Dry coastal scrub and fieldstone along the landward approach. This was
   // cultivated ground beyond Acre's ditch, not an empty desert apron.
+  const createWeatheredRockGeometry = (radius, phase) => {
+    const geometry = new THREE.DodecahedronGeometry(radius, 0);
+    const positions = geometry.attributes.position;
+    for (let index = 0; index < positions.count; index += 1) {
+      const x = positions.getX(index);
+      const y = positions.getY(index);
+      const z = positions.getZ(index);
+      const weathering = 1
+        + Math.sin(x * 4.7 + y * 3.1 + phase) * 0.085
+        + Math.cos(z * 5.3 - y * 2.2 + phase) * 0.055;
+      positions.setXYZ(
+        index,
+        x * weathering,
+        y * (0.9 + Math.sin(x * 3.4 + z * 2.7 + phase) * 0.08),
+        z * weathering,
+      );
+    }
+    geometry.computeVertexNormals();
+    return geometry;
+  };
+  const approachRockGeometry = createWeatheredRockGeometry(0.5, 0.7);
   const approachRocks = new THREE.InstancedMesh(
-    new THREE.DodecahedronGeometry(0.5, 0),
+    approachRockGeometry,
     oldStone,
     18,
   );
@@ -720,12 +770,67 @@ export function buildArena(THREE, scene) {
     approachRocks.setMatrixAt(index, approachMatrix);
   });
   root.add(approachRocks);
+  objectRenderBudget.landscape.approachRocks = approachRocks.count;
+  objectRenderBudget.landscape.renderedTriangles += (
+    geometryTriangles(approachRockGeometry) * approachRocks.count
+  );
 
-  const scrubMaterial = new THREE.MeshStandardMaterial({
-    color: 0x55603d,
-    roughness: 1,
-    flatShading: true,
+  const scrubTexture = canvasTexture(128, (ctx, s) => {
+    const random = seededPainter(0x5c12b);
+    ctx.clearRect(0, 0, s, s);
+    for (let stem = 0; stem < 24; stem += 1) {
+      const baseX = s * (0.37 + random() * 0.26);
+      const baseY = s * (0.9 + random() * 0.05);
+      const reach = s * (0.28 + random() * 0.43);
+      const angle = -1.18 + random() * 2.36;
+      const tipX = baseX + Math.sin(angle) * reach;
+      const tipY = baseY - Math.cos(angle) * reach;
+      ctx.strokeStyle = random() > 0.45 ? "rgba(72,67,39,.95)" : "rgba(91,75,42,.9)";
+      ctx.lineWidth = 1.2 + random() * 2.2;
+      ctx.beginPath();
+      ctx.moveTo(baseX, baseY);
+      ctx.quadraticCurveTo(
+        (baseX + tipX) / 2 + (random() - 0.5) * 11,
+        (baseY + tipY) / 2,
+        tipX,
+        tipY,
+      );
+      ctx.stroke();
+      const leafCount = 3 + Math.floor(random() * 4);
+      for (let leaf = 0; leaf < leafCount; leaf += 1) {
+        const t = 0.35 + (leaf / leafCount) * 0.62;
+        const leafX = baseX + (tipX - baseX) * t + (random() - 0.5) * 7;
+        const leafY = baseY + (tipY - baseY) * t + (random() - 0.5) * 5;
+        const leafWidth = 4 + random() * 6;
+        const leafHeight = 2.2 + random() * 4;
+        ctx.fillStyle = random() > 0.55 ? "#64704a" : random() > 0.4 ? "#7b794d" : "#4d6245";
+        ctx.beginPath();
+        ctx.ellipse(leafX, leafY, leafWidth, leafHeight, angle, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   });
+  scrubTexture.wrapS = scrubTexture.wrapT = THREE.ClampToEdgeWrapping;
+  const scrubMaterial = new THREE.MeshStandardMaterial({
+    color: 0xb8b58d,
+    map: scrubTexture,
+    alphaTest: 0.38,
+    side: THREE.DoubleSide,
+    roughness: 1,
+  });
+  const scrubCards = [];
+  for (const angle of [0, Math.PI / 3, Math.PI * 2 / 3]) {
+    const card = new THREE.PlaneGeometry(1.12, 1, 1, 1);
+    card.translate(0, 0.5, 0);
+    card.rotateY(angle);
+    scrubCards.push(card);
+  }
+  const scrubTopCard = new THREE.PlaneGeometry(0.95, 0.72, 1, 1);
+  scrubTopCard.rotateX(-Math.PI / 2);
+  scrubTopCard.translate(0, 0.62, 0);
+  scrubCards.push(scrubTopCard);
+  const scrubGeometry = mergeGeometries(scrubCards, false);
+  scrubCards.forEach((card) => card.dispose());
   [
     [108, -38, 0.8], [122, -34, 1.15], [112, -8, 0.95], [125, -6, 0.72],
     [104, 3, 0.88], [126, -45, 0.82], [117, 4, 0.7],
@@ -734,21 +839,23 @@ export function buildArena(THREE, scene) {
   ].forEach(([x, z, scale]) => {
     for (let cluster = 0; cluster < 3; cluster += 1) {
       const angle = cluster * 2.15 + x;
-      const scrub = new THREE.Mesh(new THREE.IcosahedronGeometry(0.52, 0), scrubMaterial);
+      const scrub = new THREE.Mesh(scrubGeometry, scrubMaterial);
       scrub.position.set(
         x + Math.cos(angle) * scale * 0.42,
-        (0.28 + cluster * 0.06) * scale,
+        0.18,
         z + Math.sin(angle) * scale * 0.35,
       );
       scrub.scale.set(
         scale * (0.85 + cluster * 0.12),
-        scale * (0.5 + (cluster % 2) * 0.12),
+        scale * (0.62 + (cluster % 2) * 0.1),
         scale * (0.72 + (cluster % 2) * 0.15),
       );
-      scrub.rotation.set(cluster * 0.4, x + z + cluster, cluster * 0.2);
+      scrub.rotation.y = x + z + cluster * 0.83;
       scrub.castShadow = scrub.receiveShadow = true;
-      scrub.name = "Coastal scrub";
+      scrub.name = "Alpha-cut Mediterranean scrub";
       root.add(scrub);
+      objectRenderBudget.landscape.scrubClusters += 1;
+      objectRenderBudget.landscape.renderedTriangles += geometryTriangles(scrubGeometry);
     }
   });
 
@@ -756,8 +863,9 @@ export function buildArena(THREE, scene) {
   addBox({ size: [3, 2.2, 164], position: [-100, 0.55, -1], material: oldStone, collider: true });
   addBox({ size: [194, 2.2, 3], position: [-2, 0.55, 81], material: oldStone, collider: true });
   addBox({ size: [3, 2, 34], position: [94, 0.45, 63], material: oldStone, collider: true });
+  const shorelineRockGeometry = createWeatheredRockGeometry(1.2, 2.4);
   const coastRocks = new THREE.InstancedMesh(
-    new THREE.DodecahedronGeometry(1.2, 0),
+    shorelineRockGeometry,
     oldStone,
     58,
   );
@@ -792,6 +900,10 @@ export function buildArena(THREE, scene) {
   coastRocks.count = rockIndex;
   coastRocks.instanceMatrix.needsUpdate = true;
   root.add(coastRocks);
+  objectRenderBudget.landscape.shorelineRocks = rockIndex;
+  objectRenderBudget.landscape.renderedTriangles += (
+    geometryTriangles(shorelineRockGeometry) * rockIndex
+  );
 
   // Three small boats form playable sea-wall insertions. Their open bows face
   // the masonry, while low gunwales keep the player off the walkable water.
@@ -2985,29 +3097,6 @@ export function buildArena(THREE, scene) {
   root.add(dryingNet);
   addBoundCrate(harbourWork, 39.2, 49.55, [3.25, 1.18, 1.35]);
   addStreetCoverCollider(harbourWork, [3.25, 2.2, 1.35], [39.2, 1.1, 49.35]);
-
-  const objectRenderBudget = {
-    oliveTrees: {
-      instances: 0,
-      trunks: 0,
-      roots: 0,
-      branches: 0,
-      foliageCards: 0,
-      staticTriangles: 0,
-    },
-    torches: {
-      instances: 0,
-      tripodLegs: 0,
-      fuelPieces: 0,
-      pointLights: 0,
-      staticTriangles: 0,
-    },
-  };
-  const geometryTriangles = (geometry) => (
-    geometry.index
-      ? geometry.index.count / 3
-      : geometry.attributes.position.count / 3
-  );
 
   const oliveLeafTexture = canvasTexture(256, (ctx, s) => {
     const random = seededPainter(0x0117e);
