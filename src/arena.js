@@ -203,6 +203,14 @@ export function buildArena(THREE, scene) {
       crankGrips: 0,
       staticTriangles: 0,
     },
+    courtyardPool: {
+      instances: 0,
+      copingSections: 0,
+      outerWalls: 0,
+      innerWalls: 0,
+      waterSurfaces: 0,
+      staticTriangles: 0,
+    },
     courtyardBenches: {
       instances: 0,
       seatPlanks: 0,
@@ -2140,17 +2148,19 @@ export function buildArena(THREE, scene) {
   objectRenderBudget.well.staticTriangles += geometryTriangles(wellShaftGeometry);
   addCollider([2.565, 0.9, 2.565], [-37, 0.45, -42]);
 
-  for (const side of [-1, 1]) {
-    const framePost = addBox({
-      size: [0.18, 2.6, 0.18],
-      position: [-37 + side * 1.15, 1.7, -42],
-      material: timber,
-      parent: hospital,
-      name: "Squared timber well-frame post",
-    });
-    objectRenderBudget.well.framePosts += 1;
-    objectRenderBudget.well.staticTriangles += geometryTriangles(framePost.geometry);
-  }
+  const wellFramePostParts = [-1, 1].map((side) => {
+    const post = new THREE.BoxGeometry(0.18, 2.6, 0.18);
+    post.translate(-37 + side * 1.15, 1.7, -42);
+    return post;
+  });
+  const wellFramePostGeometry = mergeGeometries(wellFramePostParts, false);
+  wellFramePostParts.forEach((post) => post.dispose());
+  const wellFramePosts = new THREE.Mesh(wellFramePostGeometry, timber);
+  wellFramePosts.castShadow = wellFramePosts.receiveShadow = true;
+  wellFramePosts.name = "Paired squared timber well-frame posts";
+  hospital.add(wellFramePosts);
+  objectRenderBudget.well.framePosts += 2;
+  objectRenderBudget.well.staticTriangles += geometryTriangles(wellFramePostGeometry);
   const wellCrossbar = addBox({
     size: [2.7, 0.18, 0.18],
     position: [-37, 2.95, -42],
@@ -2237,7 +2247,134 @@ export function buildArena(THREE, scene) {
   hospital.add(wellCrankGrip);
   objectRenderBudget.well.crankGrips += 1;
   objectRenderBudget.well.staticTriangles += geometryTriangles(wellCrankGripGeometry);
-  addBox({ size: [4.5, 0.22, 2.3], position: [-23, 0.11, -45], material: new THREE.MeshStandardMaterial({ color: 0x315f67, roughness: 0.45 }), parent: hospital, shadows: false });
+
+  const poolOuterWidth = 5.2;
+  const poolOuterDepth = 3;
+  const poolInnerWidth = 4.5;
+  const poolInnerDepth = 2.3;
+  const poolCopingWidth = (poolOuterWidth - poolInnerWidth) / 2;
+  const poolTopY = 0.32;
+  const poolWallHeight = 0.3;
+  const poolBasinParts = [];
+  const addPoolPlane = ({
+    width,
+    height,
+    x = 0,
+    y = 0,
+    z = 0,
+    rotateX = 0,
+    rotateY = 0,
+  }) => {
+    const plane = new THREE.PlaneGeometry(width, height);
+    if (rotateX) plane.rotateX(rotateX);
+    if (rotateY) plane.rotateY(rotateY);
+    plane.translate(x, y, z);
+    poolBasinParts.push(plane);
+  };
+
+  for (const side of [-1, 1]) {
+    addPoolPlane({
+      width: poolOuterWidth,
+      height: poolCopingWidth,
+      y: poolTopY,
+      z: side * (poolInnerDepth / 2 + poolCopingWidth / 2),
+      rotateX: -Math.PI / 2,
+    });
+    addPoolPlane({
+      width: poolCopingWidth,
+      height: poolInnerDepth,
+      x: side * (poolInnerWidth / 2 + poolCopingWidth / 2),
+      y: poolTopY,
+      rotateX: -Math.PI / 2,
+    });
+  }
+  addPoolPlane({
+    width: poolOuterWidth,
+    height: poolWallHeight,
+    y: poolTopY - poolWallHeight / 2,
+    z: poolOuterDepth / 2,
+  });
+  addPoolPlane({
+    width: poolOuterWidth,
+    height: poolWallHeight,
+    y: poolTopY - poolWallHeight / 2,
+    z: -poolOuterDepth / 2,
+    rotateY: Math.PI,
+  });
+  addPoolPlane({
+    width: poolOuterDepth,
+    height: poolWallHeight,
+    x: poolOuterWidth / 2,
+    y: poolTopY - poolWallHeight / 2,
+    rotateY: Math.PI / 2,
+  });
+  addPoolPlane({
+    width: poolOuterDepth,
+    height: poolWallHeight,
+    x: -poolOuterWidth / 2,
+    y: poolTopY - poolWallHeight / 2,
+    rotateY: -Math.PI / 2,
+  });
+  addPoolPlane({
+    width: poolInnerWidth,
+    height: poolWallHeight,
+    y: poolTopY - poolWallHeight / 2,
+    z: poolInnerDepth / 2,
+    rotateY: Math.PI,
+  });
+  addPoolPlane({
+    width: poolInnerWidth,
+    height: poolWallHeight,
+    y: poolTopY - poolWallHeight / 2,
+    z: -poolInnerDepth / 2,
+  });
+  addPoolPlane({
+    width: poolInnerDepth,
+    height: poolWallHeight,
+    x: poolInnerWidth / 2,
+    y: poolTopY - poolWallHeight / 2,
+    rotateY: -Math.PI / 2,
+  });
+  addPoolPlane({
+    width: poolInnerDepth,
+    height: poolWallHeight,
+    x: -poolInnerWidth / 2,
+    y: poolTopY - poolWallHeight / 2,
+    rotateY: Math.PI / 2,
+  });
+
+  const poolBasinGeometry = mergeGeometries(poolBasinParts, false);
+  poolBasinParts.forEach((part) => part.dispose());
+  const courtyardPoolBasin = new THREE.Mesh(poolBasinGeometry, paleStone);
+  courtyardPoolBasin.position.set(-23, 0, -45);
+  courtyardPoolBasin.name = "Recessed stone-lined Hospitaller courtyard basin";
+  courtyardPoolBasin.castShadow = courtyardPoolBasin.receiveShadow = true;
+  hospital.add(courtyardPoolBasin);
+
+  const poolWaterGeometry = new THREE.PlaneGeometry(
+    poolInnerWidth - 0.08,
+    poolInnerDepth - 0.08,
+  );
+  const poolWater = new THREE.Mesh(
+    poolWaterGeometry,
+    new THREE.MeshStandardMaterial({
+      color: 0x315f67,
+      roughness: 0.32,
+      metalness: 0,
+    }),
+  );
+  poolWater.position.set(-23, 0.1, -45);
+  poolWater.rotation.x = -Math.PI / 2;
+  poolWater.name = "Still water recessed below courtyard-basin coping";
+  hospital.add(poolWater);
+  objectRenderBudget.courtyardPool.instances = 1;
+  objectRenderBudget.courtyardPool.copingSections = 4;
+  objectRenderBudget.courtyardPool.outerWalls = 4;
+  objectRenderBudget.courtyardPool.innerWalls = 4;
+  objectRenderBudget.courtyardPool.waterSurfaces = 1;
+  objectRenderBudget.courtyardPool.staticTriangles = (
+    geometryTriangles(poolBasinGeometry) + geometryTriangles(poolWaterGeometry)
+  );
 
   const benchSeatParts = [-0.18, 0, 0.18].map((plankZ) => {
     const plank = new THREE.BoxGeometry(3.2, 0.18, 0.16);

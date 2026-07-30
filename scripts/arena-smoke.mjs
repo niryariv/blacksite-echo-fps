@@ -434,6 +434,26 @@ try {
     );
   }
   if (
+    objectBudget.courtyardPool.instances !== 1 ||
+    objectBudget.courtyardPool.copingSections !== 4 ||
+    objectBudget.courtyardPool.outerWalls !== 4 ||
+    objectBudget.courtyardPool.innerWalls !== 4 ||
+    objectBudget.courtyardPool.waterSurfaces !== 1
+  ) {
+    throw new Error(
+      `Courtyard-pool construction regressed: ${
+        JSON.stringify(objectBudget?.courtyardPool)
+      }`,
+    );
+  }
+  if (objectBudget.courtyardPool.staticTriangles > 26) {
+    throw new Error(
+      `Courtyard-pool triangle budget regressed: ${
+        objectBudget.courtyardPool.staticTriangles
+      }`,
+    );
+  }
+  if (
     objectBudget.courtyardBenches.instances !== 2 ||
     objectBudget.courtyardBenches.seatPlanks !== 6 ||
     objectBudget.courtyardBenches.legs !== 4 ||
