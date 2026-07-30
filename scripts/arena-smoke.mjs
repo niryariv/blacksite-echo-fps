@@ -129,6 +129,25 @@ try {
     );
   }
   if (
+    objectBudget.fishingGear.netFrames !== 1 ||
+    objectBudget.fishingGear.dryingPosts !== 2 ||
+    objectBudget.fishingGear.netSegments !== 93 ||
+    objectBudget.fishingGear.sinkers !== 5
+  ) {
+    throw new Error(
+      `Fishing-gear construction regressed: ${
+        JSON.stringify(objectBudget?.fishingGear)
+      }`,
+    );
+  }
+  if (objectBudget.fishingGear.staticTriangles > 21) {
+    throw new Error(
+      `Fishing-gear triangle budget regressed: ${
+        objectBudget.fishingGear.staticTriangles
+      }`,
+    );
+  }
+  if (
     objectBudget.landscape.approachRocks !== 18 ||
     objectBudget.landscape.shorelineRocks !== 43 ||
     objectBudget.landscape.scrubClusters !== 39

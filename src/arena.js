@@ -40,6 +40,13 @@ export function buildArena(THREE, scene) {
       looseTails: 0,
       staticTriangles: 0,
     },
+    fishingGear: {
+      netFrames: 0,
+      dryingPosts: 0,
+      netSegments: 0,
+      sinkers: 0,
+      staticTriangles: 0,
+    },
     landscape: {
       approachRocks: 0,
       shorelineRocks: 0,
@@ -4573,14 +4580,21 @@ export function buildArena(THREE, scene) {
     position: [39.2, 49.2],
     approach: [39.2, 51.7],
   });
-  for (const x of [37.8, 40.6]) {
-    addBox({
-      size: [0.14, 2.35, 0.14],
-      position: [x, 1.18, 49.2],
-      material: timber,
-      name: "Fishing-net drying post",
-    });
-  }
+  const netPostParts = [37.8, 40.6].map((postX) => {
+    const post = new THREE.CylinderGeometry(0.11, 0.125, 2.35, 4, 1, true);
+    post.translate(postX, 1.18, 49.2);
+    return post;
+  });
+  const netPostGeometry = mergeGeometries(netPostParts, false);
+  netPostParts.forEach((post) => post.dispose());
+  const netPosts = new THREE.Mesh(netPostGeometry, timber);
+  netPosts.castShadow = netPosts.receiveShadow = true;
+  netPosts.name = "Paired faceted fishing-net drying posts";
+  root.add(netPosts);
+  objectRenderBudget.fishingGear.netFrames = 1;
+  objectRenderBudget.fishingGear.dryingPosts = 2;
+  objectRenderBudget.fishingGear.staticTriangles += geometryTriangles(netPostGeometry);
+
   const netPoints = [];
   for (let row = 0; row <= 5; row += 1) {
     for (let column = 0; column < 8; column += 1) {
@@ -4608,8 +4622,52 @@ export function buildArena(THREE, scene) {
     new THREE.BufferGeometry().setFromPoints(netPoints),
     fishNetMaterial,
   );
-  dryingNet.name = "Harbour fishing net";
+  dryingNet.name = "Knotted sagging harbour fishing net";
   root.add(dryingNet);
+  objectRenderBudget.fishingGear.netSegments = (
+    dryingNet.geometry.attributes.position.count / 2
+  );
+
+  const netSinkerParts = Array.from({ length: 5 }, (_, sinkerIndex) => {
+    const t = (sinkerIndex + 1) / 6;
+    const sinkerX = 37.8 + t * 2.8;
+    const sinkerY = 0.24 - Math.sin(t * Math.PI) * 0.16;
+    const sinker = new THREE.BufferGeometry();
+    sinker.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute([
+        sinkerX - 0.065, sinkerY + 0.06, 49.205,
+        sinkerX, sinkerY - 0.08, 49.205,
+        sinkerX + 0.065, sinkerY + 0.06, 49.205,
+      ], 3),
+    );
+    sinker.setAttribute(
+      "normal",
+      new THREE.Float32BufferAttribute([
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+      ], 3),
+    );
+    sinker.setAttribute(
+      "uv",
+      new THREE.Float32BufferAttribute([
+        0, 1,
+        0.5, 0,
+        1, 1,
+      ], 2),
+    );
+    sinker.setIndex([0, 1, 2]);
+    return sinker;
+  });
+  const netSinkerGeometry = mergeGeometries(netSinkerParts, false);
+  netSinkerParts.forEach((sinker) => sinker.dispose());
+  const netSinkers = new THREE.Mesh(netSinkerGeometry, oldStone);
+  netSinkers.name = "Five stone sinkers weighting the fishing-net foot";
+  root.add(netSinkers);
+  objectRenderBudget.fishingGear.sinkers = 5;
+  objectRenderBudget.fishingGear.staticTriangles += geometryTriangles(netSinkerGeometry);
+
   addBoundCrate(harbourWork, 39.2, 49.55, [3.25, 1.18, 1.35]);
   addStreetCoverCollider(harbourWork, [3.25, 2.2, 1.35], [39.2, 1.1, 49.35]);
 
