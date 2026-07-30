@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.sourceStaticMeshes > 3786) {
+  if (budget.sourceStaticMeshes > 3782) {
     throw new Error(
       `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
     );
@@ -186,6 +186,8 @@ try {
     objectBudget.textiles.awningCanopies !== 5 ||
     objectBudget.textiles.awningValances !== 5 ||
     objectBudget.textiles.awningPoles !== 10 ||
+    objectBudget.textiles.awningPoleMeshes !== 5 ||
+    objectBudget.textiles.awningLashings !== 10 ||
     objectBudget.textiles.awningCordSegments !== 10 ||
     objectBudget.textiles.awningCordDraws !== 1 ||
     objectBudget.textiles.dryingSheets !== 1 ||
@@ -195,7 +197,7 @@ try {
       `Textile construction regressed: ${JSON.stringify(objectBudget.textiles)}`,
     );
   }
-  if (objectBudget.textiles.staticTriangles > 820) {
+  if (objectBudget.textiles.staticTriangles > 804) {
     throw new Error(
       `Textile triangle budget regressed: ${objectBudget.textiles.staticTriangles}`,
     );

@@ -70,6 +70,8 @@ export function buildArena(THREE, scene) {
       awningCanopies: 0,
       awningValances: 0,
       awningPoles: 0,
+      awningPoleMeshes: 0,
+      awningLashings: 0,
       awningCordSegments: 0,
       awningCordDraws: 0,
       dryingSheets: 0,
@@ -3538,6 +3540,7 @@ export function buildArena(THREE, scene) {
     return jar;
   };
   const awningCordPoints = [];
+  const awningLashingParts = [];
   const addMarketAwning = (x, z, variant = 0) => {
     const geometry = new THREE.PlaneGeometry(6.2, 4.2, 8, 4);
     const position = geometry.attributes.position;
@@ -3584,16 +3587,32 @@ export function buildArena(THREE, scene) {
     root.add(valance);
     objectRenderBudget.textiles.awningValances += 1;
     objectRenderBudget.textiles.staticTriangles += geometryTriangles(valanceGeometry);
-    for (const px of [-2.75, 2.75]) {
-      addBox({
-        size: [0.11, 3.05, 0.11],
-        position: [x + px, 1.53, z + 1.7],
-        material: timber,
-        shadows: false,
-        name: "Awning pole",
-      });
-      objectRenderBudget.textiles.awningPoles += 1;
-      objectRenderBudget.textiles.staticTriangles += 12;
+    const awningPoleParts = [-2.75, 2.75].map((poleX) => {
+      const pole = new THREE.CylinderGeometry(0.07, 0.085, 3.05, 4, 1, true);
+      pole.translate(x + poleX, 1.53, z + 1.7);
+      return pole;
+    });
+    const awningPoleGeometry = mergeGeometries(awningPoleParts, false);
+    awningPoleParts.forEach((pole) => pole.dispose());
+    const awningPoles = new THREE.Mesh(awningPoleGeometry, timber);
+    awningPoles.name = "Paired faceted market-awning poles";
+    awningPoles.receiveShadow = true;
+    root.add(awningPoles);
+    objectRenderBudget.textiles.awningPoles += 2;
+    objectRenderBudget.textiles.awningPoleMeshes += 1;
+    objectRenderBudget.textiles.staticTriangles += geometryTriangles(
+      awningPoleGeometry,
+    );
+
+    for (const poleX of [-2.75, 2.75]) {
+      const frontTie = new THREE.PlaneGeometry(0.18, 0.055);
+      frontTie.translate(x + poleX, 3.02, z + 1.7);
+      awningLashingParts.push(frontTie);
+      const sideTie = new THREE.PlaneGeometry(0.18, 0.055);
+      sideTie.rotateY(Math.PI / 2);
+      sideTie.translate(x + poleX, 3.02, z + 1.7);
+      awningLashingParts.push(sideTie);
+      objectRenderBudget.textiles.awningLashings += 1;
     }
     awningCordPoints.push(
       new THREE.Vector3(x - 3.05, 3.12, z - 2.05),
@@ -3619,6 +3638,14 @@ export function buildArena(THREE, scene) {
       addMarketAwning(x, z, index);
     }
   });
+  const awningLashingGeometry = mergeGeometries(awningLashingParts, false);
+  awningLashingParts.forEach((lashing) => lashing.dispose());
+  const awningLashings = new THREE.Mesh(awningLashingGeometry, ropeMaterial);
+  awningLashings.name = "Merged rope lashings securing market awnings to poles";
+  root.add(awningLashings);
+  objectRenderBudget.textiles.staticTriangles += geometryTriangles(
+    awningLashingGeometry,
+  );
   const awningCords = new THREE.LineSegments(
     new THREE.BufferGeometry().setFromPoints(awningCordPoints),
     new THREE.LineBasicMaterial({ color: 0x58402b }),
