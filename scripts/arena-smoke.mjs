@@ -124,6 +124,25 @@ try {
     );
   }
   if (
+    objectBudget.tunnelLamps.instances !== 7 ||
+    objectBudget.tunnelLamps.wallPlates !== 7 ||
+    objectBudget.tunnelLamps.bracketArms !== 7 ||
+    objectBudget.tunnelLamps.bowls !== 7 ||
+    objectBudget.tunnelLamps.spouts !== 7 ||
+    objectBudget.tunnelLamps.handles !== 7 ||
+    objectBudget.tunnelLamps.wicks !== 7 ||
+    objectBudget.tunnelLamps.pointLights !== 7
+  ) {
+    throw new Error(
+      `Tunnel-lamp construction regressed: ${JSON.stringify(objectBudget.tunnelLamps)}`,
+    );
+  }
+  if (objectBudget.tunnelLamps.staticTriangles > 2200) {
+    throw new Error(
+      `Tunnel-lamp triangle budget regressed: ${objectBudget.tunnelLamps.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||

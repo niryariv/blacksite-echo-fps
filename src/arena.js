@@ -40,6 +40,17 @@ export function buildArena(THREE, scene) {
       scrubClusters: 0,
       renderedTriangles: 0,
     },
+    tunnelLamps: {
+      instances: 0,
+      wallPlates: 0,
+      bracketArms: 0,
+      bowls: 0,
+      spouts: 0,
+      handles: 0,
+      wicks: 0,
+      pointLights: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -2037,36 +2048,80 @@ export function buildArena(THREE, scene) {
     });
   }
 
+  const tunnelLampPlateGeometry = new THREE.BoxGeometry(0.22, 0.3, 0.06);
+  const tunnelLampArmGeometry = new THREE.CylinderGeometry(0.025, 0.035, 0.72, 5);
+  const tunnelLampBowlGeometry = new THREE.SphereGeometry(
+    0.19,
+    10,
+    5,
+    0,
+    Math.PI * 2,
+    Math.PI / 2,
+    Math.PI / 2,
+  );
+  const tunnelLampRimGeometry = new THREE.TorusGeometry(0.19, 0.022, 4, 10);
+  const tunnelLampSpoutGeometry = new THREE.CylinderGeometry(0.055, 0.11, 0.28, 6);
+  const tunnelLampHandleGeometry = new THREE.TorusGeometry(0.14, 0.017, 4, 8, Math.PI);
+  const tunnelLampWickGeometry = new THREE.CylinderGeometry(0.022, 0.03, 0.12, 5);
   const addTunnelLamp = (x, side) => {
     const z = tunnelCenterZ + side * 1.82;
-    addBox({
-      size: [0.12, 0.82, 0.12],
-      position: [x, -3.74, z],
-      material: bronze,
-      shadows: false,
-      name: "Tunnel lamp bracket",
-    });
-    const bowl = new THREE.Mesh(
-      new THREE.ConeGeometry(0.17, 0.18, 10, 1, true),
-      bronze,
-    );
-    bowl.rotation.z = Math.PI;
+    objectRenderBudget.tunnelLamps.instances += 1;
+    const wallPlate = new THREE.Mesh(tunnelLampPlateGeometry, bronze);
+    wallPlate.position.set(x, -3.5, tunnelCenterZ + side * 2.38);
+    wallPlate.name = "Hammered tunnel-lamp wall plate";
+    root.add(wallPlate);
+    objectRenderBudget.tunnelLamps.wallPlates += 1;
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampPlateGeometry);
+    const bracketArm = new THREE.Mesh(tunnelLampArmGeometry, bronze);
+    bracketArm.position.set(x, -3.48, tunnelCenterZ + side * 2.03);
+    bracketArm.rotation.x = side * Math.PI / 2;
+    bracketArm.name = "Forged tunnel-lamp bracket arm";
+    root.add(bracketArm);
+    objectRenderBudget.tunnelLamps.bracketArms += 1;
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampArmGeometry);
+    const bowl = new THREE.Mesh(tunnelLampBowlGeometry, bronze);
     bowl.position.set(x, -3.35, z);
-    bowl.name = "Tunnel oil-lamp bowl";
+    bowl.name = "Shallow hammered tunnel oil-lamp bowl";
     root.add(bowl);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.022, 5, 12), bronze);
+    objectRenderBudget.tunnelLamps.bowls += 1;
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampBowlGeometry);
+    const rim = new THREE.Mesh(tunnelLampRimGeometry, bronze);
     rim.rotation.x = Math.PI / 2;
     rim.position.set(x, -3.27, z);
     rim.name = "Tunnel lamp rim";
     root.add(rim);
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampRimGeometry);
+    const spout = new THREE.Mesh(tunnelLampSpoutGeometry, bronze);
+    spout.position.set(x, -3.31, tunnelCenterZ + side * 1.7);
+    spout.rotation.x = side * -Math.PI / 2;
+    spout.scale.z = 0.72;
+    spout.name = "Pinched tunnel-lamp wick spout";
+    root.add(spout);
+    objectRenderBudget.tunnelLamps.spouts += 1;
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampSpoutGeometry);
+    const handle = new THREE.Mesh(tunnelLampHandleGeometry, bronze);
+    handle.position.set(x, -3.27, tunnelCenterZ + side * 1.88);
+    handle.rotation.y = Math.PI / 2;
+    handle.rotation.z = side > 0 ? 0 : Math.PI;
+    handle.name = "Looped tunnel-lamp handle";
+    root.add(handle);
+    objectRenderBudget.tunnelLamps.handles += 1;
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampHandleGeometry);
+    const wick = new THREE.Mesh(tunnelLampWickGeometry, darkTimber);
+    wick.position.set(x, -3.2, tunnelCenterZ + side * 1.63);
+    wick.name = "Charred tunnel-lamp wick";
+    root.add(wick);
+    objectRenderBudget.tunnelLamps.wicks += 1;
+    objectRenderBudget.tunnelLamps.staticTriangles += geometryTriangles(tunnelLampWickGeometry);
     const flame = new THREE.Sprite(flameSpriteMaterial);
-    flame.position.set(x, -3.08, z);
+    flame.position.set(x, -3.03, tunnelCenterZ + side * 1.63);
     flame.scale.set(0.42, 0.62, 1);
     flame.userData.dynamic = true;
     root.add(flame);
     const light = new THREE.PointLight(0xff9a42, 7.5, 9, 2);
-    light.position.set(x, -3.08, z);
+    light.position.set(x, -3.03, tunnelCenterZ + side * 1.63);
     root.add(light);
+    objectRenderBudget.tunnelLamps.pointLights += 1;
     flame.userData.animate = (time) => {
       const flicker = 0.86 + Math.sin(time * 10.5 + x) * 0.14;
       flame.scale.set(0.4 + flicker * 0.05, 0.55 + flicker * 0.12, 1);

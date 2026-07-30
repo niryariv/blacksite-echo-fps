@@ -369,6 +369,7 @@ if (import.meta.env.DEV) {
         vessels: arena.vesselRenderBudget,
         objects: arena.objectRenderBudget,
         guardModel: guards[0]?.modelBudget || null,
+        missionObjects: missionObjects.modelBudget,
       };
     },
     blockedAt(x, z, floorY = 0) {
@@ -474,7 +475,7 @@ guardVisionGeometry.setAttribute(
 );
 guardVisionGeometry.setIndex([0, 1, 2]);
 guardVisionGeometry.computeVertexNormals();
-const transformedGuardGeometry = (
+const transformedGeometry = (
   geometry,
   position = [0, 0, 0],
   rotation = [0, 0, 0],
@@ -489,9 +490,9 @@ const transformedGuardGeometry = (
   transformed.applyMatrix4(matrix);
   return transformed;
 };
-const mergeGuardParts = (parts) => mergeGeometries(
+const mergeParts = (parts) => mergeGeometries(
   parts.map(({ geometry, position, rotation, scale }) =>
-    transformedGuardGeometry(geometry, position, rotation, scale)),
+    transformedGeometry(geometry, position, rotation, scale)),
   false,
 );
 const eyeParts = [-1, 1].flatMap((side) => [
@@ -506,7 +507,7 @@ const eyeParts = [-1, 1].flatMap((side) => [
   },
 ]);
 const guardGeometries = {
-  torsoArmor: mergeGuardParts([
+  torsoArmor: mergeParts([
     {
       geometry: new THREE.CapsuleGeometry(0.29, 0.42, 6, 12),
       position: [0, 0.16, 0],
@@ -519,7 +520,7 @@ const guardGeometries = {
   surcoat: new THREE.CylinderGeometry(0.3, 0.4, 1.02, 12),
   belt: new THREE.BoxGeometry(0.71, 0.085, 0.48),
   beltBuckle: new THREE.BoxGeometry(0.11, 0.13, 0.035),
-  surcoatHeraldry: mergeGuardParts([
+  surcoatHeraldry: mergeParts([
     {
       geometry: new THREE.BoxGeometry(0.09, 0.48, 0.035),
       position: [0, 0.18, 0.335],
@@ -529,7 +530,7 @@ const guardGeometries = {
       position: [0, 0.26, 0.337],
     },
   ]),
-  headSkin: mergeGuardParts([
+  headSkin: mergeParts([
     {
       geometry: new THREE.SphereGeometry(0.19, 16, 10),
       position: [0, -0.02, 0.105],
@@ -551,8 +552,8 @@ const guardGeometries = {
       scale: [0.55, 1, 0.55],
     },
   ]),
-  faceBare: mergeGuardParts(eyeParts),
-  faceBearded: mergeGuardParts([
+  faceBare: mergeParts(eyeParts),
+  faceBearded: mergeParts([
     ...eyeParts,
     {
       geometry: new THREE.ConeGeometry(0.17, 0.23, 9),
@@ -562,7 +563,7 @@ const guardGeometries = {
     },
   ]),
   coif: new THREE.SphereGeometry(0.235, 16, 10),
-  helmetIron: mergeGuardParts([
+  helmetIron: mergeParts([
     {
       geometry: new THREE.ConeGeometry(0.255, 0.32, 16),
       position: [0, 0.205, 0],
@@ -598,7 +599,7 @@ const guardGeometries = {
     bevelThickness: 0.018,
     bevelSegments: 2,
   }),
-  shieldHeraldry: mergeGuardParts([
+  shieldHeraldry: mergeParts([
     {
       geometry: new THREE.BoxGeometry(0.075, 0.64, 0.025),
       position: [0, 0.09, 0.085],
@@ -609,7 +610,7 @@ const guardGeometries = {
     },
   ]),
   shieldBoss: new THREE.SphereGeometry(0.105, 8, 5),
-  farBody: mergeGuardParts([
+  farBody: mergeParts([
     {
       geometry: new THREE.CapsuleGeometry(0.3, 0.58, 3, 6),
       position: [0, 1.2, 0],
@@ -1007,6 +1008,19 @@ function createMissionObjects() {
     edge.addColorStop(1, "rgba(74,43,20,.28)");
     context.fillStyle = edge;
     context.fillRect(0, 0, size, size);
+    context.fillStyle = "rgba(111,42,29,.72)";
+    context.fillRect(29, 32, 4, 19);
+    context.fillRect(29, 32, 13, 4);
+    context.fillRect(29, 40, 10, 3);
+    context.fillStyle = "rgba(84,56,31,.12)";
+    context.fillRect(size * 0.5, 12, 1, size - 24);
+    context.fillRect(14, size * 0.52, size - 28, 1);
+    for (const [x, y, radius] of [[54, 72, 3], [202, 47, 2], [181, 196, 4]]) {
+      context.fillStyle = "rgba(84,49,24,.11)";
+      context.beginPath();
+      context.arc(x, y, radius, 0, Math.PI * 2);
+      context.fill();
+    }
   });
   const parchmentMaterial = new THREE.MeshStandardMaterial({
     color: 0xe7d2a0,
@@ -1023,52 +1037,114 @@ function createMissionObjects() {
     metalness: 0.05,
     roughness: 0.8,
   });
-  const pedestal = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.82, 0.9), dark);
-  pedestal.position.y = 0.41;
-  pedestal.castShadow = true;
-  for (const x of [-0.51, 0.51]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.86, 0.94), chestIron);
-    band.position.set(x, 0.43, 0);
-    band.castShadow = true;
-    terminal.add(band);
-  }
-  const lock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.07), chestIron);
-  lock.position.set(0, 0.58, 0.48);
-  terminal.add(lock);
-  const scrollGeometry = new THREE.PlaneGeometry(0.9, 0.58, 8, 5);
+  const chestGeometry = mergeParts([
+    {
+      geometry: new THREE.BoxGeometry(1.45, 0.7, 0.9),
+      position: [0, 0.39, 0],
+    },
+    {
+      geometry: new THREE.BoxGeometry(1.52, 0.16, 0.96),
+      position: [0, 0.79, 0],
+    },
+    ...[-1, 1].flatMap((xSide) => [-1, 1].map((zSide) => ({
+      geometry: new THREE.BoxGeometry(0.18, 0.12, 0.18),
+      position: [xSide * 0.55, 0.06, zSide * 0.32],
+    }))),
+  ]);
+  const chest = new THREE.Mesh(chestGeometry, dark);
+  chest.castShadow = chest.receiveShadow = true;
+  chest.name = "Leather-covered dispatch coffer";
+
+  const nailGeometry = new THREE.CylinderGeometry(0.022, 0.022, 0.026, 6);
+  const hardwareGeometry = mergeParts([
+    ...[-0.51, 0.51].map((x) => ({
+      geometry: new THREE.BoxGeometry(0.085, 0.86, 0.94),
+      position: [x, 0.43, 0],
+    })),
+    {
+      geometry: new THREE.BoxGeometry(0.21, 0.25, 0.07),
+      position: [0, 0.58, 0.49],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.075, 0.32, 0.055),
+      position: [0, 0.76, 0.505],
+    },
+    ...[-0.51, 0.51].flatMap((x) => [0.24, 0.66].map((y) => ({
+      geometry: nailGeometry,
+      position: [x, y, 0.515],
+      rotation: [Math.PI / 2, 0, 0],
+    }))),
+    ...[-0.47, 0.47].map((z) => ({
+      geometry: new THREE.BoxGeometry(1.52, 0.055, 0.05),
+      position: [0, 0.82, z],
+    })),
+  ]);
+  const hardware = new THREE.Mesh(hardwareGeometry, chestIron);
+  hardware.castShadow = true;
+  hardware.name = "Merged forged coffer straps, hasp, and nails";
+
+  const scrollGeometry = new THREE.PlaneGeometry(0.9, 0.58, 6, 4);
   const scrollPositions = scrollGeometry.attributes.position;
   for (let index = 0; index < scrollPositions.count; index += 1) {
     const x = scrollPositions.getX(index);
     const y = scrollPositions.getY(index);
-    scrollPositions.setZ(index, Math.sin(x * 11) * 0.008 + Math.cos(y * 15) * 0.006);
+    const edgeCurl = Math.pow(Math.abs(x) / 0.45, 3) * 0.022;
+    scrollPositions.setZ(
+      index,
+      Math.sin(x * 11) * 0.008 + Math.cos(y * 15) * 0.006 + edgeCurl,
+    );
   }
   scrollGeometry.computeVertexNormals();
-  const scroll = new THREE.Mesh(
-    scrollGeometry,
-    parchmentMaterial,
-  );
-  scroll.rotation.x = -Math.PI / 2;
-  scroll.position.set(0, 0.855, 0);
+  const parchmentGeometry = mergeParts([
+    {
+      geometry: scrollGeometry,
+      position: [0, 0.895, 0],
+      rotation: [-Math.PI / 2, 0, 0],
+    },
+    ...[-0.45, 0.45].map((x) => ({
+      geometry: new THREE.CylinderGeometry(0.07, 0.07, 0.58, 8),
+      position: [x, 0.915, 0],
+      rotation: [Math.PI / 2, 0, 0],
+    })),
+  ]);
+  const scroll = new THREE.Mesh(parchmentGeometry, parchmentMaterial);
   scroll.castShadow = true;
-  for (const x of [-0.45, 0.45]) {
-    const roll = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.07, 0.58, 12),
-      parchmentMaterial,
-    );
-    roll.rotation.x = Math.PI / 2;
-    roll.position.set(x, 0.875, 0);
-    roll.castShadow = true;
-    terminal.add(roll);
-  }
-  const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.018, 0.58), glow);
-  ribbon.position.set(0.17, 0.884, 0);
-  const screen = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.055, 18), glow);
-  screen.position.set(0.17, 0.92, 0.11);
+  scroll.name = "Merged curled dispatch parchment";
+
+  const sealGeometry = mergeParts([
+    {
+      geometry: new THREE.BoxGeometry(0.075, 0.018, 0.58),
+      position: [0.17, 0.935, 0],
+    },
+    {
+      geometry: new THREE.CylinderGeometry(0.12, 0.12, 0.055, 12),
+      position: [0.17, 0.965, 0.11],
+    },
+    {
+      geometry: new THREE.TorusGeometry(0.102, 0.011, 4, 10),
+      position: [0.17, 0.996, 0.11],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.085, 0.012, 0.024),
+      position: [0.17, 1.006, 0.11],
+    },
+    {
+      geometry: new THREE.BoxGeometry(0.024, 0.012, 0.085),
+      position: [0.17, 1.006, 0.11],
+    },
+  ]);
+  const screen = new THREE.Mesh(sealGeometry, glow);
   screen.name = "Wax seal";
+  screen.castShadow = true;
   const light = new THREE.PointLight(0xff9b48, 2.2, 4.5, 2);
   light.position.set(0, 1.25, 0.25);
-  terminal.add(pedestal, scroll, ribbon, screen, light);
+  terminal.add(chest, hardware, scroll, screen, light);
   scene.add(terminal);
+  const terminalMeshes = [chest, hardware, scroll, screen];
+  const triangleCount = (geometry) => (
+    geometry.index ? geometry.index.count / 3 : geometry.attributes.position.count / 3
+  );
 
   const exfil = new THREE.Group();
   exfil.position.copy(arena.mission.exfil);
@@ -1082,7 +1158,7 @@ function createMissionObjects() {
     depthWrite: false,
   });
   const rings = [1.2, 1.65, 2.1].map((radius, index) => {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.035, radius, 48), ringMaterial.clone());
+    const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.035, radius, 32), ringMaterial.clone());
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = index * 0.035;
     exfil.add(ring);
@@ -1093,10 +1169,46 @@ function createMissionObjects() {
   exfil.add(beacon);
   scene.add(exfil);
 
-  return { terminal, terminalScreen: screen, terminalLight: light, exfil, rings };
+  const modelBudget = {
+    terminalMeshDraws: terminalMeshes.length,
+    terminalTriangles: terminalMeshes.reduce(
+      (total, mesh) => total + triangleCount(mesh.geometry),
+      0,
+    ),
+    terminalPointLights: 1,
+    exfilMeshDraws: rings.length,
+    exfilTriangles: rings.reduce(
+      (total, ring) => total + triangleCount(ring.geometry),
+      0,
+    ),
+    exfilPointLights: 1,
+  };
+  if (
+    modelBudget.terminalMeshDraws !== 4 ||
+    modelBudget.terminalTriangles > 520 ||
+    modelBudget.terminalPointLights !== 1 ||
+    modelBudget.exfilMeshDraws !== 3 ||
+    modelBudget.exfilTriangles > 192 ||
+    modelBudget.exfilPointLights !== 1
+  ) {
+    throw new Error(`Mission-object render budget regressed: ${JSON.stringify(modelBudget)}`);
+  }
+  return {
+    terminal,
+    terminalScreen: screen,
+    terminalLight: light,
+    exfil,
+    rings,
+    modelBudget,
+  };
 }
 
 const missionObjects = createMissionObjects();
+if (import.meta.env.DEV) {
+  document.documentElement.dataset.missionObjectBudget = JSON.stringify(
+    missionObjects.modelBudget,
+  );
+}
 
 function nearestWallHit(origin, direction) {
   const ray = new THREE.Ray(origin, direction);
