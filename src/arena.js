@@ -180,6 +180,11 @@ export function buildArena(THREE, scene) {
       slitSurfaces: 0,
       staticTriangles: 0,
     },
+    crenellations: {
+      runs: 0,
+      merlons: 0,
+      staticTriangles: 0,
+    },
     wallDetails: {
       wallRuns: 0,
       lancetSlits: 0,
@@ -1467,14 +1472,29 @@ export function buildArena(THREE, scene) {
   }
 
   const addCrenellations = (axis, start, end, fixed, y, parent = root) => {
+    objectRenderBudget.crenellations.runs += 1;
     for (let p = start; p <= end; p += 4.5) {
-      addBox({
+      const merlon = addBox({
         size: axis === "x" ? [2.4, 1.5, 2.2] : [2.2, 1.5, 2.4],
         position: axis === "x" ? [p, y, fixed] : [fixed, y, p],
         material: paleStone,
         parent,
         shadows: false,
       });
+      const weathering = Math.sin(p * 0.731 + fixed * 0.173);
+      const secondaryWeathering = Math.cos(p * 0.419 - fixed * 0.263);
+      merlon.scale.set(
+        1 + weathering * 0.018,
+        0.975 + secondaryWeathering * 0.025,
+        1 - weathering * 0.012,
+      );
+      merlon.position.y += weathering * 0.035;
+      merlon.rotation.y = secondaryWeathering * 0.018;
+      merlon.name = "Subtly weathered individual battlement merlon";
+      objectRenderBudget.crenellations.merlons += 1;
+      objectRenderBudget.crenellations.staticTriangles += geometryTriangles(
+        merlon.geometry,
+      );
     }
   };
 

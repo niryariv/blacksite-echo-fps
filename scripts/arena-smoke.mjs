@@ -431,6 +431,23 @@ try {
     );
   }
   if (
+    objectBudget.crenellations.runs !== 12 ||
+    objectBudget.crenellations.merlons !== 136
+  ) {
+    throw new Error(
+      `Battlement construction regressed: ${
+        JSON.stringify(objectBudget?.crenellations)
+      }`,
+    );
+  }
+  if (objectBudget.crenellations.staticTriangles > 1632) {
+    throw new Error(
+      `Battlement triangle budget regressed: ${
+        objectBudget.crenellations.staticTriangles
+      }`,
+    );
+  }
+  if (
     objectBudget.wallDetails.wallRuns !== 6 ||
     objectBudget.wallDetails.lancetSlits !== 34
   ) {
