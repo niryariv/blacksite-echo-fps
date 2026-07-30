@@ -174,6 +174,12 @@ export function buildArena(THREE, scene) {
       visibleSurfaces: 0,
       staticTriangles: 0,
     },
+    towerDetails: {
+      towers: 0,
+      crossletSlits: 0,
+      slitSurfaces: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1547,7 +1553,15 @@ export function buildArena(THREE, scene) {
     });
   }
 
+  const towerArrowSlitParts = [
+    new THREE.PlaneGeometry(0.11, 0.92),
+    new THREE.PlaneGeometry(0.34, 0.075).translate(0, 0.12, 0),
+  ];
+  const towerArrowSlitGeometry = mergeGeometries(towerArrowSlitParts, false);
+  towerArrowSlitParts.forEach((part) => part.dispose());
+
   const addTower = (x, z, radius = 5, height = 10, name = "Defensive tower") => {
+    objectRenderBudget.towerDetails.towers += 1;
     const tower = addCylinder({
       radius,
       height,
@@ -1565,19 +1579,22 @@ export function buildArena(THREE, scene) {
       segments: 18,
       name: "Tower projecting stone string course",
     });
-    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 3) {
-      const slit = addBox({
-        size: [0.16, 0.92, 0.075],
-        position: [
-          x + Math.cos(angle) * radius * 1.035,
-          height * 0.56,
-          z + Math.sin(angle) * radius * 1.035,
-        ],
-        material: darkRecess,
-        shadows: false,
-        name: "Tower arrow slit",
-      });
+    for (let slitIndex = 0; slitIndex < 6; slitIndex += 1) {
+      const angle = slitIndex * Math.PI / 3;
+      const slit = new THREE.Mesh(towerArrowSlitGeometry, darkRecess);
+      slit.position.set(
+        x + Math.cos(angle) * radius * 1.035,
+        height * 0.56,
+        z + Math.sin(angle) * radius * 1.035,
+      );
       slit.rotation.y = Math.PI / 2 - angle;
+      slit.name = "Flush crosslet-shaped tower arrow slit";
+      root.add(slit);
+      objectRenderBudget.towerDetails.crossletSlits += 1;
+      objectRenderBudget.towerDetails.slitSurfaces += 2;
+      objectRenderBudget.towerDetails.staticTriangles += geometryTriangles(
+        towerArrowSlitGeometry,
+      );
     }
     for (let a = 0; a < Math.PI * 2; a += Math.PI / 5) {
       addBox({

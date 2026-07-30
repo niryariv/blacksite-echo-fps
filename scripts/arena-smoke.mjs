@@ -71,12 +71,12 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.sourceStaticMeshes > 3782) {
+  if (budget.sourceStaticMeshes > 3774) {
     throw new Error(
       `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
     );
   }
-  if (budget.staticTriangles > 100680) {
+  if (budget.staticTriangles > 100200) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -409,6 +409,24 @@ try {
     throw new Error(
       `Genoese-market-roof triangle budget regressed: ${
         objectBudget.marketRoof.staticTriangles
+      }`,
+    );
+  }
+  if (
+    objectBudget.towerDetails.towers !== 8 ||
+    objectBudget.towerDetails.crossletSlits !== 48 ||
+    objectBudget.towerDetails.slitSurfaces !== 96
+  ) {
+    throw new Error(
+      `Tower-detail construction regressed: ${
+        JSON.stringify(objectBudget?.towerDetails)
+      }`,
+    );
+  }
+  if (objectBudget.towerDetails.staticTriangles > 192) {
+    throw new Error(
+      `Tower-detail triangle budget regressed: ${
+        objectBudget.towerDetails.staticTriangles
       }`,
     );
   }
