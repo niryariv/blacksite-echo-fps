@@ -20,6 +20,20 @@ export function buildArena(THREE, scene) {
   scene.add(root);
 
   const objectRenderBudget = {
+    entryProps: {
+      skiffs: 0,
+      hulls: 0,
+      floorPlanks: 0,
+      thwarts: 0,
+      gunwales: 0,
+      stemPosts: 0,
+      oars: 0,
+      rowlocks: 0,
+      ropeRuns: 0,
+      ropeKnots: 0,
+      breachStones: 0,
+      renderedTriangles: 0,
+    },
     landscape: {
       approachRocks: 0,
       shorelineRocks: 0,
@@ -927,26 +941,49 @@ export function buildArena(THREE, scene) {
     bumpScale: 0.035,
     roughness: 1,
   });
+  const ropeKnotGeometry = new THREE.TorusGeometry(0.105, 0.03, 5, 8);
   const addRope = (x, z, height = 2.75) => {
+    const ropeCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 0.12, 0),
+      new THREE.Vector3(0.035, height * 0.28, -0.018),
+      new THREE.Vector3(-0.028, height * 0.56, 0.026),
+      new THREE.Vector3(0.022, height * 0.8, -0.012),
+      new THREE.Vector3(0, height + 0.12, 0),
+    ]);
+    const ropeGeometry = new THREE.TubeGeometry(ropeCurve, 8, 0.057, 6, false);
     const rope = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.065, height, 8),
+      ropeGeometry,
       ropeMaterial,
     );
-    rope.position.set(x, height / 2 + 0.12, z);
+    rope.position.set(x, 0, z);
     rope.castShadow = true;
-    rope.name = "Hanging sea-wall rope";
+    rope.name = "Weight-curved sea-wall rope";
     root.add(rope);
+    objectRenderBudget.entryProps.ropeRuns += 1;
+    objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(ropeGeometry);
     for (let knotY = 0.38; knotY < height; knotY += 0.48) {
       const knot = new THREE.Mesh(
-        new THREE.TorusGeometry(0.11, 0.032, 6, 10),
+        ropeKnotGeometry,
         ropeMaterial,
       );
-      knot.position.set(x, knotY, z);
+      const knotPoint = ropeCurve.getPointAt((knotY - 0.12) / height);
+      knot.position.set(x + knotPoint.x, knotY, z + knotPoint.z);
       knot.rotation.x = Math.PI / 2;
-      knot.name = "Rope climbing knot";
+      knot.rotation.z = knotY * 0.37;
+      knot.name = "Hand-tied climbing knot";
       root.add(knot);
+      objectRenderBudget.entryProps.ropeKnots += 1;
+      objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(ropeKnotGeometry);
     }
   };
+  const insertionHullGeometry = createHullGeometry(5.4, 3.25, 0.78);
+  const insertionFloorPlankGeometry = new THREE.BoxGeometry(0.37, 0.11, 3.65);
+  const insertionThwartGeometry = new THREE.BoxGeometry(2.72, 0.13, 0.34);
+  const insertionGunwaleGeometry = new THREE.BoxGeometry(0.11, 0.17, 4.35);
+  const insertionStemGeometry = new THREE.CylinderGeometry(0.055, 0.1, 0.82, 6);
+  const insertionOarShaftGeometry = new THREE.CylinderGeometry(0.034, 0.045, 2.3, 6);
+  const insertionOarBladeGeometry = new THREE.CylinderGeometry(0.17, 0.055, 0.72, 5);
+  const insertionRowlockGeometry = new THREE.TorusGeometry(0.105, 0.023, 4, 7, Math.PI);
   const addInsertionBoat = ({ x, z, orientation = "south" }) => {
     const alongZ = orientation === "south";
     const skiff = new THREE.Group();
@@ -954,48 +991,77 @@ export function buildArena(THREE, scene) {
     skiff.rotation.y = alongZ ? 0 : Math.PI / 2;
     skiff.name = "Sea insertion skiff";
     root.add(skiff);
+    objectRenderBudget.entryProps.skiffs += 1;
 
-    const hull = new THREE.Mesh(createHullGeometry(5.4, 3.25, 0.78), boatMaterial);
+    const hull = new THREE.Mesh(insertionHullGeometry, boatMaterial);
     hull.position.y = 0.72;
     hull.castShadow = hull.receiveShadow = true;
     hull.name = "Curved insertion skiff hull";
     skiff.add(hull);
-    addBox({
-      size: [2.15, 0.12, 3.65],
-      position: [0, 0.7, 0.2],
-      material: darkTimber,
-      parent: skiff,
-      name: "Skiff floorboards",
-    });
+    objectRenderBudget.entryProps.hulls += 1;
+    objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(insertionHullGeometry);
+    for (let plank = -2; plank <= 2; plank += 1) {
+      const floorboard = new THREE.Mesh(insertionFloorPlankGeometry, darkTimber);
+      floorboard.position.set(plank * 0.43, 0.7, 0.2);
+      floorboard.rotation.y = plank * 0.002;
+      floorboard.castShadow = floorboard.receiveShadow = true;
+      floorboard.name = "Separated skiff floor plank";
+      skiff.add(floorboard);
+      objectRenderBudget.entryProps.floorPlanks += 1;
+      objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(insertionFloorPlankGeometry);
+    }
     for (const seatZ of [-1.35, 0, 1.35]) {
-      addBox({
-        size: [2.72, 0.13, 0.34],
-        position: [0, 0.9, seatZ],
-        material: timber,
-        parent: skiff,
-        shadows: false,
-        name: "Skiff thwart",
-      });
+      const thwart = new THREE.Mesh(insertionThwartGeometry, timber);
+      thwart.position.set(0, 0.9, seatZ);
+      thwart.name = "Skiff thwart";
+      skiff.add(thwart);
+      objectRenderBudget.entryProps.thwarts += 1;
+      objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(insertionThwartGeometry);
     }
     for (const side of [-1, 1]) {
-      addBox({
-        size: [0.11, 0.17, 4.35],
-        position: [side * 1.46, 0.98, 0.12],
-        material: darkTimber,
-        parent: skiff,
-        shadows: false,
-        name: "Raised skiff gunwale",
-      });
+      const gunwale = new THREE.Mesh(insertionGunwaleGeometry, darkTimber);
+      gunwale.position.set(side * 1.46, 0.98, 0.12);
+      gunwale.name = "Raised skiff gunwale";
+      skiff.add(gunwale);
+      objectRenderBudget.entryProps.gunwales += 1;
+      objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(insertionGunwaleGeometry);
+      const rowlock = new THREE.Mesh(insertionRowlockGeometry, agedIron);
+      rowlock.position.set(side * 1.49, 1.11, -0.42);
+      rowlock.rotation.y = side * Math.PI / 2;
+      rowlock.name = "Forged skiff rowlock";
+      skiff.add(rowlock);
+      objectRenderBudget.entryProps.rowlocks += 1;
+      objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(insertionRowlockGeometry);
     }
-    const painter = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.045, 2.55, 7),
-      timber,
-    );
+    for (const stern of [-1, 1]) {
+      const stem = new THREE.Mesh(insertionStemGeometry, darkTimber);
+      stem.position.set(0, 0.9, stern * 2.35);
+      stem.rotation.x = stern * -0.17;
+      stem.castShadow = true;
+      stem.name = "Tapered skiff stem post";
+      skiff.add(stem);
+      objectRenderBudget.entryProps.stemPosts += 1;
+      objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(insertionStemGeometry);
+    }
+    const painter = new THREE.Group();
     painter.position.set(-1.05, 1.02, 0.85);
     painter.rotation.z = Math.PI / 2;
     painter.rotation.y = 0.28;
-    painter.name = "Skiff steering oar";
+    painter.name = "Shaped skiff steering oar";
     skiff.add(painter);
+    const oarShaft = new THREE.Mesh(insertionOarShaftGeometry, timber);
+    oarShaft.name = "Steering-oar shaft";
+    painter.add(oarShaft);
+    const oarBlade = new THREE.Mesh(insertionOarBladeGeometry, timber);
+    oarBlade.position.y = -1.42;
+    oarBlade.scale.z = 0.28;
+    oarBlade.name = "Flattened steering-oar blade";
+    painter.add(oarBlade);
+    objectRenderBudget.entryProps.oars += 1;
+    objectRenderBudget.entryProps.renderedTriangles += (
+      geometryTriangles(insertionOarShaftGeometry)
+      + geometryTriangles(insertionOarBladeGeometry)
+    );
 
     // Collision follows the visible narrow hull while leaving the bow open.
     if (alongZ) {
@@ -1017,20 +1083,46 @@ export function buildArena(THREE, scene) {
   addRope(-69.45, 82.82);
   addInsertionBoat({ x: -3, z: 87.3 });
   // The Pisan approach uses eroded kurkar blocks as handholds instead of rope.
-  for (let step = 0; step < 5; step += 1) {
-    addBox({
-      size: [0.72, 0.26, 0.52],
-      position: [-9 + (step % 2 ? 0.38 : -0.32), 0.35 + step * 0.37, 82.86],
-      material: paleStone,
-      name: "Pisan breach handhold",
-    });
+  const breachStoneGeometry = new THREE.BoxGeometry(0.72, 0.38, 0.52, 2, 1, 1);
+  const breachStonePositions = breachStoneGeometry.attributes.position;
+  for (let index = 0; index < breachStonePositions.count; index += 1) {
+    const x = breachStonePositions.getX(index);
+    const y = breachStonePositions.getY(index);
+    const z = breachStonePositions.getZ(index);
+    breachStonePositions.setXYZ(
+      index,
+      x * (1 + Math.sin(y * 13 + z * 17) * 0.11) + y * 0.045,
+      y * (1 + Math.cos(x * 15 - z * 11) * 0.09),
+      z * (1 + Math.sin(x * 19 + y * 7) * 0.12) - x * 0.035,
+    );
   }
-  addBox({
-    size: [2.2, 0.42, 0.72],
-    position: [-9, 1.82, 81.9],
-    material: oldStone,
-    name: "Broken Pisan parapet",
-  });
+  breachStoneGeometry.computeVertexNormals();
+  for (let step = 0; step < 5; step += 1) {
+    const handhold = new THREE.Mesh(breachStoneGeometry, paleStone);
+    handhold.position.set(
+      -9 + (step % 2 ? 0.38 : -0.32),
+      0.35 + step * 0.37,
+      82.86,
+    );
+    handhold.scale.set(1.05, 0.7, 0.8);
+    handhold.rotation.set(step * 0.21, step * 0.67, step * -0.13);
+    handhold.castShadow = handhold.receiveShadow = true;
+    handhold.name = "Eroded Pisan breach handhold";
+    root.add(handhold);
+    objectRenderBudget.entryProps.breachStones += 1;
+    objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(breachStoneGeometry);
+  }
+  for (let block = -1; block <= 1; block += 1) {
+    const parapetStone = new THREE.Mesh(breachStoneGeometry, oldStone);
+    parapetStone.position.set(-9 + block * 0.72, 1.82 + Math.abs(block) * 0.05, 81.9);
+    parapetStone.scale.set(1.08, 1.1, 0.92);
+    parapetStone.rotation.set(block * 0.11, block * 0.38, block * -0.08);
+    parapetStone.castShadow = parapetStone.receiveShadow = true;
+    parapetStone.name = "Broken Pisan parapet stone";
+    root.add(parapetStone);
+    objectRenderBudget.entryProps.breachStones += 1;
+    objectRenderBudget.entryProps.renderedTriangles += geometryTriangles(breachStoneGeometry);
+  }
 
   const addCrenellations = (axis, start, end, fixed, y, parent = root) => {
     for (let p = start; p <= end; p += 4.5) {

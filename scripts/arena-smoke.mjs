@@ -68,7 +68,7 @@ try {
   if (!budget || budget.staticBatches <= 0 || budget.staticTriangles <= 0) {
     throw new Error("Static city batching did not produce a valid render budget");
   }
-  if (budget.staticBatches > 60) {
+  if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
   if (budget.staticTriangles > 110000) {
@@ -88,6 +88,28 @@ try {
   const objectBudget = arena.objectRenderBudget;
   if (
     !objectBudget ||
+    objectBudget.entryProps.skiffs !== 3 ||
+    objectBudget.entryProps.hulls !== 3 ||
+    objectBudget.entryProps.floorPlanks !== 15 ||
+    objectBudget.entryProps.thwarts !== 9 ||
+    objectBudget.entryProps.gunwales !== 6 ||
+    objectBudget.entryProps.stemPosts !== 6 ||
+    objectBudget.entryProps.oars !== 3 ||
+    objectBudget.entryProps.rowlocks !== 6 ||
+    objectBudget.entryProps.ropeRuns !== 2 ||
+    objectBudget.entryProps.ropeKnots !== 10 ||
+    objectBudget.entryProps.breachStones !== 8
+  ) {
+    throw new Error(
+      `Entry-prop construction regressed: ${JSON.stringify(objectBudget?.entryProps)}`,
+    );
+  }
+  if (objectBudget.entryProps.renderedTriangles > 2250) {
+    throw new Error(
+      `Entry-prop triangle budget regressed: ${objectBudget.entryProps.renderedTriangles}`,
+    );
+  }
+  if (
     objectBudget.landscape.approachRocks !== 18 ||
     objectBudget.landscape.shorelineRocks !== 43 ||
     objectBudget.landscape.scrubClusters !== 39
