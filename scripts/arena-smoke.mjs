@@ -76,7 +76,7 @@ try {
       `Static source-mesh budget regressed: ${budget.sourceStaticMeshes} meshes`,
     );
   }
-  if (budget.staticTriangles > 100800) {
+  if (budget.staticTriangles > 100700) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -353,6 +353,23 @@ try {
     throw new Error(
       `Townhouse-balcony triangle budget regressed: ${
         objectBudget.balconies.staticTriangles
+      }`,
+    );
+  }
+  if (
+    objectBudget.roofDrainage.spouts !== 17 ||
+    objectBudget.roofDrainage.troughSurfaces !== 51
+  ) {
+    throw new Error(
+      `Roof-drainage construction regressed: ${
+        JSON.stringify(objectBudget?.roofDrainage)
+      }`,
+    );
+  }
+  if (objectBudget.roofDrainage.staticTriangles > 102) {
+    throw new Error(
+      `Roof-drainage triangle budget regressed: ${
+        objectBudget.roofDrainage.staticTriangles
       }`,
     );
   }

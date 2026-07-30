@@ -154,6 +154,11 @@ export function buildArena(THREE, scene) {
       topRails: 0,
       staticTriangles: 0,
     },
+    roofDrainage: {
+      spouts: 0,
+      troughSurfaces: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -1611,6 +1616,23 @@ export function buildArena(THREE, scene) {
   ));
   const balconyCrossBraceGeometry = mergeGeometries(balconyBraceParts, false);
   balconyBraceParts.forEach((brace) => brace.dispose());
+  const roofSpoutBottom = new THREE.PlaneGeometry(0.16, 0.72);
+  roofSpoutBottom.rotateX(-Math.PI / 2);
+  roofSpoutBottom.translate(0, -0.06, 0);
+  const roofSpoutRight = new THREE.PlaneGeometry(0.72, 0.12);
+  roofSpoutRight.rotateY(Math.PI / 2);
+  roofSpoutRight.translate(0.08, 0, 0);
+  const roofSpoutLeft = new THREE.PlaneGeometry(0.72, 0.12);
+  roofSpoutLeft.rotateY(-Math.PI / 2);
+  roofSpoutLeft.translate(-0.08, 0, 0);
+  const roofSpoutGeometry = mergeGeometries([
+    roofSpoutBottom,
+    roofSpoutRight,
+    roofSpoutLeft,
+  ], false);
+  roofSpoutBottom.dispose();
+  roofSpoutRight.dispose();
+  roofSpoutLeft.dispose();
 
   const addDoor = (parent, x, y, z, rotation = 0) => {
     const doorway = new THREE.Group();
@@ -1803,18 +1825,19 @@ export function buildArena(THREE, scene) {
           h + 0.34,
         );
       }
-      addBox({
-        size: [0.16, 0.16, 0.72],
-        position: [
-          x + (detailCode % 2 ? -1 : 1) * w * 0.32,
-          h + 0.32,
-          z + d / 2 + 0.35,
-        ],
-        material: oldStone,
-        parent: house,
-        shadows: false,
-        name: "Projecting roof drainage spout",
-      });
+      const roofSpout = new THREE.Mesh(roofSpoutGeometry, oldStone);
+      roofSpout.position.set(
+        x + (detailCode % 2 ? -1 : 1) * w * 0.32,
+        h + 0.32,
+        z + d / 2 + 0.35,
+      );
+      roofSpout.name = "Open three-sided stone roof-drainage chute";
+      house.add(roofSpout);
+      objectRenderBudget.roofDrainage.spouts += 1;
+      objectRenderBudget.roofDrainage.troughSurfaces += 3;
+      objectRenderBudget.roofDrainage.staticTriangles += geometryTriangles(
+        roofSpoutGeometry,
+      );
     }
 
     const facadeZ = z + d / 2 + 0.1;
