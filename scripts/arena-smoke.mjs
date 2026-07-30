@@ -71,7 +71,7 @@ try {
   if (budget.staticBatches > 40) {
     throw new Error(`Static draw-call budget regressed: ${budget.staticBatches} batches`);
   }
-  if (budget.staticTriangles > 102000) {
+  if (budget.staticTriangles > 101700) {
     throw new Error(`Static triangle budget regressed: ${budget.staticTriangles} triangles`);
   }
   if (!arena.colliders.length || !arena.entryRoutes.length || !arena.zones.length) {
@@ -231,6 +231,24 @@ try {
   if (objectBudget.amphorae.staticTriangles > 10980) {
     throw new Error(
       `Amphora triangle budget regressed: ${objectBudget.amphorae.staticTriangles}`,
+    );
+  }
+  if (
+    objectBudget.tradeCrates.instances !== 6 ||
+    objectBudget.tradeCrates.bodyPlanks !== 30 ||
+    objectBudget.tradeCrates.lidPlanks !== 24 ||
+    objectBudget.tradeCrates.edgeBattens !== 12 ||
+    objectBudget.tradeCrates.crossBattens !== 12 ||
+    objectBudget.tradeCrates.diagonalBraces !== 12 ||
+    objectBudget.tradeCrates.nails !== 48
+  ) {
+    throw new Error(
+      `Merchant-crate construction regressed: ${JSON.stringify(objectBudget?.tradeCrates)}`,
+    );
+  }
+  if (objectBudget.tradeCrates.staticTriangles > 1320) {
+    throw new Error(
+      `Merchant-crate triangle budget regressed: ${objectBudget.tradeCrates.staticTriangles}`,
     );
   }
   if (

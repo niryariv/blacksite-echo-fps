@@ -100,6 +100,16 @@ export function buildArena(THREE, scene) {
       openings: 0,
       staticTriangles: 0,
     },
+    tradeCrates: {
+      instances: 0,
+      bodyPlanks: 0,
+      lidPlanks: 0,
+      edgeBattens: 0,
+      crossBattens: 0,
+      diagonalBraces: 0,
+      nails: 0,
+      staticTriangles: 0,
+    },
     cargoCover: {
       chests: 0,
       chestLids: 0,
@@ -3177,19 +3187,64 @@ export function buildArena(THREE, scene) {
   root.add(awningCords);
   objectRenderBudget.textiles.awningCordDraws = 1;
 
+  const tradeCrateBodyGeometry = mergeGeometries(
+    Array.from({ length: 5 }, (_, plank) => (
+      new THREE.BoxGeometry(1.35, 0.205, 1.2)
+        .translate(0, 0.11 + plank * 0.22, 0)
+    )),
+    false,
+  );
+  const tradeCrateLidGeometry = mergeGeometries(
+    Array.from({ length: 4 }, (_, plank) => (
+      new THREE.BoxGeometry(0.31, 0.08, 1.15)
+        .translate((plank - 1.5) * 0.34, 1.145, 0)
+    )),
+    false,
+  );
+  const tradeCrateNailGeometry = new THREE.CircleGeometry(0.03, 5);
   const addTradeCrate = (x, z, scale = 1, rotation = 0) => {
     const crate = new THREE.Group();
     crate.position.set(x, 0, z);
     crate.rotation.y = rotation;
     crate.scale.setScalar(scale);
-    crate.name = "Merchant cargo crate";
+    crate.name = "Plank-built merchant cargo crate";
     root.add(crate);
-    addBox({ size: [1.35, 1.15, 1.2], position: [0, 0.58, 0], material: timber, parent: crate, name: "Cargo crate" });
+    objectRenderBudget.tradeCrates.instances += 1;
+    const body = new THREE.Mesh(tradeCrateBodyGeometry, timber);
+    body.castShadow = body.receiveShadow = true;
+    body.name = "Five separated crate body planks";
+    crate.add(body);
+    objectRenderBudget.tradeCrates.bodyPlanks += 5;
+    objectRenderBudget.tradeCrates.staticTriangles += geometryTriangles(tradeCrateBodyGeometry);
+    const lid = new THREE.Mesh(tradeCrateLidGeometry, timber);
+    lid.castShadow = lid.receiveShadow = true;
+    lid.name = "Four fitted crate lid planks";
+    crate.add(lid);
+    objectRenderBudget.tradeCrates.lidPlanks += 4;
+    objectRenderBudget.tradeCrates.staticTriangles += geometryTriangles(tradeCrateLidGeometry);
     for (const edge of [-0.58, 0.58]) {
-      addBox({ size: [0.12, 1.2, 1.28], position: [edge, 0.58, 0], material: darkTimber, parent: crate, shadows: false, name: "Crate edge batten" });
+      const edgeBatten = addBox({
+        size: [0.12, 1.2, 1.28],
+        position: [edge, 0.58, 0],
+        material: darkTimber,
+        parent: crate,
+        shadows: false,
+        name: "Vertical crate edge batten",
+      });
+      objectRenderBudget.tradeCrates.edgeBattens += 1;
+      objectRenderBudget.tradeCrates.staticTriangles += geometryTriangles(edgeBatten.geometry);
     }
     for (const y of [0.08, 1.08]) {
-      addBox({ size: [1.44, 0.1, 1.3], position: [0, y, 0], material: darkTimber, parent: crate, shadows: false, name: "Crate cross batten" });
+      const crossBatten = addBox({
+        size: [1.44, 0.1, 1.3],
+        position: [0, y, 0],
+        material: darkTimber,
+        parent: crate,
+        shadows: false,
+        name: "Horizontal crate cross batten",
+      });
+      objectRenderBudget.tradeCrates.crossBattens += 1;
+      objectRenderBudget.tradeCrates.staticTriangles += geometryTriangles(crossBatten.geometry);
     }
     for (const faceZ of [-0.615, 0.615]) {
       const brace = addBox({
@@ -3201,16 +3256,20 @@ export function buildArena(THREE, scene) {
         name: "Diagonal crate brace",
       });
       brace.rotation.z = faceZ > 0 ? -0.78 : 0.78;
+      objectRenderBudget.tradeCrates.diagonalBraces += 1;
+      objectRenderBudget.tradeCrates.staticTriangles += geometryTriangles(brace.geometry);
       for (const xNail of [-0.47, 0.47]) {
         for (const yNail of [0.18, 0.98]) {
           const nail = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.028, 0.028, 0.035, 6),
+            tradeCrateNailGeometry,
             agedIron,
           );
-          nail.rotation.x = Math.PI / 2;
-          nail.position.set(xNail, yNail, faceZ + Math.sign(faceZ) * 0.055);
-          nail.name = "Hand-forged crate nail";
+          nail.rotation.y = faceZ < 0 ? Math.PI : 0;
+          nail.position.set(xNail, yNail, faceZ + Math.sign(faceZ) * 0.041);
+          nail.name = "Flush hand-forged crate nail head";
           crate.add(nail);
+          objectRenderBudget.tradeCrates.nails += 1;
+          objectRenderBudget.tradeCrates.staticTriangles += geometryTriangles(tradeCrateNailGeometry);
         }
       }
     }
