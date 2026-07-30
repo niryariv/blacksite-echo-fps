@@ -218,6 +218,23 @@ try {
     );
   }
   if (
+    objectBudget.barrels.instances !== 5 ||
+    objectBudget.barrels.bodies !== 5 ||
+    objectBudget.barrels.heads !== 10 ||
+    objectBudget.barrels.hoops !== 15 ||
+    objectBudget.barrels.staveSeams !== 40 ||
+    objectBudget.barrels.bungs !== 5
+  ) {
+    throw new Error(
+      `Barrel construction regressed: ${JSON.stringify(objectBudget.barrels)}`,
+    );
+  }
+  if (objectBudget.barrels.staticTriangles > 3920) {
+    throw new Error(
+      `Barrel triangle budget regressed: ${objectBudget.barrels.staticTriangles}`,
+    );
+  }
+  if (
     objectBudget.oliveTrees.instances !== 6 ||
     objectBudget.oliveTrees.trunks !== 6 ||
     objectBudget.oliveTrees.roots !== 18 ||

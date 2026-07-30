@@ -92,6 +92,15 @@ export function buildArena(THREE, scene) {
       baleBindings: 0,
       staticTriangles: 0,
     },
+    barrels: {
+      instances: 0,
+      bodies: 0,
+      heads: 0,
+      hoops: 0,
+      staveSeams: 0,
+      bungs: 0,
+      staticTriangles: 0,
+    },
     oliveTrees: {
       instances: 0,
       trunks: 0,
@@ -2878,33 +2887,74 @@ export function buildArena(THREE, scene) {
       new THREE.Vector2(0.44, 0.53),
       new THREE.Vector2(0.39, 0.62),
     ],
-    16,
+    14,
   );
-  const barrelLidGeometry = new THREE.CylinderGeometry(0.39, 0.39, 0.05, 16);
+  const barrelLidGeometry = new THREE.CylinderGeometry(0.39, 0.39, 0.05, 14);
+  const barrelHoopGeometry = new THREE.TorusGeometry(0.485, 0.032, 4, 12);
+  const barrelBellyHoopGeometry = new THREE.TorusGeometry(0.52, 0.032, 4, 12);
+  const barrelSeamGeometry = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0.395, -0.6, 0),
+      new THREE.Vector3(0.49, -0.3, 0),
+      new THREE.Vector3(0.52, 0, 0),
+      new THREE.Vector3(0.49, 0.3, 0),
+      new THREE.Vector3(0.395, 0.6, 0),
+    ]),
+    4,
+    0.008,
+    3,
+    false,
+  );
+  const barrelBungGeometry = new THREE.CylinderGeometry(0.055, 0.065, 0.045, 6);
   [
     [60, -17], [23, 17], [-2, 31], [37, 55], [43, 58],
-  ].forEach(([x, z]) => {
+  ].forEach(([x, z], barrelIndex) => {
     const barrel = new THREE.Group();
     barrel.position.set(x, 0.63, z);
     barrel.name = "Coopered barrel";
     root.add(barrel);
+    objectRenderBudget.barrels.instances += 1;
     const body = new THREE.Mesh(barrelGeometry, timber);
     body.castShadow = body.receiveShadow = true;
     body.name = "Bulging barrel staves";
     barrel.add(body);
+    objectRenderBudget.barrels.bodies += 1;
+    objectRenderBudget.barrels.staticTriangles += geometryTriangles(barrelGeometry);
     for (const y of [-0.6, 0.6]) {
       const lid = new THREE.Mesh(barrelLidGeometry, darkTimber);
       lid.position.y = y;
       lid.name = "Recessed barrel head";
       barrel.add(lid);
+      objectRenderBudget.barrels.heads += 1;
+      objectRenderBudget.barrels.staticTriangles += geometryTriangles(barrelLidGeometry);
     }
     for (const y of [-0.4, 0, 0.4]) {
-      const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.485 + (y === 0 ? 0.035 : 0), 0.032, 6, 18), agedIron);
+      const hoopGeometry = y === 0 ? barrelBellyHoopGeometry : barrelHoopGeometry;
+      const hoop = new THREE.Mesh(hoopGeometry, agedIron);
       hoop.rotation.x = Math.PI / 2;
       hoop.position.y = y;
       hoop.name = "Barrel iron hoop";
       barrel.add(hoop);
+      objectRenderBudget.barrels.hoops += 1;
+      objectRenderBudget.barrels.staticTriangles += geometryTriangles(hoopGeometry);
     }
+    for (let stave = 0; stave < 8; stave += 1) {
+      const seam = new THREE.Mesh(barrelSeamGeometry, darkTimber);
+      seam.rotation.y = stave * Math.PI / 4;
+      seam.name = "Curved barrel stave seam";
+      barrel.add(seam);
+      objectRenderBudget.barrels.staveSeams += 1;
+      objectRenderBudget.barrels.staticTriangles += geometryTriangles(barrelSeamGeometry);
+    }
+    const bungAngle = barrelIndex * 1.17 + 0.35;
+    const bungDirection = new THREE.Vector3(Math.cos(bungAngle), 0, Math.sin(bungAngle));
+    const bung = new THREE.Mesh(barrelBungGeometry, darkTimber);
+    bung.position.set(bungDirection.x * 0.512, 0.12, bungDirection.z * 0.512);
+    bung.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bungDirection);
+    bung.name = "Inset barrel bung";
+    barrel.add(bung);
+    objectRenderBudget.barrels.bungs += 1;
+    objectRenderBudget.barrels.staticTriangles += geometryTriangles(barrelBungGeometry);
   });
 
   const wicker = new THREE.MeshStandardMaterial({
